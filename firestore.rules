@@ -6,7 +6,7 @@ service cloud.firestore {
     function isTeamMember(teamId) {
       return request.auth != null && 
              (request.auth.token.team_id == teamId || 
-              request.auth.token.email.endsWith("@aresrobotics.org"));
+              request.auth.token.email.matches(".*@aresrobotics\\.org$"));
     }
 
     // Rules for team-defined robot rosters

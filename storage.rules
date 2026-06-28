@@ -12,7 +12,7 @@ service firebase.storage {
     match /telemetry/{sessionId} {
       allow read, write: if isAuth() && 
         (request.auth.token.team_id != null || 
-         request.auth.token.email.endsWith("@aresrobotics.org"));
+         request.auth.token.email.matches(".*@aresrobotics\\.org$"));
     }
   }
 }

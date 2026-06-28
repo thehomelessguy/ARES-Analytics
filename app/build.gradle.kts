@@ -85,7 +85,7 @@ compose.desktop {
 
             windows {
                 menuGroup = "ARES"
-                upgradeUuid = "a3e5-2324-7000-ares-analytics"
+                upgradeUuid = "a3e52324-7000-4224-8700-1c7b8d9e2a3c"
             }
         }
     }
