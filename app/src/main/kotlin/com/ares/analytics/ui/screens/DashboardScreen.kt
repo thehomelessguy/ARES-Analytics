@@ -232,6 +232,9 @@ fun DashboardScreen(
                 "trends_card" to { _, mod ->
                     TrendsCard(services.databaseService, mod)
                 },
+                "battery_health" to { _, mod ->
+                    BatteryHealthCard(services.databaseService, state.primarySessionId, mod)
+                },
                 "statistics_panel" to { _, mod ->
                     StatisticsPanel(services.databaseService, state.primarySessionId, mod)
                 }
