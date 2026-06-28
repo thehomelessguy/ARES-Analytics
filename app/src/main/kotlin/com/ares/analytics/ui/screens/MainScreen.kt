@@ -99,6 +99,8 @@ fun MainScreen(services: ServiceRegistry) {
         val showCancel = mainState.workspaces.isNotEmpty()
         OnboardingScreen(
             viewModel = onboardingViewModel,
+            teamApiService = services.teamApiService,
+            oauthService = services.oauthService,
             onCancel = if (showCancel) { { mainViewModel.onIntent(MainIntent.CancelAddNewWorkspace) } } else null
         )
         return
@@ -497,6 +499,11 @@ fun MainScreen(services: ServiceRegistry) {
                                 onConfigChanged = { newConfig ->
                                     mainViewModel.onIntent(MainIntent.SaveConfig(newConfig))
                                 }
+                            )
+                            NavigationTarget.ADMIN -> AdminScreen(
+                                teamApiService = services.teamApiService,
+                                oauthService = services.oauthService,
+                                config = currentConfig
                             )
                         }
                     }

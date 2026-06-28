@@ -74,6 +74,55 @@ fun Route.archiveRoutes(
                 call.respond(HttpStatusCode.InternalServerError, "Sync processing error: ${e.message}")
             }
         }
+
+        get("/api/team/{teamId}/robots") {
+            val teamId = call.parameters["teamId"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing teamId")
+            try {
+                val db = customFirestore ?: FirestoreOptions.getDefaultInstance().service
+                val querySnapshot = db.collection("teams").document(teamId).collection("robots").get().get()
+                val robotsList = querySnapshot.documents.map { doc ->
+                    val data = doc.data
+                    RobotProfile(
+                        robotId = doc.id,
+                        league = League.valueOf(data["league"] as? String ?: "FTC"),
+                        seasonId = data["seasonId"] as? String ?: "",
+                        name = data["name"] as? String ?: doc.id
+                    )
+                }
+                call.respond(TeamRobotsResponse(robotsList))
+            } catch (e: Exception) {
+                call.respond(HttpStatusCode.InternalServerError, "Failed to load team robots: ${e.message}")
+            }
+        }
+
+        post("/api/team/robots/add") {
+            val req = call.receive<AddRobotRequest>()
+            try {
+                val db = customFirestore ?: FirestoreOptions.getDefaultInstance().service
+                val docRef = db.collection("teams").document(req.teamId).collection("robots").document(req.robot.robotId)
+                val robotMap = mapOf(
+                    "league" to req.robot.league.name,
+                    "seasonId" to req.robot.seasonId,
+                    "name" to req.robot.name
+                )
+                docRef.set(robotMap).get()
+                call.respond(HttpStatusCode.OK, "Robot profile added successfully")
+            } catch (e: Exception) {
+                call.respond(HttpStatusCode.InternalServerError, "Failed to add robot: ${e.message}")
+            }
+        }
+
+        post("/api/team/robots/delete") {
+            val req = call.receive<DeleteRobotRequest>()
+            try {
+                val db = customFirestore ?: FirestoreOptions.getDefaultInstance().service
+                val docRef = db.collection("teams").document(req.teamId).collection("robots").document(req.robotId)
+                docRef.delete().get()
+                call.respond(HttpStatusCode.OK, "Robot profile deleted successfully")
+            } catch (e: Exception) {
+                call.respond(HttpStatusCode.InternalServerError, "Failed to delete robot: ${e.message}")
+            }
+        }
     }
 }
 

@@ -35,7 +35,8 @@ enum class NavigationTarget(val label: String, val icon: ImageVector) {
     SYSID("SysId", Icons.Default.Analytics),
     TUNING("Tuning", Icons.Default.Tune),
     TRIAGE("Pit Triage", Icons.Default.Build),
-    PROFILE("Profile", Icons.Default.Person)
+    PROFILE("Profile", Icons.Default.Person),
+    ADMIN("Admin Panel", Icons.Default.SupervisorAccount)
 }
 
 @Composable
@@ -81,7 +82,7 @@ internal fun Sidebar(
             Spacer(Modifier.height(12.dp))
 
             // Navigation icons
-            NavigationTarget.entries.filter { it != NavigationTarget.PROFILE }.forEach { target ->
+            NavigationTarget.entries.filter { it != NavigationTarget.PROFILE && it != NavigationTarget.ADMIN }.forEach { target ->
                 SidebarIcon(
                     target = target,
                     isActive = activeTarget == target,
@@ -113,6 +114,12 @@ internal fun Sidebar(
                     ConnectionIndicator(connected = adbConnected, label = "ADB", activeColor = AresCyan)
                 }
             }
+
+            SidebarIcon(
+                target = NavigationTarget.ADMIN,
+                isActive = activeTarget == NavigationTarget.ADMIN,
+                onClick = { onNavigate(NavigationTarget.ADMIN) }
+            )
 
             SidebarIcon(
                 target = NavigationTarget.PROFILE,

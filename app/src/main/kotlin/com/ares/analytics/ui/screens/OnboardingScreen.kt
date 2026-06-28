@@ -20,6 +20,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ares.analytics.shared.League
+import com.ares.analytics.shared.RobotProfile
+import com.ares.analytics.service.AuthState
+import com.ares.analytics.service.OAuthService
+import com.ares.analytics.service.TeamApiService
 import com.ares.analytics.ui.theme.*
 import com.ares.analytics.viewmodel.OnboardingIntent
 import com.ares.analytics.viewmodel.OnboardingState
@@ -30,10 +34,14 @@ import javax.swing.JFileChooser
 @Composable
 fun OnboardingScreen(
     viewModel: OnboardingViewModel,
+    teamApiService: TeamApiService,
+    oauthService: OAuthService,
     onCancel: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.state.collectAsState()
+    val scope = rememberCoroutineScope()
+    val authState by oauthService.authState.collectAsState()
 
     var projectPath by remember { mutableStateOf("") }
     var teamId by remember { mutableStateOf("") }
@@ -41,6 +49,26 @@ fun OnboardingScreen(
     var robotId by remember { mutableStateOf("") }
     var league by remember { mutableStateOf(League.FTC) }
     var nt4Host by remember { mutableStateOf("192.168.43.1") }
+
+    var cloudRobots by remember { mutableStateOf<List<RobotProfile>>(emptyList()) }
+    var isCloudLoading by remember { mutableStateOf(false) }
+
+    val token = (authState as? AuthState.Authenticated)?.firebaseToken
+
+    LaunchedEffect(teamId, token) {
+        if (teamId.isNotEmpty() && token != null) {
+            isCloudLoading = true
+            try {
+                cloudRobots = teamApiService.fetchTeamRobots(teamId, token)
+            } catch (e: Exception) {
+                cloudRobots = emptyList()
+            } finally {
+                isCloudLoading = false
+            }
+        } else {
+            cloudRobots = emptyList()
+        }
+    }
 
     // Sync from state initially
     LaunchedEffect(state.projectPath) {
@@ -115,6 +143,80 @@ fun OnboardingScreen(
                     lineHeight = 20.sp
                 )
 
+                // Google Auth Status Card for Cloud Roster access
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = AresSurfaceElevated),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, AresBorder),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (authState is AuthState.Authenticated) {
+                            val user = authState as AuthState.Authenticated
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CloudDone,
+                                    contentDescription = null,
+                                    tint = AresGreen
+                                )
+                                Column {
+                                    Text(
+                                        "Connected to Cloud Roster",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = AresTextPrimary
+                                    )
+                                    Text(
+                                        "Signed in as ${user.displayName}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = AresTextSecondary
+                                    )
+                                }
+                            }
+                        } else {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CloudOff,
+                                    contentDescription = null,
+                                    tint = AresTextTertiary
+                                )
+                                Column {
+                                    Text(
+                                        "Offline Setup Mode",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = AresTextPrimary
+                                    )
+                                    Text(
+                                        "Sign in to load official team robots.",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = AresTextSecondary
+                                    )
+                                }
+                            }
+
+                            Button(
+                                onClick = { oauthService.startGoogleLogin(googleClientId = "mock") },
+                                colors = ButtonDefaults.buttonColors(containerColor = AresCyan),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Text("Sign In", color = AresBackground, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            }
+                        }
+                    }
+                }
+
                 Divider(color = AresBorder, thickness = 1.dp)
 
                 // Input fields
@@ -171,15 +273,18 @@ fun OnboardingScreen(
                         }
                     }
 
-                    // Row of Team, Season, Robot IDs
+                    // Row of Team ID & Robot Profile Selector
+                    var selectedOptionText by remember { mutableStateOf("Select Robot Profile...") }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         OutlinedTextField(
                             value = teamId,
                             onValueChange = {
                                 teamId = it
+                                selectedOptionText = "Select Robot Profile..."
                                 viewModel.handleIntent(OnboardingIntent.UpdateFields(projectPath, teamId, seasonId, robotId, league, nt4Host))
                             },
                             label = { Text("Team ID", color = AresTextSecondary) },
@@ -194,108 +299,213 @@ fun OnboardingScreen(
                             singleLine = true
                         )
 
-                        OutlinedTextField(
-                            value = seasonId,
-                            onValueChange = {
-                                seasonId = it
-                                viewModel.handleIntent(OnboardingIntent.UpdateFields(projectPath, teamId, seasonId, robotId, league, nt4Host))
-                            },
-                            label = { Text("Season ID", color = AresTextSecondary) },
-                            placeholder = { Text("2026", color = AresTextTertiary) },
-                            textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
-                            modifier = Modifier.weight(1f),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = AresCyan,
-                                unfocusedBorderColor = AresBorder,
-                                focusedLabelColor = AresCyan
-                            ),
-                            singleLine = true
-                        )
+                        if (cloudRobots.isNotEmpty()) {
+                            var dropdownExpanded by remember { mutableStateOf(false) }
+                            Box(modifier = Modifier.weight(1f)) {
+                                OutlinedTextField(
+                                    value = selectedOptionText,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text("Robot Profile", color = AresTextSecondary) },
+                                    textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresCyan),
+                                    modifier = Modifier.fillMaxWidth().clickable { dropdownExpanded = true },
+                                    enabled = false,
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        disabledTextColor = AresCyan,
+                                        disabledBorderColor = AresBorder,
+                                        disabledLabelColor = AresTextSecondary
+                                    ),
+                                    trailingIcon = {
+                                        Icon(imageVector = Icons.Default.ArrowDropDown, contentDescription = null, tint = AresTextSecondary)
+                                    }
+                                )
 
-                        OutlinedTextField(
-                            value = robotId,
-                            onValueChange = {
-                                robotId = it
-                                viewModel.handleIntent(OnboardingIntent.UpdateFields(projectPath, teamId, seasonId, robotId, league, nt4Host))
-                            },
-                            label = { Text("Robot ID", color = AresTextSecondary) },
-                            placeholder = { Text("AresIII", color = AresTextTertiary) },
-                            textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
-                            modifier = Modifier.weight(1f),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = AresCyan,
-                                unfocusedBorderColor = AresBorder,
-                                focusedLabelColor = AresCyan
-                            ),
-                            singleLine = true
-                        )
-                    }
-
-                    // League and NT Host row
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // League selector
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("League Type", style = MaterialTheme.typography.labelSmall, color = AresTextSecondary)
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 4.dp)
-                                    .border(1.dp, AresBorder, RoundedCornerShape(8.dp))
-                                    .clip(RoundedCornerShape(8.dp))
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .background(if (league == League.FTC) AresCyanGlow else Color.Transparent)
-                                        .clickable {
+                                DropdownMenu(
+                                    expanded = dropdownExpanded,
+                                    onDismissRequest = { dropdownExpanded = false },
+                                    modifier = Modifier.background(AresSurfaceElevated).border(1.dp, AresBorder)
+                                ) {
+                                    cloudRobots.forEach { robot ->
+                                        DropdownMenuItem(
+                                            text = {
+                                                Column {
+                                                    Text(robot.name, color = AresTextPrimary, fontWeight = FontWeight.Bold)
+                                                    Text("${robot.league.name} • Season ${robot.seasonId}", color = AresTextSecondary, fontSize = 10.sp)
+                                                }
+                                            },
+                                            onClick = {
+                                                selectedOptionText = robot.name
+                                                robotId = robot.robotId
+                                                seasonId = robot.seasonId
+                                                league = robot.league
+                                                viewModel.handleIntent(OnboardingIntent.UpdateFields(projectPath, teamId, seasonId, robotId, league, nt4Host))
+                                                dropdownExpanded = false
+                                            }
+                                        )
+                                    }
+                                    DropdownMenuItem(
+                                        text = { Text("Create Custom Profile (Offline)", color = AresTextSecondary) },
+                                        onClick = {
+                                            selectedOptionText = "Custom Profile (Offline)"
+                                            robotId = ""
+                                            seasonId = "2026"
                                             league = League.FTC
-                                            nt4Host = "192.168.43.1"
                                             viewModel.handleIntent(OnboardingIntent.UpdateFields(projectPath, teamId, seasonId, robotId, league, nt4Host))
+                                            dropdownExpanded = false
                                         }
-                                        .padding(vertical = 12.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("FTC (FIRST Tech)", color = if (league == League.FTC) AresCyan else AresTextSecondary, fontWeight = FontWeight.SemiBold)
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .background(if (league == League.FRC) AresCyanGlow else Color.Transparent)
-                                        .clickable {
-                                            league = League.FRC
-                                            nt4Host = "10.0.0.2" // fallback, let detect default it based on TeamId later
-                                            viewModel.handleIntent(OnboardingIntent.UpdateFields(projectPath, teamId, seasonId, robotId, league, nt4Host))
-                                            viewModel.handleIntent(OnboardingIntent.DetectLeague) // triggers TeamId based override
-                                        }
-                                        .padding(vertical = 12.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("FRC (FIRST Robotics)", color = if (league == League.FRC) AresCyan else AresTextSecondary, fontWeight = FontWeight.SemiBold)
+                                    )
                                 }
                             }
                         }
+                    }
 
-                        // NT Host
-                        OutlinedTextField(
-                            value = nt4Host,
-                            onValueChange = {
-                                nt4Host = it
-                                viewModel.handleIntent(OnboardingIntent.UpdateFields(projectPath, teamId, seasonId, robotId, league, nt4Host))
-                            },
-                            label = { Text("NT4 Host Address", color = AresTextSecondary) },
-                            textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
-                            modifier = Modifier.weight(1f),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = AresCyan,
-                                unfocusedBorderColor = AresBorder,
-                                focusedLabelColor = AresCyan
-                            ),
-                            singleLine = true
-                        )
+                    if (cloudRobots.isEmpty() || selectedOptionText == "Custom Profile (Offline)") {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = seasonId,
+                                onValueChange = {
+                                    seasonId = it
+                                    viewModel.handleIntent(OnboardingIntent.UpdateFields(projectPath, teamId, seasonId, robotId, league, nt4Host))
+                                },
+                                label = { Text("Season ID", color = AresTextSecondary) },
+                                placeholder = { Text("2026", color = AresTextTertiary) },
+                                textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
+                                modifier = Modifier.weight(1f),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = AresCyan,
+                                    unfocusedBorderColor = AresBorder,
+                                    focusedLabelColor = AresCyan
+                                ),
+                                singleLine = true
+                            )
+
+                            OutlinedTextField(
+                                value = robotId,
+                                onValueChange = {
+                                    robotId = it
+                                    viewModel.handleIntent(OnboardingIntent.UpdateFields(projectPath, teamId, seasonId, robotId, league, nt4Host))
+                                },
+                                label = { Text("Robot ID", color = AresTextSecondary) },
+                                placeholder = { Text("AresIII", color = AresTextTertiary) },
+                                textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
+                                modifier = Modifier.weight(1f),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = AresCyan,
+                                    unfocusedBorderColor = AresBorder,
+                                    focusedLabelColor = AresCyan
+                                ),
+                                singleLine = true
+                            )
+                        }
+
+                        // League and NT Host row
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // League selector
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("League Type", style = MaterialTheme.typography.labelSmall, color = AresTextSecondary)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 4.dp)
+                                        .border(1.dp, AresBorder, RoundedCornerShape(8.dp))
+                                        .clip(RoundedCornerShape(8.dp))
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .background(if (league == League.FTC) AresCyanGlow else Color.Transparent)
+                                            .clickable {
+                                                league = League.FTC
+                                                nt4Host = "192.168.43.1"
+                                                viewModel.handleIntent(OnboardingIntent.UpdateFields(projectPath, teamId, seasonId, robotId, league, nt4Host))
+                                            }
+                                            .padding(vertical = 12.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text("FTC (FIRST Tech)", color = if (league == League.FTC) AresCyan else AresTextSecondary, fontWeight = FontWeight.SemiBold)
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .background(if (league == League.FRC) AresCyanGlow else Color.Transparent)
+                                            .clickable {
+                                                league = League.FRC
+                                                nt4Host = "10.0.0.2"
+                                                viewModel.handleIntent(OnboardingIntent.UpdateFields(projectPath, teamId, seasonId, robotId, league, nt4Host))
+                                                viewModel.handleIntent(OnboardingIntent.DetectLeague)
+                                            }
+                                            .padding(vertical = 12.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text("FRC (FIRST Robotics)", color = if (league == League.FRC) AresCyan else AresTextSecondary, fontWeight = FontWeight.SemiBold)
+                                    }
+                                }
+                            }
+
+                            // NT Host
+                            OutlinedTextField(
+                                value = nt4Host,
+                                onValueChange = {
+                                    nt4Host = it
+                                    viewModel.handleIntent(OnboardingIntent.UpdateFields(projectPath, teamId, seasonId, robotId, league, nt4Host))
+                                },
+                                label = { Text("NT4 Host Address", color = AresTextSecondary) },
+                                textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
+                                modifier = Modifier.weight(1f),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = AresCyan,
+                                    unfocusedBorderColor = AresBorder,
+                                    focusedLabelColor = AresCyan
+                                ),
+                                singleLine = true
+                            )
+                        }
+                    } else {
+                        // Profile summary block & NT Host row
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Card(
+                                modifier = Modifier.weight(1f),
+                                colors = CardDefaults.cardColors(containerColor = AresSurfaceElevated),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, AresCyan.copy(alpha = 0.3f)),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Text("Roster Specs", fontSize = 10.sp, color = AresTextSecondary, fontWeight = FontWeight.Bold)
+                                    Spacer(Modifier.height(4.dp))
+                                    Text("$robotId (${league.name})", color = AresCyan, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    Text("Season $seasonId", color = AresTextSecondary, fontSize = 10.sp)
+                                }
+                            }
+
+                            // NT Host
+                            OutlinedTextField(
+                                value = nt4Host,
+                                onValueChange = {
+                                    nt4Host = it
+                                    viewModel.handleIntent(OnboardingIntent.UpdateFields(projectPath, teamId, seasonId, robotId, league, nt4Host))
+                                },
+                                label = { Text("NT4 Host Address", color = AresTextSecondary) },
+                                textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
+                                modifier = Modifier.weight(1f),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = AresCyan,
+                                    unfocusedBorderColor = AresBorder,
+                                    focusedLabelColor = AresCyan
+                                ),
+                                singleLine = true
+                            )
+                        }
                     }
                 }
 
