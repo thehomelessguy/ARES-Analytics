@@ -1,0 +1,67 @@
+package com.ares.analytics.service
+
+import kotlinx.coroutines.test.runTest
+import java.io.File
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+
+class LayoutPreferenceServiceTest {
+
+    @Test
+    fun testDefaultLayouts() {
+        val tempDir = File(System.getProperty("java.io.tmpdir"), "ares_layout_test_default")
+        val service = LayoutPreferenceService(tempDir.absolutePath)
+
+        val programmerLayout = service.getDefaultLayout("programmer")
+        assertTrue(programmerLayout.widgets.isNotEmpty())
+        assertTrue(programmerLayout.widgets.any { it.type == "telemetry_chart" })
+
+        val driverCoachLayout = service.getDefaultLayout("driver_coach")
+        assertTrue(driverCoachLayout.widgets.any { it.type == "match_schedule" })
+
+        val pitCrewLayout = service.getDefaultLayout("pit_crew")
+        assertTrue(pitCrewLayout.widgets.any { it.type == "ai_coach" })
+    }
+
+    @Test
+    fun testSaveAndLoadLayout() = runTest {
+        val tempDir = File(System.getProperty("java.io.tmpdir"), "ares_layout_test_save")
+        tempDir.mkdirs()
+        val service = LayoutPreferenceService(tempDir.absolutePath)
+
+        val customWidgets = listOf(
+            WidgetConfig("chart_1", "telemetry_chart", 0, 0, 2, 2)
+        )
+        val config = DashboardLayoutConfig(customWidgets)
+
+        service.saveLayout("custom_profile", config)
+
+        val loaded = service.loadLayout("custom_profile")
+        assertEquals(1, loaded.widgets.size)
+        assertEquals("chart_1", loaded.widgets.first().id)
+        assertEquals("telemetry_chart", loaded.widgets.first().type)
+
+        // Cleanup
+        File(tempDir, "custom_profile.json").delete()
+        tempDir.delete()
+    }
+
+    @Test
+    fun testGetAvailableLayouts() = runTest {
+        val tempDir = File(System.getProperty("java.io.tmpdir"), "ares_layout_test_list")
+        tempDir.mkdirs()
+        val service = LayoutPreferenceService(tempDir.absolutePath)
+
+        val config = DashboardLayoutConfig(emptyList())
+        service.saveLayout("Custom Team Layout", config)
+
+        val available = service.getAvailableLayouts()
+        assertTrue(available.contains("Standard"))
+        assertTrue(available.contains("Custom Team Layout"))
+
+        // Cleanup
+        File(tempDir, "custom_team_layout.json").delete()
+        tempDir.delete()
+    }
+}

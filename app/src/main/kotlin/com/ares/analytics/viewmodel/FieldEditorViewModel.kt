@@ -1,0 +1,245 @@
+package com.ares.analytics.viewmodel
+
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.res.loadImageBitmap
+import com.ares.analytics.shared.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import java.io.File
+
+data class FieldEditorState(
+    val fieldImage: ImageBitmap? = null,
+    val fieldImageConfig: FieldImageConfig = FieldImageConfig(),
+    val obstacles: List<Obstacle> = emptyList(),
+    val gamePieces: List<GamePiece> = emptyList(),
+    val saveStatus: String = "",
+    val widthText: String = "",
+    val heightText: String = "",
+    val selectedElement: String? = null,
+    val isLoading: Boolean = false,
+    val errorMessage: String? = null
+)
+
+sealed class FieldEditorIntent {
+    data class LoadConfig(val projectPath: String?, val league: League) : FieldEditorIntent()
+    data class SaveObstacles(val projectPath: String?, val league: League) : FieldEditorIntent()
+    data class SaveGamePieces(val projectPath: String?, val league: League) : FieldEditorIntent()
+    data class ImportFieldImage(val imageFile: File, val projectPath: String?, val league: League) : FieldEditorIntent()
+    data class UpdateFieldImageConfig(val config: FieldImageConfig, val projectPath: String?, val league: League) : FieldEditorIntent()
+    data class AddObstacle(val obstacle: Obstacle) : FieldEditorIntent()
+    data class UpdateObstacle(val index: Int, val obstacle: Obstacle) : FieldEditorIntent()
+    data class DeleteObstacle(val index: Int) : FieldEditorIntent()
+    data class AddGamePiece(val piece: GamePiece) : FieldEditorIntent()
+    data class UpdateGamePiece(val index: Int, val piece: GamePiece) : FieldEditorIntent()
+    data class DeleteGamePiece(val index: Int) : FieldEditorIntent()
+    data class SelectElement(val elementId: String?) : FieldEditorIntent()
+    object ClearSaveStatus : FieldEditorIntent()
+    data class SetObstacles(val obstacles: List<Obstacle>) : FieldEditorIntent()
+    data class SetGamePieces(val gamePieces: List<GamePiece>) : FieldEditorIntent()
+}
+
+class FieldEditorViewModel(
+    private val scope: CoroutineScope
+) {
+    private val _state = MutableStateFlow(FieldEditorState())
+    val state: StateFlow<FieldEditorState> = _state.asStateFlow()
+
+    fun onIntent(intent: FieldEditorIntent) {
+        scope.launch {
+            when (intent) {
+                is FieldEditorIntent.LoadConfig -> {
+                    val projectPath = intent.projectPath
+                    val league = intent.league
+                    _state.update { it.copy(isLoading = true, errorMessage = null) }
+                    if (!projectPath.isNullOrEmpty()) {
+                        try {
+                            withContext(Dispatchers.IO) {
+                                val relativePathsDir = if (league == League.FTC) "src/main/assets/paths" else "src/main/deploy/paths"
+                                val obsFile = File(File(projectPath, relativePathsDir), "obstacles.json")
+                                val loadedObstacles = if (obsFile.exists()) {
+                                    Json.decodeFromString<List<Obstacle>>(obsFile.readText())
+                                } else {
+                                    emptyList()
+                                }
+
+                                val gpFile = File(File(projectPath, relativePathsDir), "game_pieces.json")
+                                val loadedGamePieces = if (gpFile.exists()) {
+                                    Json.decodeFromString<List<GamePiece>>(gpFile.readText())
+                                } else {
+                                    emptyList()
+                                }
+
+                                val relativeDir = if (league == League.FTC) "src/main/assets" else "src/main/deploy"
+                                val targetDir = File(projectPath, relativeDir)
+                                val imgFile = File(targetDir, "field_image.png")
+                                val loadedBitmap = if (imgFile.exists()) {
+                                    imgFile.inputStream().use { loadImageBitmap(it) }
+                                } else {
+                                    null
+                                }
+
+                                val configFile = File(targetDir, "field_image_config.json")
+                                val loadedConfig = if (configFile.exists()) {
+                                    Json.decodeFromString<FieldImageConfig>(configFile.readText())
+                                } else {
+                                    val defaultW = if (league == League.FTC) 3.65 else 16.5
+                                    val defaultH = if (league == League.FTC) 3.65 else 8.2
+                                    FieldImageConfig(widthMeters = defaultW, heightMeters = defaultH)
+                                }
+
+                                _state.update {
+                                    it.copy(
+                                        obstacles = loadedObstacles,
+                                        gamePieces = loadedGamePieces,
+                                        fieldImage = loadedBitmap,
+                                        fieldImageConfig = loadedConfig,
+                                        widthText = loadedConfig.widthMeters.toString(),
+                                        heightText = loadedConfig.heightMeters.toString(),
+                                        isLoading = false
+                                    )
+                                }
+                            }
+                        } catch (e: Exception) {
+                            _state.update { it.copy(isLoading = false, errorMessage = e.message ?: "Failed to load field layout config") }
+                        }
+                    } else {
+                        _state.update { it.copy(isLoading = false) }
+                    }
+                }
+                is FieldEditorIntent.SaveObstacles -> {
+                    val projectPath = intent.projectPath
+                    val league = intent.league
+                    val s = _state.value
+                    if (!projectPath.isNullOrEmpty()) {
+                        try {
+                            withContext(Dispatchers.IO) {
+                                val relativeDir = if (league == League.FTC) "src/main/assets/paths" else "src/main/deploy/paths"
+                                val targetDir = File(projectPath, relativeDir)
+                                targetDir.mkdirs()
+                                val targetFile = File(targetDir, "obstacles.json")
+                                val jsonFormat = Json { prettyPrint = true }
+                                targetFile.writeText(jsonFormat.encodeToString(s.obstacles))
+                            }
+                            _state.update { it.copy(saveStatus = "Saved obstacles successfully!") }
+                        } catch (e: Exception) {
+                            _state.update { it.copy(saveStatus = "Failed to save obstacles: ${e.message}") }
+                        }
+                    }
+                }
+                is FieldEditorIntent.SaveGamePieces -> {
+                    val projectPath = intent.projectPath
+                    val league = intent.league
+                    val s = _state.value
+                    if (!projectPath.isNullOrEmpty()) {
+                        try {
+                            withContext(Dispatchers.IO) {
+                                val relativeDir = if (league == League.FTC) "src/main/assets/paths" else "src/main/deploy/paths"
+                                val targetDir = File(projectPath, relativeDir)
+                                targetDir.mkdirs()
+                                val targetFile = File(targetDir, "game_pieces.json")
+                                val jsonFormat = Json { prettyPrint = true }
+                                targetFile.writeText(jsonFormat.encodeToString(s.gamePieces))
+                            }
+                            _state.update { it.copy(saveStatus = "Saved game pieces successfully!") }
+                        } catch (e: Exception) {
+                            _state.update { it.copy(saveStatus = "Failed to save game pieces: ${e.message}") }
+                        }
+                    }
+                }
+                is FieldEditorIntent.ImportFieldImage -> {
+                    val projectPath = intent.projectPath
+                    val league = intent.league
+                    if (!projectPath.isNullOrEmpty()) {
+                        try {
+                            withContext(Dispatchers.IO) {
+                                val relativeDir = if (league == League.FTC) "src/main/assets" else "src/main/deploy"
+                                val targetDir = File(projectPath, relativeDir)
+                                targetDir.mkdirs()
+                                val targetFile = File(targetDir, "field_image.png")
+                                intent.imageFile.copyTo(targetFile, overwrite = true)
+
+                                val bitmap = targetFile.inputStream().use { loadImageBitmap(it) }
+                                _state.update { it.copy(fieldImage = bitmap, saveStatus = "Field image imported successfully!") }
+                            }
+                        } catch (e: Exception) {
+                            _state.update { it.copy(saveStatus = "Failed to import field image: ${e.message}") }
+                        }
+                    }
+                }
+                is FieldEditorIntent.UpdateFieldImageConfig -> {
+                    val projectPath = intent.projectPath
+                    val league = intent.league
+                    val newConfig = intent.config
+                    _state.update { it.copy(fieldImageConfig = newConfig, widthText = newConfig.widthMeters.toString(), heightText = newConfig.heightMeters.toString()) }
+                    if (!projectPath.isNullOrEmpty()) {
+                        try {
+                            withContext(Dispatchers.IO) {
+                                val relativeDir = if (league == League.FTC) "src/main/assets" else "src/main/deploy"
+                                val targetDir = File(projectPath, relativeDir)
+                                targetDir.mkdirs()
+                                val configFile = File(targetDir, "field_image_config.json")
+                                val jsonFormat = Json { prettyPrint = true }
+                                configFile.writeText(jsonFormat.encodeToString(newConfig))
+                            }
+                            _state.update { it.copy(saveStatus = "Field config updated successfully!") }
+                        } catch (e: Exception) {
+                            _state.update { it.copy(saveStatus = "Failed to save field config: ${e.message}") }
+                        }
+                    }
+                }
+                is FieldEditorIntent.AddObstacle -> {
+                    val updated = _state.value.obstacles + intent.obstacle
+                    _state.update { it.copy(obstacles = updated) }
+                }
+                is FieldEditorIntent.UpdateObstacle -> {
+                    val updated = _state.value.obstacles.toMutableList().apply {
+                        set(intent.index, intent.obstacle)
+                    }
+                    _state.update { it.copy(obstacles = updated) }
+                }
+                is FieldEditorIntent.DeleteObstacle -> {
+                    val updated = _state.value.obstacles.toMutableList().apply {
+                        removeAt(intent.index)
+                    }
+                    _state.update { it.copy(obstacles = updated) }
+                }
+                is FieldEditorIntent.AddGamePiece -> {
+                    val updated = _state.value.gamePieces + intent.piece
+                    _state.update { it.copy(gamePieces = updated) }
+                }
+                is FieldEditorIntent.UpdateGamePiece -> {
+                    val updated = _state.value.gamePieces.toMutableList().apply {
+                        set(intent.index, intent.piece)
+                    }
+                    _state.update { it.copy(gamePieces = updated) }
+                }
+                is FieldEditorIntent.DeleteGamePiece -> {
+                    val updated = _state.value.gamePieces.toMutableList().apply {
+                        removeAt(intent.index)
+                    }
+                    _state.update { it.copy(gamePieces = updated) }
+                }
+                is FieldEditorIntent.SelectElement -> {
+                    _state.update { it.copy(selectedElement = intent.elementId) }
+                }
+                is FieldEditorIntent.ClearSaveStatus -> {
+                    _state.update { it.copy(saveStatus = "") }
+                }
+                is FieldEditorIntent.SetObstacles -> {
+                    _state.update { it.copy(obstacles = intent.obstacles) }
+                }
+                is FieldEditorIntent.SetGamePieces -> {
+                    _state.update { it.copy(gamePieces = intent.gamePieces) }
+                }
+            }
+        }
+    }
+}

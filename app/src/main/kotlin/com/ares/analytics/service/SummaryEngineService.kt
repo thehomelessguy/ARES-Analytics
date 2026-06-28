@@ -1,0 +1,106 @@
+package com.ares.analytics.service
+
+import com.ares.analytics.shared.Session
+import com.ares.analytics.shared.SessionSummary
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+class SummaryEngineService(private val databaseService: DatabaseService) {
+
+    suspend fun generateSummary(session: Session): SessionSummary = withContext(Dispatchers.Default) {
+        val frames = databaseService.getTelemetryRange(session.sessionId, 0L, Long.MAX_VALUE)
+
+        var minBattery = Double.MAX_VALUE
+        var maxDrift = 0.0
+        val loopTimes = mutableListOf<Double>()
+        val motorCurrents = mutableMapOf<String, MutableList<Double>>()
+        val visionAcceptanceValues = mutableListOf<Double>()
+
+        for (frame in frames) {
+            val keyLower = frame.key.lowercase()
+
+            // 1. Battery Voltage
+            if (keyLower.contains("voltage") || keyLower.contains("battery")) {
+                if (frame.value > 1.0) { // filter out zero noise
+                    minBattery = minOf(minBattery, frame.value)
+                }
+            }
+
+            // 2. EKF Drift
+            if (keyLower.contains("drift") || keyLower.contains("ekf") || keyLower.contains("poseerror")) {
+                maxDrift = maxOf(maxDrift, frame.value)
+            }
+
+            // 3. Loop Time
+            if (keyLower.contains("loop") || keyLower.contains("period")) {
+                loopTimes.add(frame.value)
+            }
+
+            // 4. Motor Currents
+            if (keyLower.contains("current") && !keyLower.contains("battery")) {
+                // Extract clean motor name from key (e.g., "/Drive/MotorFL/Current" -> "MotorFL")
+                val cleanName = cleanKeyToDeviceName(frame.key)
+                motorCurrents.getOrPut(cleanName) { mutableListOf() }.add(frame.value)
+            }
+
+            // 5. Vision Acceptance
+            if (keyLower.contains("vision") && (keyLower.contains("acceptance") || keyLower.contains("valid") || keyLower.contains("quality"))) {
+                visionAcceptanceValues.add(frame.value)
+            }
+        }
+
+        // Finalize stats
+        val finalMinBattery = if (minBattery == Double.MAX_VALUE) 12.0 else minBattery
+        val avgLoop = if (loopTimes.isNotEmpty()) loopTimes.average() else 0.0
+        val p95Loop = if (loopTimes.isNotEmpty()) {
+            val sorted = loopTimes.sorted()
+            val index = (sorted.size * 0.95).toInt().coerceAtMost(sorted.size - 1)
+            sorted[index]
+        } else 0.0
+
+        val motorCurrentAverages = motorCurrents.mapValues { (_, values) ->
+            if (values.isNotEmpty()) values.average() else 0.0
+        }
+
+        val visionRate = if (visionAcceptanceValues.isNotEmpty()) visionAcceptanceValues.average() else 1.0
+
+        val summary = SessionSummary(
+            sessionId = session.sessionId,
+            teamId = session.teamId,
+            seasonId = session.seasonId,
+            robotId = session.robotId,
+            createdAt = session.createdAt,
+            durationMs = session.durationMs,
+            minBatteryVoltage = finalMinBattery,
+            maxEkfDrift = maxDrift,
+            avgLoopTimeMs = avgLoop,
+            p95LoopTimeMs = p95Loop,
+            motorCurrentAverages = motorCurrentAverages,
+            visionAcceptanceRate = visionRate,
+            tags = session.tags,
+            matchNumber = session.matchNumber,
+            allianceColor = session.allianceColor
+        )
+
+        databaseService.insertSessionSummary(summary)
+        summary
+    }
+
+    private fun cleanKeyToDeviceName(key: String): String {
+        // e.g. "/Drive/MotorFL/Current" -> "MotorFL"
+        // e.g. "Drive/Motors/FrontLeftCurrent" -> "FrontLeft"
+        val parts = key.split("/")
+        if (parts.size >= 2) {
+            val last = parts.last()
+            if (last.lowercase() == "current" || last.lowercase() == "amps") {
+                return parts[parts.size - 2]
+            }
+        }
+        val lastPart = parts.last()
+        return lastPart
+            .replace("current", "", ignoreCase = true)
+            .replace("amps", "", ignoreCase = true)
+            .replace("/", "")
+            .ifEmpty { "Motor" }
+    }
+}

@@ -1,0 +1,127 @@
+package com.ares.analytics.gateway.routes
+
+import com.ares.analytics.shared.*
+import com.google.cloud.firestore.Firestore
+import com.google.cloud.firestore.FirestoreOptions
+import com.google.cloud.storage.BlobInfo
+import com.google.cloud.storage.HttpMethod
+import com.google.cloud.storage.Storage
+import com.google.cloud.storage.StorageOptions
+import io.ktor.http.*
+import io.ktor.server.application.*
+import io.ktor.server.auth.*
+import io.ktor.server.request.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
+import java.util.concurrent.TimeUnit
+
+fun Route.archiveRoutes(
+    customStorage: Storage? = null,
+    customFirestore: Firestore? = null
+) {
+    val storage = customStorage ?: StorageOptions.getDefaultInstance().service
+    val bucketName = System.getenv("GCS_BUCKET_NAME") ?: "ares-analytics-telemetry"
+
+    authenticate("firebase") {
+        post("/api/archive/upload-url") {
+            val req = call.receive<UploadUrlRequest>()
+
+            try {
+                // 1. Save summary metadata to Firestore
+                val db = customFirestore ?: FirestoreOptions.getDefaultInstance().service
+                val docRef = db.collection("summaries").document(req.sessionId)
+                docRef.set(req.summary.toMap()).get()
+
+                // 2. Generate pre-signed GCS URL
+                val blobInfo = BlobInfo.newBuilder(bucketName, "telemetry/${req.sessionId}.parquet").build()
+                val uploadUrl = storage.signUrl(
+                    blobInfo,
+                    15,
+                    TimeUnit.MINUTES,
+                    Storage.SignUrlOption.httpMethod(HttpMethod.PUT)
+                )
+
+                val expiresAt = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(15)
+                call.respond(UploadUrlResponse(uploadUrl.toString(), expiresAt))
+            } catch (e: Exception) {
+                call.respond(HttpStatusCode.InternalServerError, "Failed to provision upload: ${e.message}")
+            }
+        }
+
+        post("/api/archive/sync") {
+            val req = call.receive<SyncRequest>()
+
+            try {
+                // Query all summaries matching teamId and seasonId
+                val db = customFirestore ?: FirestoreOptions.getDefaultInstance().service
+                val querySnapshot = db.collection("summaries")
+                    .whereEqualTo("teamId", req.teamId)
+                    .whereEqualTo("seasonId", req.seasonId)
+                    .get()
+                    .get()
+
+                val cloudSummaries = querySnapshot.documents.map { doc ->
+                    doc.data.toSessionSummary()
+                }
+
+                // Filter to only include those not in local knownSessionIds
+                val missingSummaries = cloudSummaries.filter { summary ->
+                    !req.knownSessionIds.contains(summary.sessionId)
+                }
+
+                call.respond(SyncResponse(missingSummaries))
+            } catch (e: Exception) {
+                call.respond(HttpStatusCode.InternalServerError, "Sync processing error: ${e.message}")
+            }
+        }
+    }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Helper Serialization Extensions for Firestore compatibility
+// ────────────────────────────────────────────────────────────────────────────
+
+private fun SessionSummary.toMap(): Map<String, Any?> {
+    return mapOf(
+        "sessionId" to sessionId,
+        "teamId" to teamId,
+        "seasonId" to seasonId,
+        "robotId" to robotId,
+        "createdAt" to createdAt,
+        "durationMs" to durationMs,
+        "minBatteryVoltage" to minBatteryVoltage,
+        "maxEkfDrift" to maxEkfDrift,
+        "avgLoopTimeMs" to avgLoopTimeMs,
+        "p95LoopTimeMs" to p95LoopTimeMs,
+        "motorCurrentAverages" to motorCurrentAverages,
+        "visionAcceptanceRate" to visionAcceptanceRate,
+        "tags" to tags,
+        "matchNumber" to matchNumber,
+        "allianceColor" to allianceColor
+    )
+}
+
+@Suppress("UNCHECKED_CAST")
+private fun Map<String, Any?>.toSessionSummary(): SessionSummary {
+    val motorCurrents = (get("motorCurrentAverages") as? Map<*, *>)?.map {
+        it.key.toString() to (it.value as? Number)?.toDouble()!!
+    }?.toMap() ?: emptyMap()
+
+    return SessionSummary(
+        sessionId = get("sessionId") as String,
+        teamId = get("teamId") as String,
+        seasonId = get("seasonId") as String,
+        robotId = get("robotId") as String,
+        createdAt = (get("createdAt") as Number).toLong(),
+        durationMs = (get("durationMs") as Number).toLong(),
+        minBatteryVoltage = (get("minBatteryVoltage") as Number).toDouble(),
+        maxEkfDrift = (get("maxEkfDrift") as Number).toDouble(),
+        avgLoopTimeMs = (get("avgLoopTimeMs") as Number).toDouble(),
+        p95LoopTimeMs = (get("p95LoopTimeMs") as Number).toDouble(),
+        motorCurrentAverages = motorCurrents,
+        visionAcceptanceRate = (get("visionAcceptanceRate") as Number).toDouble(),
+        tags = (get("tags") as? List<*>)?.map { it.toString() } ?: emptyList(),
+        matchNumber = (get("matchNumber") as? Number)?.toInt(),
+        allianceColor = get("allianceColor") as? String
+    )
+}

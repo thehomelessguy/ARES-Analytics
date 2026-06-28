@@ -1,0 +1,464 @@
+package com.ares.analytics.service
+
+import com.ares.analytics.shared.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.BufferedReader
+import java.io.File
+import java.io.FileReader
+import java.util.UUID
+import kotlin.math.abs
+import kotlin.math.sqrt
+
+class HootDecoderService(
+    private val databaseService: DatabaseService,
+    private val summaryEngineService: SummaryEngineService,
+    private val sysIdService: SysIdService
+) {
+
+    data class MotorKeys(
+        val motorName: String,
+        val voltageKey: String,
+        val velocityKey: String,
+        val currentKey: String?,
+        val accelKey: String
+    )
+
+    data class SetpointPair(
+        val actualKey: String,
+        val setpointKey: String
+    )
+
+    /**
+     * Discovers CTRE's owlet CLI utility on the system.
+     * Looks in environment path, user home folder, and AdvantageScope's downloaded binaries in AppData.
+     */
+    fun findOwletPath(): File? {
+        val os = System.getProperty("os.name").lowercase()
+        val isWindows = os.contains("win")
+        val exeExtension = if (isWindows) ".exe" else ""
+
+        // Check system path first
+        val pathEnv = System.getenv("PATH") ?: ""
+        val pathDirs = pathEnv.split(File.pathSeparator)
+        for (dirStr in pathDirs) {
+            val dir = File(dirStr)
+            val file = File(dir, "owlet$exeExtension")
+            if (file.exists() && file.canExecute()) {
+                return file
+            }
+        }
+
+        // Check standard directories
+        val pathsToCheck = mutableListOf<File>()
+
+        // 1. AdvantageScope downloaded binaries in AppData
+        val appData = System.getenv("APPDATA")
+        if (appData != null) {
+            pathsToCheck.add(File(appData, "AdvantageScope/owlet"))
+            pathsToCheck.add(File(appData, "AdvantageScope"))
+        }
+        val userHome = System.getProperty("user.home")
+        pathsToCheck.add(File(userHome, "Library/Application Support/AdvantageScope/owlet"))
+        pathsToCheck.add(File(userHome, ".config/AdvantageScope/owlet"))
+        pathsToCheck.add(File(userHome, ".ctre"))
+        pathsToCheck.add(File(userHome, ".ctre/owlet"))
+
+        for (dir in pathsToCheck) {
+            if (dir.exists() && dir.isDirectory) {
+                val files = dir.listFiles { _, name ->
+                    val lower = name.lowercase()
+                    lower.startsWith("owlet") && (exeExtension.isEmpty() || lower.endsWith(exeExtension))
+                }
+                if (files != null && files.isNotEmpty()) {
+                    // Pick the latest one by name/version (e.g. owlet-26.3.0-C19.exe > owlet-25.0.0-C9.exe)
+                    return files.sortedByDescending { it.name }.first()
+                }
+            }
+        }
+        return null
+    }
+
+    /**
+     * Converts the selected `.hoot` binary file into a temporary CSV file,
+     * reads and parses it line-by-line to write into the SQLite database, and runs diagnostics.
+     */
+    suspend fun importHootLog(
+        hootFile: File,
+        teamId: String,
+        seasonId: String,
+        robotId: String
+    ): String = withContext(Dispatchers.IO) {
+        val owletFile = findOwletPath() ?: throw IllegalStateException("owlet CLI tool not found. Please install CTRE tools or AdvantageScope.")
+        
+        val tempCsv = File.createTempFile("hoot_import_", ".csv")
+        tempCsv.deleteOnExit()
+
+        val pb = ProcessBuilder(
+            owletFile.absolutePath,
+            hootFile.absolutePath,
+            tempCsv.absolutePath,
+            "-f",
+            "csv"
+        )
+        
+        val process = pb.start()
+        val exitCode = process.waitFor()
+        if (exitCode != 0) {
+            tempCsv.delete()
+            throw IllegalStateException("owlet CLI failed to convert hoot log. Exit code: $exitCode")
+        }
+
+        val sessionId = "hoot-${UUID.randomUUID()}"
+        
+        // Parse CSV and batch-insert into DB
+        val (firstTime, lastTime, parsedKeys) = parseAndInsertTelemetry(tempCsv, sessionId)
+        
+        val durationMs = lastTime - firstTime
+        if (durationMs <= 0L) {
+            tempCsv.delete()
+            throw IllegalArgumentException("Hoot log file contains no valid timestamp ranges.")
+        }
+
+        // Insert Session record
+        val session = Session(
+            sessionId = sessionId,
+            teamId = teamId,
+            seasonId = seasonId,
+            robotId = robotId,
+            createdAt = firstTime,
+            durationMs = durationMs,
+            tags = listOf("hoot-import")
+        )
+        databaseService.insertSession(session)
+
+        // Generate summary details
+        summaryEngineService.generateSummary(session)
+
+        // Execute Post-Processing diagnostic pipeline
+        runDiagnostics(sessionId, parsedKeys, firstTime, lastTime, durationMs)
+
+        tempCsv.delete()
+        sessionId
+    }
+
+    internal suspend fun parseAndInsertTelemetry(
+        csvFile: File,
+        sessionId: String
+    ): Triple<Long, Long, Set<String>> = withContext(Dispatchers.IO) {
+        var firstTime = 0L
+        var lastTime = 0L
+        val keysSet = mutableSetOf<String>()
+
+        val reader = BufferedReader(FileReader(csvFile))
+        try {
+            val headerLine = reader.readLine() ?: throw IllegalArgumentException("Empty CSV file.")
+            val headers = headerLine.split(",").map { it.trim().replace("\"", "") }
+            if (headers.isEmpty() || !headers[0].lowercase().contains("time")) {
+                throw IllegalArgumentException("Invalid CSV header format: first column must be timestamp")
+            }
+
+            headers.drop(1).forEach { keysSet.add(it) }
+
+            val firstLine = reader.readLine() ?: return@withContext Triple(0L, 0L, emptySet<String>())
+            val secondLine = reader.readLine()
+
+            val parts1 = firstLine.split(",")
+            val t1 = parts1[0].toDoubleOrNull() ?: 0.0
+
+            var scale = 1.0
+            if (secondLine != null) {
+                val parts2 = secondLine.split(",")
+                val t2 = parts2[0].toDoubleOrNull() ?: 0.0
+                val dt = abs(t2 - t1)
+                scale = when {
+                    dt > 1000.0 -> 0.001 // micro to ms
+                    dt < 1.0 -> 1000.0   // seconds to ms
+                    else -> 1.0          // ms
+                }
+            }
+
+            val minTime = (t1 * scale).toLong()
+            firstTime = minTime
+            lastTime = minTime
+
+            val batch = mutableListOf<TelemetryFrame>()
+            
+            suspend fun processParts(parts: List<String>) {
+                val rawTime = parts[0].toDoubleOrNull() ?: return
+                val timeMs = (rawTime * scale).toLong()
+                lastTime = timeMs
+
+                for (i in 1 until minOf(parts.size, headers.size)) {
+                    val valueStr = parts[i].trim()
+                    if (valueStr.isNotEmpty()) {
+                        val value = valueStr.toDoubleOrNull()
+                        if (value != null) {
+                            batch.add(TelemetryFrame(timeMs, sessionId, headers[i], value))
+                        }
+                    }
+                }
+
+                if (batch.size >= 5000) {
+                    databaseService.insertTelemetryFrames(batch)
+                    batch.clear()
+                }
+            }
+
+            processParts(parts1)
+            if (secondLine != null) {
+                processParts(secondLine.split(","))
+            }
+
+            var line: String? = reader.readLine()
+            while (line != null) {
+                val parts = line.split(",")
+                if (parts.isNotEmpty()) {
+                    processParts(parts)
+                }
+                line = reader.readLine()
+            }
+
+            if (batch.isNotEmpty()) {
+                databaseService.insertTelemetryFrames(batch)
+            }
+        } finally {
+            reader.close()
+        }
+
+        Triple(firstTime, lastTime, keysSet)
+    }
+
+    private suspend fun runDiagnostics(
+        sessionId: String,
+        keys: Set<String>,
+        firstTime: Long,
+        lastTime: Long,
+        durationMs: Long
+    ) {
+        val motors = mutableMapOf<String, MotorKeys>()
+        
+        // 1. Detect Motors from voltage and velocity patterns
+        for (key in keys) {
+            val parts = key.split("/")
+            if (parts.size >= 2) {
+                val last = parts.last().lowercase()
+                if (last == "voltage" || last == "appliedoutput" || last == "appliedvolts" || last.contains("motorvoltage")) {
+                    val name = parts[parts.size - 2]
+                    val pathPrefix = parts.dropLast(1).joinToString("/")
+                    
+                    val velKey = keys.firstOrNull { 
+                        it.startsWith(pathPrefix) && (it.endsWith("Velocity") || it.endsWith("VelocityRps") || it.lowercase().contains("speed")) 
+                    }
+                    val currentKey = keys.firstOrNull {
+                        it.startsWith(pathPrefix) && (it.endsWith("Current") || it.endsWith("StatorCurrent") || it.lowercase().contains("amps"))
+                    }
+                    
+                    if (velKey != null) {
+                        motors[name] = MotorKeys(
+                            motorName = name,
+                            voltageKey = key,
+                            velocityKey = velKey,
+                            currentKey = currentKey,
+                            accelKey = "$pathPrefix/Acceleration"
+                        )
+                    }
+                }
+            }
+        }
+
+        // 2. Compute derivative acceleration if missing, and run SysId
+        val sysIdResults = mutableMapOf<String, CalculatedSummary>()
+        for (motor in motors.values) {
+            if (!keys.contains(motor.accelKey)) {
+                val velocities = databaseService.getTelemetryForKey(sessionId, motor.velocityKey)
+                val accelFrames = mutableListOf<TelemetryFrame>()
+                for (i in 1 until velocities.size) {
+                    val prev = velocities[i-1]
+                    val curr = velocities[i]
+                    val dt = (curr.timestampMs - prev.timestampMs) / 1000.0
+                    if (dt > 0.0) {
+                        val accel = (curr.value - prev.value) / dt
+                        accelFrames.add(TelemetryFrame(curr.timestampMs, sessionId, motor.accelKey, accel))
+                    }
+                }
+                databaseService.insertTelemetryFrames(accelFrames)
+            }
+
+            val summary = sysIdService.analyzeMotorData(sessionId, motor.voltageKey, motor.velocityKey, motor.accelKey)
+            if (summary.rSquared > 0.1) {
+                sysIdResults[motor.motorName] = summary
+            }
+        }
+
+        if (sysIdResults.isNotEmpty()) {
+            val report = StringBuilder()
+            report.append("Drive Motor SysId characterization results:\n")
+            for ((name, summary) in sysIdResults) {
+                report.append("- $name: kS = ${"%.4f".format(summary.kS)}, kV = ${"%.4f".format(summary.kV)}, kA = ${"%.4f".format(summary.kA)} (R² = ${"%.2f".format(summary.rSquared)})\n")
+            }
+            val sysIdNote = SessionAnnotation(
+                annotationId = UUID.randomUUID().toString(),
+                sessionId = sessionId,
+                text = report.toString(),
+                createdAt = System.currentTimeMillis(),
+                authorId = "SysId Engine"
+            )
+            databaseService.insertAnnotation(sysIdNote)
+        }
+
+        // 3. PID & Backlash FFT oscillation audit
+        val setpointPairs = mutableListOf<SetpointPair>()
+        for (key in keys) {
+            val lowercase = key.lowercase()
+            if (lowercase.endsWith("setpoint") || lowercase.contains("setpoint") || lowercase.endsWith("target") || lowercase.contains("target")) {
+                val baseKey = keys.firstOrNull { 
+                    it != key && (key.startsWith(it) || it.startsWith(key.replace("setpoint", "", true).replace("target", "", true)))
+                }
+                if (baseKey != null) {
+                    setpointPairs.add(SetpointPair(baseKey, key))
+                }
+            }
+        }
+
+        for (pair in setpointPairs) {
+            val actuals = databaseService.getTelemetryForKey(sessionId, pair.actualKey)
+            val setpoints = databaseService.getTelemetryForKey(sessionId, pair.setpointKey)
+            if (actuals.size >= 32 && setpoints.isNotEmpty()) {
+                val setpointMap = setpoints.associateBy { it.timestampMs }
+                val errorList = mutableListOf<Double>()
+                val timestamps = mutableListOf<Long>()
+                
+                for (act in actuals.sortedBy { it.timestampMs }) {
+                    val spVal = setpointMap[act.timestampMs]?.value ?: setpoints.minByOrNull { abs(it.timestampMs - act.timestampMs) }?.value ?: continue
+                    errorList.add(spVal - act.value)
+                    timestamps.add(act.timestampMs)
+                }
+
+                if (errorList.size >= 32) {
+                    val avgDeltaMs = (timestamps.last() - timestamps.first()).toDouble() / (timestamps.size - 1)
+                    val sampleRateHz = if (avgDeltaMs > 0.0) 1000.0 / avgDeltaMs else 50.0
+                    
+                    val fftResult = sysIdService.performFftAnalysis(errorList.toDoubleArray(), sampleRateHz)
+                    val domFreq = fftResult.dominantFrequency
+                    val maxError = errorList.map { abs(it) }.maxOrNull() ?: 0.0
+
+                    if (maxError > 0.05 && domFreq in 2.0..40.0) {
+                        val alert = AlertRecord(
+                            alertId = UUID.randomUUID().toString(),
+                            sessionId = sessionId,
+                            ruleKey = "/Diagnostics/BacklashFFT/${pair.actualKey}",
+                            triggerTimestampMs = firstTime,
+                            resolveTimestampMs = lastTime,
+                            durationMs = durationMs,
+                            peakValue = domFreq,
+                            triaged = false
+                        )
+                        databaseService.insertAlert(alert)
+                    }
+                }
+            }
+        }
+
+        // 4. Thermal & Stall diagnostics
+        for (motor in motors.values) {
+            val currentKey = motor.currentKey ?: continue
+            val currents = databaseService.getTelemetryForKey(sessionId, currentKey)
+            val velocities = databaseService.getTelemetryForKey(sessionId, motor.velocityKey)
+            
+            if (currents.isEmpty() || velocities.isEmpty()) continue
+
+            val velMap = velocities.associateBy { it.timestampMs }
+            var thermalSum = 0.0
+            var maxStallDurationMs = 0L
+            var currentStallDurationMs = 0L
+            var lastTimeMs = 0L
+            
+            for (currFrame in currents.sortedBy { it.timestampMs }) {
+                val t = currFrame.timestampMs
+                val velFrame = velMap[t] ?: velocities.minByOrNull { abs(it.timestampMs - t) } ?: continue
+                
+                val current = currFrame.value
+                val velocity = velFrame.value
+                
+                if (lastTimeMs > 0L) {
+                    val dt = (t - lastTimeMs) / 1000.0
+                    if (dt > 0.0) {
+                        thermalSum += current * current * 0.05 * dt // I^2 * R * dt, R = 0.05 Ohms
+                        
+                        if (current > 40.0 && abs(velocity) < 0.1) {
+                            currentStallDurationMs += (t - lastTimeMs)
+                            maxStallDurationMs = maxOf(maxStallDurationMs, currentStallDurationMs)
+                        } else {
+                            currentStallDurationMs = 0L
+                        }
+                    }
+                }
+                lastTimeMs = t
+            }
+
+            if (maxStallDurationMs >= 500L) {
+                val alert = AlertRecord(
+                    alertId = UUID.randomUUID().toString(),
+                    sessionId = sessionId,
+                    ruleKey = "/Diagnostics/MotorStall/${motor.motorName}",
+                    triggerTimestampMs = firstTime,
+                    resolveTimestampMs = lastTime,
+                    durationMs = maxStallDurationMs,
+                    peakValue = maxStallDurationMs.toDouble(),
+                    triaged = false
+                )
+                databaseService.insertAlert(alert)
+            }
+
+            if (thermalSum > 10000.0) {
+                val alert = AlertRecord(
+                    alertId = UUID.randomUUID().toString(),
+                    sessionId = sessionId,
+                    ruleKey = "/Diagnostics/ThermalLoad/${motor.motorName}",
+                    triggerTimestampMs = firstTime,
+                    resolveTimestampMs = lastTime,
+                    durationMs = durationMs,
+                    peakValue = thermalSum,
+                    triaged = false
+                )
+                databaseService.insertAlert(alert)
+            }
+        }
+
+        // 5. CAN Jitter analysis on periodic update signals
+        for (key in keys) {
+            val frames = databaseService.getTelemetryForKey(sessionId, key)
+            if (frames.size < 50) continue
+            
+            val deltas = mutableListOf<Double>()
+            var prevTime = 0L
+            for (f in frames.sortedBy { it.timestampMs }) {
+                if (prevTime > 0L) {
+                    deltas.add((f.timestampMs - prevTime).toDouble())
+                }
+                prevTime = f.timestampMs
+            }
+            
+            if (deltas.isEmpty()) continue
+            val avg = deltas.average()
+            val variance = deltas.map { (it - avg) * (it - avg) }.average()
+            val stdDev = sqrt(variance)
+
+            // Flag signals with high jitter (> 8ms standard deviation for signals < 100ms interval)
+            if (stdDev > 8.0 && avg < 100.0) {
+                val alert = AlertRecord(
+                    alertId = UUID.randomUUID().toString(),
+                    sessionId = sessionId,
+                    ruleKey = "/Diagnostics/CANJitter/$key",
+                    triggerTimestampMs = firstTime,
+                    resolveTimestampMs = lastTime,
+                    durationMs = durationMs,
+                    peakValue = stdDev,
+                    triaged = false
+                )
+                databaseService.insertAlert(alert)
+            }
+        }
+    }
+}
