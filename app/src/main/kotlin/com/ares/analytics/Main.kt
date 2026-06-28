@@ -11,6 +11,9 @@ import com.ares.analytics.ui.theme.AresTheme
 import com.ares.analytics.ui.screens.MainScreen
 
 fun main() {
+    // Disable Java Assistive Technology check to prevent crash on Windows systems with screen readers active
+    System.setProperty("javax.accessibility.assistive_technologies", "")
+
     Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
         try {
             val logDir = java.io.File(System.getProperty("user.home") + "/.ares-analytics/logs")
