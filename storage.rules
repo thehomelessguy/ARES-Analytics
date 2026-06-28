@@ -10,9 +10,13 @@ service firebase.storage {
     // Telemetry parquet logs storage path rules
     // Expected metadata contains teamId and seasonId matching user claims
     match /telemetry/{sessionId} {
-      allow read, write: if isAuth() && 
+      allow read: if isAuth() && 
         (request.auth.token.team_id != null || 
          request.auth.token.email.matches(".*@aresrobotics\\.org$"));
+      allow write: if isAuth() && 
+        (request.auth.token.team_id != null || 
+         request.auth.token.email.matches(".*@aresrobotics\\.org$")) &&
+        request.resource.size < 50 * 1024 * 1024; // 50MB file size limit to prevent Denial of Wallet
     }
   }
 }
