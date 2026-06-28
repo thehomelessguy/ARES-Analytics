@@ -4,9 +4,7 @@ service cloud.firestore {
     
     // Helper to check if user is authenticated and belongs to the specified team
     function isTeamMember(teamId) {
-      return request.auth != null && 
-             (request.auth.token.team_id == teamId || 
-              request.auth.token.email.matches(".*@aresrobotics\\.org$"));
+      return request.auth != null && request.auth.token.team_id == teamId;
     }
 
     // Rules for team-defined robot rosters
