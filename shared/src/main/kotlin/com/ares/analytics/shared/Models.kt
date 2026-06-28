@@ -17,7 +17,8 @@ data class WorkspaceConfig(
     val nt4Host: String? = null,
     val eventCode: String? = null,
     val toaApiKey: String? = null,
-    val tbaApiKey: String? = null
+    val tbaApiKey: String? = null,
+    val googleClientId: String? = null
 )
 
 @Serializable

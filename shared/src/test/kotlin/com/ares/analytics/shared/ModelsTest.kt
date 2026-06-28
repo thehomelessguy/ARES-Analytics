@@ -16,7 +16,8 @@ class ModelsTest {
             robotId = "ares-bot",
             projectPath = "/home/user/ares",
             league = League.FTC,
-            nt4Host = "192.168.43.1"
+            nt4Host = "192.168.43.1",
+            googleClientId = "my-gcp-client-id"
         )
 
         val json = Json.encodeToString(config)
@@ -25,6 +26,7 @@ class ModelsTest {
         assertEquals(config.teamId, decoded.teamId)
         assertEquals(config.league, decoded.league)
         assertEquals(config.nt4Host, decoded.nt4Host)
+        assertEquals("my-gcp-client-id", decoded.googleClientId)
     }
 
     @Test

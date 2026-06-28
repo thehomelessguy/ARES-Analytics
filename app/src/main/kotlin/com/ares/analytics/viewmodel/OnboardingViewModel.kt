@@ -18,6 +18,7 @@ data class OnboardingState(
     val robotId: String = "",
     val league: League = League.FTC,
     val nt4Host: String = "192.168.43.1",
+    val googleClientId: String = "",
     val isVerifyingJava: Boolean = false,
     val javaEnvValid: Boolean? = null,
     val javaEnvMsg: String = "",
@@ -33,7 +34,8 @@ sealed class OnboardingIntent {
         val seasonId: String,
         val robotId: String,
         val league: League,
-        val nt4Host: String
+        val nt4Host: String,
+        val googleClientId: String
     ) : OnboardingIntent()
     object DetectLeague : OnboardingIntent()
     object VerifyJava : OnboardingIntent()
@@ -63,7 +65,8 @@ class OnboardingViewModel(
                             seasonId = intent.seasonId,
                             robotId = intent.robotId,
                             league = intent.league,
-                            nt4Host = intent.nt4Host
+                            nt4Host = intent.nt4Host,
+                            googleClientId = intent.googleClientId
                         )
                     }
                 }
@@ -113,7 +116,8 @@ class OnboardingViewModel(
                             robotId = currentState.robotId,
                             projectPath = currentState.projectPath,
                             league = currentState.league,
-                            nt4Host = currentState.nt4Host.takeIf { it.isNotEmpty() }
+                            nt4Host = currentState.nt4Host.takeIf { it.isNotEmpty() },
+                            googleClientId = currentState.googleClientId.takeIf { it.isNotEmpty() }
                         )
                         environmentService.saveConfig(config)
                         _state.update { it.copy(isSaving = false, saveSuccess = true) }

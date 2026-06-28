@@ -48,12 +48,26 @@ fun OnboardingScreen(
     var seasonId by remember { mutableStateOf("") }
     var robotId by remember { mutableStateOf("") }
     var league by remember { mutableStateOf(League.FTC) }
+    var googleClientId by remember { mutableStateOf("") }
     var nt4Host by remember { mutableStateOf("192.168.43.1") }
-
     var cloudRobots by remember { mutableStateOf<List<RobotProfile>>(emptyList()) }
     var isCloudLoading by remember { mutableStateOf(false) }
 
     val token = (authState as? AuthState.Authenticated)?.firebaseToken
+
+    val updateFields = {
+        viewModel.handleIntent(
+            OnboardingIntent.UpdateFields(
+                projectPath = projectPath,
+                teamId = teamId,
+                seasonId = seasonId,
+                robotId = robotId,
+                league = league,
+                nt4Host = nt4Host,
+                googleClientId = googleClientId
+            )
+        )
+    }
 
     LaunchedEffect(teamId, token) {
         if (teamId.isNotEmpty() && token != null) {
@@ -73,6 +87,10 @@ fun OnboardingScreen(
     // Sync from state initially
     LaunchedEffect(state.projectPath) {
         if (state.projectPath.isNotEmpty()) projectPath = state.projectPath
+        if (state.teamId.isNotEmpty()) teamId = state.teamId
+        if (state.seasonId.isNotEmpty()) seasonId = state.seasonId
+        if (state.robotId.isNotEmpty()) robotId = state.robotId
+        if (state.googleClientId.isNotEmpty()) googleClientId = state.googleClientId
     }
 
     Box(
@@ -203,11 +221,27 @@ fun OnboardingScreen(
                                         style = MaterialTheme.typography.labelSmall,
                                         color = AresTextSecondary
                                     )
+                                    Spacer(Modifier.height(6.dp))
+                                    OutlinedTextField(
+                                        value = googleClientId,
+                                        onValueChange = {
+                                            googleClientId = it
+                                            updateFields()
+                                        },
+                                        placeholder = { Text("GCP Client ID (Optional)", fontSize = 10.sp, color = AresTextTertiary) },
+                                        textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary, fontSize = 10.sp),
+                                        modifier = Modifier.width(180.dp).height(38.dp),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedBorderColor = AresCyan,
+                                            unfocusedBorderColor = AresBorder
+                                        ),
+                                        singleLine = true
+                                    )
                                 }
                             }
 
                             Button(
-                                onClick = { oauthService.startGoogleLogin(googleClientId = "mock") },
+                                onClick = { oauthService.startGoogleLogin(googleClientId = googleClientId.takeIf { it.isNotEmpty() } ?: "mock") },
                                 colors = ButtonDefaults.buttonColors(containerColor = AresCyan),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                             ) {
@@ -234,7 +268,7 @@ fun OnboardingScreen(
                             value = projectPath,
                             onValueChange = {
                                 projectPath = it
-                                viewModel.handleIntent(OnboardingIntent.UpdateFields(projectPath, teamId, seasonId, robotId, league, nt4Host))
+                                updateFields()
                             },
                             label = { Text("Workspace Root Directory", color = AresTextSecondary) },
                             placeholder = { Text("C:\\Users\\...\\my-robot-project", color = AresTextTertiary) },
@@ -257,9 +291,7 @@ fun OnboardingScreen(
                                 val result = chooser.showOpenDialog(null)
                                 if (result == JFileChooser.APPROVE_OPTION) {
                                     projectPath = chooser.selectedFile.absolutePath
-                                    viewModel.handleIntent(
-                                        OnboardingIntent.UpdateFields(projectPath, teamId, seasonId, robotId, league, nt4Host)
-                                    )
+                                    updateFields()
                                     viewModel.handleIntent(OnboardingIntent.DetectLeague)
                                 }
                             },
@@ -285,7 +317,7 @@ fun OnboardingScreen(
                             onValueChange = {
                                 teamId = it
                                 selectedOptionText = "Select Robot Profile..."
-                                viewModel.handleIntent(OnboardingIntent.UpdateFields(projectPath, teamId, seasonId, robotId, league, nt4Host))
+                                updateFields()
                             },
                             label = { Text("Team ID", color = AresTextSecondary) },
                             placeholder = { Text("23247", color = AresTextTertiary) },
@@ -338,7 +370,7 @@ fun OnboardingScreen(
                                                 robotId = robot.robotId
                                                 seasonId = robot.seasonId
                                                 league = robot.league
-                                                viewModel.handleIntent(OnboardingIntent.UpdateFields(projectPath, teamId, seasonId, robotId, league, nt4Host))
+                                                updateFields()
                                                 dropdownExpanded = false
                                             }
                                         )
@@ -350,7 +382,7 @@ fun OnboardingScreen(
                                             robotId = ""
                                             seasonId = "2026"
                                             league = League.FTC
-                                            viewModel.handleIntent(OnboardingIntent.UpdateFields(projectPath, teamId, seasonId, robotId, league, nt4Host))
+                                            updateFields()
                                             dropdownExpanded = false
                                         }
                                     )
@@ -368,7 +400,7 @@ fun OnboardingScreen(
                                 value = seasonId,
                                 onValueChange = {
                                     seasonId = it
-                                    viewModel.handleIntent(OnboardingIntent.UpdateFields(projectPath, teamId, seasonId, robotId, league, nt4Host))
+                                    updateFields()
                                 },
                                 label = { Text("Season ID", color = AresTextSecondary) },
                                 placeholder = { Text("2026", color = AresTextTertiary) },
@@ -386,7 +418,7 @@ fun OnboardingScreen(
                                 value = robotId,
                                 onValueChange = {
                                     robotId = it
-                                    viewModel.handleIntent(OnboardingIntent.UpdateFields(projectPath, teamId, seasonId, robotId, league, nt4Host))
+                                    updateFields()
                                 },
                                 label = { Text("Robot ID", color = AresTextSecondary) },
                                 placeholder = { Text("AresIII", color = AresTextTertiary) },
@@ -424,7 +456,7 @@ fun OnboardingScreen(
                                             .clickable {
                                                 league = League.FTC
                                                 nt4Host = "192.168.43.1"
-                                                viewModel.handleIntent(OnboardingIntent.UpdateFields(projectPath, teamId, seasonId, robotId, league, nt4Host))
+                                                updateFields()
                                             }
                                             .padding(vertical = 12.dp),
                                         contentAlignment = Alignment.Center
@@ -438,7 +470,7 @@ fun OnboardingScreen(
                                             .clickable {
                                                 league = League.FRC
                                                 nt4Host = "10.0.0.2"
-                                                viewModel.handleIntent(OnboardingIntent.UpdateFields(projectPath, teamId, seasonId, robotId, league, nt4Host))
+                                                updateFields()
                                                 viewModel.handleIntent(OnboardingIntent.DetectLeague)
                                             }
                                             .padding(vertical = 12.dp),
@@ -454,7 +486,7 @@ fun OnboardingScreen(
                                 value = nt4Host,
                                 onValueChange = {
                                     nt4Host = it
-                                    viewModel.handleIntent(OnboardingIntent.UpdateFields(projectPath, teamId, seasonId, robotId, league, nt4Host))
+                                    updateFields()
                                 },
                                 label = { Text("NT4 Host Address", color = AresTextSecondary) },
                                 textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
@@ -493,7 +525,7 @@ fun OnboardingScreen(
                                 value = nt4Host,
                                 onValueChange = {
                                     nt4Host = it
-                                    viewModel.handleIntent(OnboardingIntent.UpdateFields(projectPath, teamId, seasonId, robotId, league, nt4Host))
+                                    updateFields()
                                 },
                                 label = { Text("NT4 Host Address", color = AresTextSecondary) },
                                 textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),

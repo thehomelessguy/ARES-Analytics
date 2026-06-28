@@ -44,7 +44,7 @@ fun ProfileScreen(
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Text("Profile & Cloud Sync", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = AresTextPrimary)
-        Divider(color = AresBorder)
+        HorizontalDivider(color = AresBorder)
 
         when (val auth = state.authState) {
             is AuthState.Unauthenticated -> {
@@ -142,7 +142,7 @@ fun ProfileScreen(
         }
 
         Spacer(Modifier.height(10.dp))
-        Divider(color = AresBorder)
+        HorizontalDivider(color = AresBorder)
         Text("Event Integration Settings", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = AresTextPrimary)
 
         OutlinedTextField(
