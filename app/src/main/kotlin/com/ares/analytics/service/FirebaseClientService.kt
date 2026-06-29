@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.*
 
 @Serializable
 data class FirebaseSignInResponse(
@@ -75,12 +75,12 @@ class FirebaseClientService {
             
             val response = httpClient.post(url) {
                 contentType(ContentType.Application.Json)
-                setBody(mapOf(
-                    "requestUri" to "http://localhost",
-                    "postBody" to postBody,
-                    "returnSecureToken" to true,
-                    "returnIdToken" to true
-                ))
+                setBody(buildJsonObject {
+                    put("requestUri", "http://localhost")
+                    put("postBody", postBody)
+                    put("returnSecureToken", true)
+                    put("returnIdToken", true)
+                })
             }
 
             if (response.status == HttpStatusCode.OK) {
