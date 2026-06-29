@@ -143,7 +143,8 @@ class OAuthService(
                     )
                 } else {
                     val errorText = response.bodyAsText()
-                    _authState.value = AuthState.Error("Failed to exchange Google code: $errorText")
+                    val sentParamsInfo = "Sent client_id: $googleClientId (Secret present: ${!googleClientSecret.isNullOrBlank()})"
+                    _authState.value = AuthState.Error("Failed to exchange Google code: $errorText\nDetails: $sentParamsInfo")
                 }
             } catch (e: Exception) {
                 _authState.value = AuthState.Error("Google token exchange error: ${e.message}")
