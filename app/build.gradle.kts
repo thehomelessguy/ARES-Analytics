@@ -75,11 +75,12 @@ dependencies {
 compose.desktop {
     application {
         mainClass = "com.ares.analytics.MainKt"
+        jvmArgs("-Dorg.jetbrains.skiko.renderApi=OPENGL", "-Dorg.jetbrains.skiko.renderApi.fallback=SOFTWARE")
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "ARES-Analytics"
-            packageVersion = "1.0.2"
+            packageVersion = "1.0.3"
             description = "ARES Robotics Mission Control Suite"
             vendor = "ARES Robotics"
             modules("java.sql", "java.naming")
