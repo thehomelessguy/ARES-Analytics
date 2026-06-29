@@ -18,7 +18,7 @@ class SyncEngineService(
     private val databaseService: DatabaseService,
     private val parquetExporterService: ParquetExporterService,
     private val firebaseClientService: FirebaseClientService,
-    private val gatewayUrl: String = "https://gateway-ares-analytics-uc.a.run.app", // default cloud run address
+    private val gatewayUrl: String = "https://ares-analytics-gateway-staging-205869391101.us-central1.run.app", // default cloud run address
     private val httpClient: HttpClient = HttpClient {
         install(ContentNegotiation) {
             json(Json { ignoreUnknownKeys = true })
