@@ -27,6 +27,8 @@ open class Nt4ClientService(
     private val _currentSession = MutableStateFlow<Session?>(null)
     val currentSession: StateFlow<Session?> = _currentSession.asStateFlow()
 
+    private var webSocketSession: DefaultClientWebSocketSession? = null
+
     // Topic ID to Topic Name mapping
     private val topicMap = ConcurrentHashMap<Int, Nt4Topic>()
 
@@ -69,9 +71,27 @@ open class Nt4ClientService(
                     val url = "ws://$host:5810/nt/v4/client/ARES-Analytics"
                     client.webSocket(url) {
                         _isConnected.value = true
+                        webSocketSession = this
                         topicMap.clear()
 
-                        // 1. Subscribe to all topics
+                        // 1. Announce input topics
+                        val announceInputsMsg = """
+                            [
+                              {"method": "publish", "params": {"name": "/ARES/Input/vx", "pubuid": 1001, "type": "double"}},
+                              {"method": "publish", "params": {"name": "/ARES/Input/vy", "pubuid": 1002, "type": "double"}},
+                              {"method": "publish", "params": {"name": "/ARES/Input/omega", "pubuid": 1003, "type": "double"}},
+                              {"method": "publish", "params": {"name": "/ARES/Input/isIntaking", "pubuid": 1004, "type": "boolean"}},
+                              {"method": "publish", "params": {"name": "/ARES/Input/isFlywheelOn", "pubuid": 1005, "type": "boolean"}},
+                              {"method": "publish", "params": {"name": "/ARES/Input/isTransferring", "pubuid": 1006, "type": "boolean"}},
+                              {"method": "publish", "params": {"name": "/ARES/Input/isTeleopMode", "pubuid": 1007, "type": "boolean"}},
+                              {"method": "publish", "params": {"name": "/ARES/Input/isFieldCentric", "pubuid": 1008, "type": "boolean"}},
+                              {"method": "publish", "params": {"name": "/ARES/Input/isRedAlliance", "pubuid": 1009, "type": "boolean"}},
+                              {"method": "publish", "params": {"name": "/ARES/Input/heartbeat", "pubuid": 1010, "type": "int"}}
+                            ]
+                        """.trimIndent()
+                        send(Frame.Text(announceInputsMsg))
+
+                        // 2. Subscribe to all topics
                         val subMsg = """
                             [
                               {
@@ -89,21 +109,54 @@ open class Nt4ClientService(
                         """.trimIndent()
                         send(Frame.Text(subMsg))
 
-                        // 2. Read frames
-                        for (frame in incoming) {
-                            if (frame is Frame.Text) {
-                                val text = frame.readText()
-                                handleIncomingText(text, teamId, seasonId, robotId)
+                        try {
+                            // 3. Read frames
+                            for (frame in incoming) {
+                                if (frame is Frame.Text) {
+                                    val text = frame.readText()
+                                    handleIncomingText(text, teamId, seasonId, robotId)
+                                }
                             }
+                        } finally {
+                            webSocketSession = null
+                            _isConnected.value = false
                         }
                     }
                 } catch (e: Exception) {
+                    webSocketSession = null
                     _isConnected.value = false
                     // Backoff delay before reconnect
                     delay(3000)
                 }
             }
         }
+    }
+
+    suspend fun publishInputDouble(pubuid: Int, value: Double) {
+        val msg = """
+            [
+              {"method": "set", "params": {"pubuid": $pubuid, "val": $value}}
+            ]
+        """.trimIndent()
+        webSocketSession?.send(Frame.Text(msg))
+    }
+
+    suspend fun publishInputBoolean(pubuid: Int, value: Boolean) {
+        val msg = """
+            [
+              {"method": "set", "params": {"pubuid": $pubuid, "val": $value}}
+            ]
+        """.trimIndent()
+        webSocketSession?.send(Frame.Text(msg))
+    }
+
+    suspend fun publishInputLong(pubuid: Int, value: Long) {
+        val msg = """
+            [
+              {"method": "set", "params": {"pubuid": $pubuid, "val": $value}}
+            ]
+        """.trimIndent()
+        webSocketSession?.send(Frame.Text(msg))
     }
 
     fun stop() {

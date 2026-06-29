@@ -110,12 +110,12 @@ class ProcessManagerService {
                 val isWindows = System.getProperty("os.name").contains("win", ignoreCase = true)
                 val cmd = if (isWindows) {
                     when (league) {
-                        League.FTC -> listOf("cmd.exe", "/c", "gradlew.bat", ":simulator:run") // Run FTC Desktop Simulator
+                        League.FTC -> listOf("cmd.exe", "/c", "gradlew.bat", ":simulator:run", "-PappArgs=--headless") // Run FTC Desktop Simulator
                         League.FRC -> listOf("cmd.exe", "/c", "gradlew.bat", "simulateJava") // FRC desktop simulator
                     }
                 } else {
                     when (league) {
-                        League.FTC -> listOf("./gradlew", ":simulator:run") // Run FTC Desktop Simulator
+                        League.FTC -> listOf("./gradlew", ":simulator:run", "-PappArgs=--headless") // Run FTC Desktop Simulator
                         League.FRC -> listOf("./gradlew", "simulateJava") // FRC desktop simulator
                     }
                 }
