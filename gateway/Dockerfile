@@ -5,7 +5,7 @@ WORKDIR /home/gradle/src
 RUN gradle :gateway:installDist --no-daemon
 
 # Stage 2: Runtime
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:17-jre
 COPY --from=build /home/gradle/src/gateway/build/install/gateway /app
 WORKDIR /app
 EXPOSE 8080
