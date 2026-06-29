@@ -21,6 +21,11 @@ import io.ktor.http.*
 import kotlinx.serialization.json.Json
 
 fun main() {
+    // Disable Netty OpenSSL to force gRPC and Ktor to fall back to the JDK JSSE provider.
+    // This prevents SIGSEGV crashes in netty-tcnative when running inside Google Cloud Run.
+    System.setProperty("io.netty.handler.ssl.openssl.useOpenssl", "false")
+    System.setProperty("io.grpc.netty.shaded.io.netty.handler.ssl.openssl.useOpenssl", "false")
+
     val port = System.getenv("PORT")?.toIntOrNull() ?: 8080
 
     // Initialize Firebase Admin SDK using Application Default Credentials
