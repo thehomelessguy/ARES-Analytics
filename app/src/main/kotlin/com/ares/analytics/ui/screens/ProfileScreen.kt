@@ -11,6 +11,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import com.ares.analytics.service.AuthState
 import com.ares.analytics.shared.League
 import com.ares.analytics.shared.WorkspaceConfig
@@ -33,6 +38,7 @@ fun ProfileScreen(
     // Optional credential overrides
     var googleClientId by remember(state.googleClientId) { mutableStateOf(state.googleClientId) }
     var firebaseApiKey by remember(state.firebaseApiKey) { mutableStateOf(state.firebaseApiKey) }
+    var showAdvanced by remember { mutableStateOf(false) }
 
     // Match integration overrides
     var eventCode by remember(state.eventCode) { mutableStateOf(state.eventCode) }
@@ -49,25 +55,7 @@ fun ProfileScreen(
         when (val auth = state.authState) {
             is AuthState.Unauthenticated -> {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Configure optional credentials for real cloud synchronization (leave blank for local dev/mock mode).", color = AresTextSecondary, fontSize = 12.sp)
-
-                    OutlinedTextField(
-                        value = googleClientId,
-                        onValueChange = { googleClientId = it },
-                        label = { Text("Google Client ID") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder)
-                    )
-
-                    OutlinedTextField(
-                        value = firebaseApiKey,
-                        onValueChange = { firebaseApiKey = it },
-                        label = { Text("Firebase API Key") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder)
-                    )
+                    Text("Sign in with your Google account to enable real-time cloud synchronization.", color = AresTextSecondary, fontSize = 12.sp)
 
                     Button(
                         onClick = {
@@ -79,9 +67,45 @@ fun ProfileScreen(
                             viewModel.onIntent(ProfileIntent.GoogleSignIn(googleClientId))
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = AresCyan),
-                        modifier = Modifier.padding(top = 8.dp)
+                        modifier = Modifier.padding(top = 4.dp)
                     ) {
                         Text("Google Sign-In", color = AresBackground, fontWeight = FontWeight.Bold)
+                    }
+
+                    Spacer(Modifier.height(4.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth().clickable { showAdvanced = !showAdvanced }.padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = if (showAdvanced) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                            contentDescription = null,
+                            tint = AresTextSecondary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text("Developer Settings (Advanced)", color = AresTextSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    }
+
+                    if (showAdvanced) {
+                        OutlinedTextField(
+                            value = googleClientId,
+                            onValueChange = { googleClientId = it },
+                            label = { Text("Google Client ID") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder)
+                        )
+
+                        OutlinedTextField(
+                            value = firebaseApiKey,
+                            onValueChange = { firebaseApiKey = it },
+                            label = { Text("Firebase API Key") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder)
+                        )
                     }
                 }
             }
