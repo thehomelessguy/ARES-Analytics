@@ -72,6 +72,15 @@ class ServiceRegistry {
         if (lazyFieldInitialized(::ftcDashboardService)) {
             ftcDashboardService.dispose()
         }
+        if (lazyFieldInitialized(::oauthService)) {
+            oauthService.dispose()
+        }
+        if (lazyFieldInitialized(::firebaseClientService)) {
+            firebaseClientService.close()
+        }
+        if (lazyFieldInitialized(::databaseService)) {
+            databaseService.close()
+        }
     }
 
     /**

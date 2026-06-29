@@ -296,5 +296,14 @@ class OAuthService(
             server = null
         }
     }
+
+    fun dispose() {
+        stopServer()
+        try {
+            httpClient.close()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
 }
 

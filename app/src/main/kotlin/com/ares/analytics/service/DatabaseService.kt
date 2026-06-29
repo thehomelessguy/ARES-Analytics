@@ -36,6 +36,14 @@ class DatabaseService(dbPath: String = System.getProperty("user.home") + "/.ares
         database = AresDatabase(driver)
     }
 
+    fun close() {
+        try {
+            driver.close()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     // ────────────────────────────────────────────────────────────────────────────
     // CRUD: Sessions
     // ────────────────────────────────────────────────────────────────────────────

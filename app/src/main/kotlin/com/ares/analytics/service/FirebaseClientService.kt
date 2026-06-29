@@ -117,4 +117,12 @@ class FirebaseClientService {
             current.firebaseToken
         } else null
     }
+
+    fun close() {
+        try {
+            httpClient.close()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
 }
