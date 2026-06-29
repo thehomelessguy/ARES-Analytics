@@ -5,6 +5,7 @@ import com.ares.analytics.shared.*
 import com.google.api.core.ApiFuture
 import com.google.cloud.firestore.CollectionReference
 import com.google.cloud.firestore.DocumentReference
+import com.google.cloud.firestore.DocumentSnapshot
 import com.google.cloud.firestore.Firestore
 import com.google.cloud.firestore.QueryDocumentSnapshot
 import com.google.cloud.firestore.QuerySnapshot
@@ -87,6 +88,19 @@ class TeamRobotsIntegrationTest {
         val mockRobotDoc = mock(DocumentReference::class.java)
         val mockSetFuture = mock(ApiFuture::class.java) as ApiFuture<WriteResult>
         val mockDeleteFuture = mock(ApiFuture::class.java) as ApiFuture<WriteResult>
+
+        // Mock users role verification
+        val mockUsersCol = mock(CollectionReference::class.java)
+        val mockUserDocRef = mock(DocumentReference::class.java)
+        val mockUserGetFuture = mock(ApiFuture::class.java) as ApiFuture<DocumentSnapshot>
+        val mockUserDocSnapshot = mock(DocumentSnapshot::class.java)
+
+        `when`(mockFirestore.collection("users")).thenReturn(mockUsersCol)
+        `when`(mockUsersCol.document("uid")).thenReturn(mockUserDocRef)
+        `when`(mockUserDocRef.get()).thenReturn(mockUserGetFuture)
+        `when`(mockUserGetFuture.get()).thenReturn(mockUserDocSnapshot)
+        `when`(mockUserDocSnapshot.exists()).thenReturn(true)
+        `when`(mockUserDocSnapshot.getString("role")).thenReturn("ADMIN")
 
         `when`(mockFirestore.collection("teams")).thenReturn(mockTeamsCol)
         `when`(mockTeamsCol.document("9999")).thenReturn(mockTeamDoc)
