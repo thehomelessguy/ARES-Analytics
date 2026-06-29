@@ -94,10 +94,10 @@ class ProfileViewModel(
                     firebaseClientService.apiKey = currentApiKey
 
                     val targetClientId = intent.clientId.takeIf { it.isNotBlank() }
-                        ?: "205869391101-nlcsea4539vjuo50i58bpo0t10d5s0ic.apps.googleusercontent.com"
+                        ?: "205869391101-7bhkcpseglmtv0n3ig8i17e1ntl47tdr.apps.googleusercontent.com"
 
                     val targetClientSecret = _state.value.googleClientSecret.takeIf { it.isNotBlank() }
-                        ?: if (targetClientId == "205869391101-nlcsea4539vjuo50i58bpo0t10d5s0ic.apps.googleusercontent.com") {
+                        ?: if (targetClientId == "205869391101-7bhkcpseglmtv0n3ig8i17e1ntl47tdr.apps.googleusercontent.com") {
                             "_xLRIrcFXWhqNpYO1gwprlzKpqOs-XPSGOC".reversed()
                         } else {
                             null
