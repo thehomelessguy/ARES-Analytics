@@ -2,6 +2,7 @@ package com.ares.analytics.viewmodel
 
 import com.ares.analytics.service.AuthState
 import com.ares.analytics.service.EnvironmentService
+import com.ares.analytics.service.FirebaseClientService
 import com.ares.analytics.service.OAuthService
 import com.ares.analytics.service.SyncEngineService
 import com.ares.analytics.shared.WorkspaceConfig
@@ -49,6 +50,7 @@ class ProfileViewModel(
     private val oauthService: OAuthService,
     private val syncEngineService: SyncEngineService,
     private val environmentService: EnvironmentService,
+    private val firebaseClientService: FirebaseClientService,
     private val scope: CoroutineScope
 ) {
     private val _state = MutableStateFlow(ProfileState())
@@ -67,6 +69,10 @@ class ProfileViewModel(
             when (intent) {
                 is ProfileIntent.LoadConfig -> {
                     val cfg = intent.config
+                    // Dynamically bind current Firebase API key override
+                    firebaseClientService.apiKey = cfg.firebaseApiKey.takeIf { !it.isNullOrBlank() }
+                        ?: "AIzaSyCkTBJqV7CAFRsxm4047oGXwbm_QP-BT7I"
+
                     _state.update {
                         it.copy(
                             config = cfg,
@@ -79,7 +85,15 @@ class ProfileViewModel(
                     }
                 }
                 is ProfileIntent.GoogleSignIn -> {
-                    oauthService.startGoogleLogin(intent.clientId.takeIf { it.isNotBlank() } ?: "mock")
+                    // Update FirebaseClientService configuration context
+                    val currentApiKey = _state.value.firebaseApiKey.takeIf { it.isNotBlank() }
+                        ?: "AIzaSyCkTBJqV7CAFRsxm4047oGXwbm_QP-BT7I"
+                    firebaseClientService.apiKey = currentApiKey
+
+                    val targetClientId = intent.clientId.takeIf { it.isNotBlank() }
+                        ?: "205869391101-7bhkcpseglmtv0n3ig8i17e1ntl47tdr.apps.googleusercontent.com"
+
+                    oauthService.startGoogleLogin(targetClientId)
                 }
                 is ProfileIntent.LinkGitHub -> {
                     oauthService.startGithubLogin(intent.clientId.takeIf { it.isNotBlank() } ?: "mock-github-client-id")
@@ -108,6 +122,9 @@ class ProfileViewModel(
                         toaApiKey = intent.toaApiKey.takeIf { it.isNotBlank() },
                         tbaApiKey = intent.tbaApiKey.takeIf { it.isNotBlank() }
                     )
+                    firebaseClientService.apiKey = intent.firebaseApiKey.takeIf { it.isNotBlank() }
+                        ?: "AIzaSyCkTBJqV7CAFRsxm4047oGXwbm_QP-BT7I"
+
                     _state.update {
                         it.copy(
                             config = newConfig,

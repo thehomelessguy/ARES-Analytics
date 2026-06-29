@@ -48,8 +48,8 @@ class FirebaseClientService {
     val authState: StateFlow<FirebaseAuthState> = _authState.asStateFlow()
 
     // Configuration values (loaded from workspace config or env)
-    var apiKey: String = System.getenv("FIREBASE_API_KEY") ?: ""
-    var projectId: String = System.getenv("FIREBASE_PROJECT_ID") ?: ""
+    var apiKey: String = System.getenv("FIREBASE_API_KEY") ?: "AIzaSyCkTBJqV7CAFRsxm4047oGXwbm_QP-BT7I"
+    var projectId: String = System.getenv("FIREBASE_PROJECT_ID") ?: "aresfirst-portal"
 
     fun isDevMode(): Boolean {
         return apiKey.isEmpty() || apiKey == "mock" || System.getenv("DEV_MODE") == "true"
