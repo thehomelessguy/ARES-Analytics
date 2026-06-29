@@ -98,7 +98,7 @@ class ProfileViewModel(
 
                     val targetClientSecret = _state.value.googleClientSecret.takeIf { it.isNotBlank() }
                         ?: if (targetClientId == "205869391101-7bhkcpseglmtv0n3ig8i17e1ntl47tdr.apps.googleusercontent.com") {
-                            "_xLRIrcFXWhqNpYO1gwprlzKpqOs-XPSGOC".reversed()
+                            "_xLIrcFXWhqNpYO1gwPrlZpkRqOs-XPSCOG".reversed()
                         } else {
                             null
                         }
