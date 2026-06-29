@@ -34,11 +34,36 @@ open class Nt4ClientService(
         return topicMap.values.map { it.name }.sorted()
     }
 
+    private val pendingFrames = java.util.concurrent.ConcurrentLinkedQueue<TelemetryFrame>()
+
+    suspend fun flushPendingFrames() {
+        val framesToInsert = mutableListOf<TelemetryFrame>()
+        while (true) {
+            val frame = pendingFrames.poll() ?: break
+            framesToInsert.add(frame)
+        }
+        if (framesToInsert.isNotEmpty()) {
+            try {
+                databaseService.insertTelemetryFrames(framesToInsert)
+            } catch (e: java.lang.Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     private var clientJob: Job? = null
 
     fun start(host: String, teamId: String, seasonId: String, robotId: String) {
         clientJob?.cancel()
         clientJob = CoroutineScope(Dispatchers.IO).launch {
+            // Launch periodic flush job in background
+            launch {
+                while (isActive) {
+                    delay(1000)
+                    flushPendingFrames()
+                }
+            }
+
             while (isActive) {
                 try {
                     val url = "ws://$host:5810/nt/v4/client/ARES-Analytics"
@@ -84,6 +109,10 @@ open class Nt4ClientService(
     fun stop() {
         clientJob?.cancel()
         _isConnected.value = false
+        // Flush remaining frames asynchronously
+        CoroutineScope(Dispatchers.IO).launch {
+            flushPendingFrames()
+        }
     }
 
     suspend fun publishFrame(frame: TelemetryFrame) {
@@ -94,7 +123,7 @@ open class Nt4ClientService(
             frame
         }
         if (session != null) {
-            databaseService.insertTelemetryFrames(listOf(finalFrame))
+            pendingFrames.add(finalFrame)
         }
         _telemetryFlow.emit(finalFrame)
     }
@@ -124,6 +153,7 @@ open class Nt4ClientService(
 
     suspend fun stopRecordingSession() {
         val session = _currentSession.value ?: return
+        flushPendingFrames() // Flush any remaining buffered frames to SQLite
         val endTime = System.currentTimeMillis()
         val duration = endTime - session.createdAt
         val updated = session.copy(durationMs = duration)
@@ -220,7 +250,7 @@ open class Nt4ClientService(
                             _telemetryFlow.emit(frame)
                         }
                         if (session != null) {
-                            databaseService.insertTelemetryFrames(frames)
+                            pendingFrames.addAll(frames)
                         }
                         continue
                     }
@@ -248,7 +278,7 @@ open class Nt4ClientService(
 
                     // Write to DB if recording
                     if (session != null) {
-                        databaseService.insertTelemetryFrames(listOf(frame))
+                        pendingFrames.add(frame)
                     }
 
                     // Emit to flow
