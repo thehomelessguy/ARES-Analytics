@@ -135,7 +135,7 @@ class DashboardViewModel(
                     _state.update { it.copy(isImporting = true, importSuccess = false, errorMessage = null) }
                     withContext(Dispatchers.IO) {
                         try {
-                            if (intent.files.size == 1 && intent.files.first().name.lowercase().endsWith(".hoot")) {
+                            val sessionId = if (intent.files.size == 1 && intent.files.first().name.lowercase().endsWith(".hoot")) {
                                 hootDecoderService.importHootLog(
                                     hootFile = intent.files.first(),
                                     teamId = intent.teamId,
@@ -148,8 +148,17 @@ class DashboardViewModel(
                                     teamId = intent.teamId,
                                     seasonId = intent.seasonId,
                                     robotId = intent.robotId
-                                )
+                                ).sessionId
                             }
+
+                            // Trigger background cloud sync after successful import
+                            try {
+                                syncEngineService.uploadSession(sessionId)
+                                syncEngineService.performDeltaSync(intent.teamId, intent.seasonId)
+                            } catch (syncEx: Exception) {
+                                // Fallback silently so local usability is unaffected if offline
+                            }
+
                             _state.update { it.copy(isImporting = false, importSuccess = true) }
                         } catch (e: Exception) {
                             _state.update { it.copy(isImporting = false, errorMessage = e.message ?: "Failed to import log file(s)") }
