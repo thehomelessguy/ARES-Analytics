@@ -136,31 +136,66 @@ open class Nt4ClientService(
         }
     }
 
+    private suspend fun sendBinaryUpdate(pubuid: Int, typeId: Byte, valueBytes: ByteArray) {
+        val timestampUs = System.currentTimeMillis() * 1000L
+        val size = 4 + 8 + 1 + valueBytes.size
+        val buffer = ByteArray(size)
+        
+        // Write pubuid (4 bytes, Big Endian)
+        buffer[0] = (pubuid shr 24).toByte()
+        buffer[1] = (pubuid shr 16).toByte()
+        buffer[2] = (pubuid shr 8).toByte()
+        buffer[3] = pubuid.toByte()
+        
+        // Write timestampUs (8 bytes, Big Endian)
+        buffer[4] = (timestampUs shr 56).toByte()
+        buffer[5] = (timestampUs shr 48).toByte()
+        buffer[6] = (timestampUs shr 40).toByte()
+        buffer[7] = (timestampUs shr 32).toByte()
+        buffer[8] = (timestampUs shr 24).toByte()
+        buffer[9] = (timestampUs shr 16).toByte()
+        buffer[10] = (timestampUs shr 8).toByte()
+        buffer[11] = timestampUs.toByte()
+        
+        // Write typeId (1 byte)
+        buffer[12] = typeId
+        
+        // Write value bytes
+        System.arraycopy(valueBytes, 0, buffer, 13, valueBytes.size)
+        
+        webSocketSession?.send(Frame.Binary(true, buffer))
+    }
+
     suspend fun publishInputDouble(pubuid: Int, value: Double) {
-        val msg = """
-            [
-              {"method": "set", "params": {"pubuid": $pubuid, "val": $value}}
-            ]
-        """.trimIndent()
-        webSocketSession?.send(Frame.Text(msg))
+        val bits = java.lang.Double.doubleToRawLongBits(value)
+        val valueBytes = ByteArray(8)
+        valueBytes[0] = (bits shr 56).toByte()
+        valueBytes[1] = (bits shr 48).toByte()
+        valueBytes[2] = (bits shr 40).toByte()
+        valueBytes[3] = (bits shr 32).toByte()
+        valueBytes[4] = (bits shr 24).toByte()
+        valueBytes[5] = (bits shr 16).toByte()
+        valueBytes[6] = (bits shr 8).toByte()
+        valueBytes[7] = bits.toByte()
+        sendBinaryUpdate(pubuid, 1.toByte(), valueBytes)
     }
 
     suspend fun publishInputBoolean(pubuid: Int, value: Boolean) {
-        val msg = """
-            [
-              {"method": "set", "params": {"pubuid": $pubuid, "val": $value}}
-            ]
-        """.trimIndent()
-        webSocketSession?.send(Frame.Text(msg))
+        val valueBytes = byteArrayOf(if (value) 1.toByte() else 0.toByte())
+        sendBinaryUpdate(pubuid, 0.toByte(), valueBytes)
     }
 
     suspend fun publishInputLong(pubuid: Int, value: Long) {
-        val msg = """
-            [
-              {"method": "set", "params": {"pubuid": $pubuid, "val": $value}}
-            ]
-        """.trimIndent()
-        webSocketSession?.send(Frame.Text(msg))
+        val valueBytes = ByteArray(8)
+        valueBytes[0] = (value shr 56).toByte()
+        valueBytes[1] = (value shr 48).toByte()
+        valueBytes[2] = (value shr 40).toByte()
+        valueBytes[3] = (value shr 32).toByte()
+        valueBytes[4] = (value shr 24).toByte()
+        valueBytes[5] = (value shr 16).toByte()
+        valueBytes[6] = (value shr 8).toByte()
+        valueBytes[7] = value.toByte()
+        sendBinaryUpdate(pubuid, 7.toByte(), valueBytes)
     }
 
     fun stop() {
