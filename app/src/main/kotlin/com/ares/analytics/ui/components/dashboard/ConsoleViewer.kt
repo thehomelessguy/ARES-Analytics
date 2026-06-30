@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -27,6 +28,7 @@ import com.ares.analytics.shared.ConsoleMessage
 import com.ares.analytics.ui.theme.*
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -185,6 +187,40 @@ fun ConsoleViewer(
                         modifier = Modifier.size(18.dp)
                     )
                 }
+
+                // Export Logs button
+                IconButton(
+                    onClick = {
+                        scope.launch(Dispatchers.IO) {
+                            try {
+                                val frame = java.awt.Frame()
+                                val fileDialog = java.awt.FileDialog(frame, "Export Console Logs", java.awt.FileDialog.SAVE)
+                                fileDialog.file = "ares_console_logs.txt"
+                                fileDialog.isVisible = true
+                                val directory = fileDialog.directory
+                                val file = fileDialog.file
+                                if (directory != null && file != null) {
+                                    val targetFile = java.io.File(directory, file)
+                                    targetFile.writeText(filteredMessages.joinToString("\n") { msg ->
+                                        val time = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()).format(Date(msg.timestampMs))
+                                        "[$time] [${msg.severity}] ${msg.text}"
+                                    })
+                                }
+                                frame.dispose()
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        }
+                    },
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Download,
+                        contentDescription = "Export Logs",
+                        tint = AresTextSecondary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
         }
 
@@ -305,62 +341,64 @@ fun ConsoleViewer(
                     )
                 }
             } else {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    items(filteredMessages) { msg ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 2.dp),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalAlignment = Alignment.Top
-                        ) {
-                            // Timestamp
-                            val dateStr = try {
-                                timeFormatter.format(Date(msg.timestampMs))
-                            } catch (e: Exception) {
-                                msg.timestampMs.toString()
-                            }
-                            Text(
-                                text = dateStr,
-                                color = AresTextTertiary,
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace,
-                                modifier = Modifier.padding(top = 1.dp)
-                            )
+                SelectionContainer {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        items(filteredMessages) { msg ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 2.dp),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                // Timestamp
+                                val dateStr = try {
+                                    timeFormatter.format(Date(msg.timestampMs))
+                                } catch (e: Exception) {
+                                    msg.timestampMs.toString()
+                                }
+                                Text(
+                                    text = dateStr,
+                                    color = AresTextTertiary,
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    modifier = Modifier.padding(top = 1.dp)
+                                )
 
-                            // Severity Badge
-                            val severityColor = when (msg.severity) {
-                                "INFO" -> AresGreen
-                                "WARN" -> AresAmber
-                                "ERROR" -> AresError
-                                else -> AresTextSecondary
-                            }
-                            Text(
-                                text = "[${msg.severity}]",
-                                color = severityColor,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Monospace,
-                                modifier = Modifier.padding(top = 1.dp)
-                            )
-
-                            // Message Content
-                            Text(
-                                text = msg.text,
-                                color = when (msg.severity) {
-                                    "INFO" -> AresTextPrimary
+                                // Severity Badge
+                                val severityColor = when (msg.severity) {
+                                    "INFO" -> AresGreen
                                     "WARN" -> AresAmber
                                     "ERROR" -> AresError
-                                    else -> AresTextPrimary
-                                },
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace,
-                                modifier = Modifier.weight(1f)
-                            )
+                                    else -> AresTextSecondary
+                                }
+                                Text(
+                                    text = "[${msg.severity}]",
+                                    color = severityColor,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace,
+                                    modifier = Modifier.padding(top = 1.dp)
+                                )
+
+                                // Message Content
+                                Text(
+                                    text = msg.text,
+                                    color = when (msg.severity) {
+                                        "INFO" -> AresTextPrimary
+                                        "WARN" -> AresAmber
+                                        "ERROR" -> AresError
+                                        else -> AresTextPrimary
+                                    },
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
                         }
                     }
                 }
