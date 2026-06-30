@@ -94,7 +94,7 @@ fun WidgetGrid(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(40.dp)
-                                .pointerInput(Unit) {
+                                .pointerInput(widget) {
                                     detectDragGestures(
                                         onDragStart = { isDragging = true },
                                         onDragEnd = {
@@ -155,7 +155,7 @@ fun WidgetGrid(
                             modifier = Modifier
                                 .size(24.dp)
                                 .align(Alignment.BottomEnd)
-                                .pointerInput(Unit) {
+                                .pointerInput(widget) {
                                     detectDragGestures(
                                         onDragStart = { isResizing = true },
                                         onDragEnd = {
