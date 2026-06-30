@@ -168,33 +168,35 @@ open class Nt4ClientService(
 
     suspend fun publishInputDouble(pubuid: Int, value: Double) {
         val bits = java.lang.Double.doubleToRawLongBits(value)
-        val valueBytes = ByteArray(8)
-        valueBytes[0] = (bits shr 56).toByte()
-        valueBytes[1] = (bits shr 48).toByte()
-        valueBytes[2] = (bits shr 40).toByte()
-        valueBytes[3] = (bits shr 32).toByte()
-        valueBytes[4] = (bits shr 24).toByte()
-        valueBytes[5] = (bits shr 16).toByte()
-        valueBytes[6] = (bits shr 8).toByte()
-        valueBytes[7] = bits.toByte()
+        val valueBytes = ByteArray(9)
+        valueBytes[0] = 0xcb.toByte() // MsgPack float64 marker
+        valueBytes[1] = (bits shr 56).toByte()
+        valueBytes[2] = (bits shr 48).toByte()
+        valueBytes[3] = (bits shr 40).toByte()
+        valueBytes[4] = (bits shr 32).toByte()
+        valueBytes[5] = (bits shr 24).toByte()
+        valueBytes[6] = (bits shr 16).toByte()
+        valueBytes[7] = (bits shr 8).toByte()
+        valueBytes[8] = bits.toByte()
         sendBinaryUpdate(pubuid, 1.toByte(), valueBytes)
     }
 
     suspend fun publishInputBoolean(pubuid: Int, value: Boolean) {
-        val valueBytes = byteArrayOf(if (value) 1.toByte() else 0.toByte())
+        val valueBytes = byteArrayOf(if (value) 0xc3.toByte() else 0xc2.toByte()) // MsgPack true/false markers
         sendBinaryUpdate(pubuid, 0.toByte(), valueBytes)
     }
 
     suspend fun publishInputLong(pubuid: Int, value: Long) {
-        val valueBytes = ByteArray(8)
-        valueBytes[0] = (value shr 56).toByte()
-        valueBytes[1] = (value shr 48).toByte()
-        valueBytes[2] = (value shr 40).toByte()
-        valueBytes[3] = (value shr 32).toByte()
-        valueBytes[4] = (value shr 24).toByte()
-        valueBytes[5] = (value shr 16).toByte()
-        valueBytes[6] = (value shr 8).toByte()
-        valueBytes[7] = value.toByte()
+        val valueBytes = ByteArray(9)
+        valueBytes[0] = 0xd3.toByte() // MsgPack int64 marker
+        valueBytes[1] = (value shr 56).toByte()
+        valueBytes[2] = (value shr 48).toByte()
+        valueBytes[3] = (value shr 40).toByte()
+        valueBytes[4] = (value shr 32).toByte()
+        valueBytes[5] = (value shr 24).toByte()
+        valueBytes[6] = (value shr 16).toByte()
+        valueBytes[7] = (value shr 8).toByte()
+        valueBytes[8] = value.toByte()
         sendBinaryUpdate(pubuid, 7.toByte(), valueBytes)
     }
 
