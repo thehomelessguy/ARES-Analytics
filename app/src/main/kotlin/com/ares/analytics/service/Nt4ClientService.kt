@@ -24,6 +24,14 @@ open class Nt4ClientService(
     private val _consoleFlow = MutableSharedFlow<ConsoleMessage>(replay = 100)
     val consoleFlow: SharedFlow<ConsoleMessage> = _consoleFlow.asSharedFlow()
 
+    /**
+     * Injects a replay frame into the telemetry flow so dashboard widgets consume
+     * replay data identically to live data. Called by the replay integration layer.
+     */
+    suspend fun emitReplayFrame(frame: TelemetryFrame) {
+        _telemetryFlow.emit(frame)
+    }
+
     private val _currentSession = MutableStateFlow<Session?>(null)
     val currentSession: StateFlow<Session?> = _currentSession.asStateFlow()
 
@@ -359,8 +367,27 @@ open class Nt4ClientService(
         seasonId: String,
         robotId: String
     ) {
+        // Normalize key: strip leading '/' for consistent matching everywhere
+        val normalizedName = ntTopic.name.removePrefix("/")
+
+        // Intercept log file path linkage
+        if (normalizedName == "ARES/Session/LogFilePath") {
+            try {
+                val logFilePath = (valueElement as? JsonPrimitive)?.content ?: return
+                val session = _currentSession.value
+                if (session != null) {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        databaseService.updateSessionLogFilePath(session.sessionId, logFilePath)
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            return
+        }
+
         // Handle topology mapping directly
-        if (ntTopic.name == "/Topology/HardwareMap") {
+        if (normalizedName == "Topology/HardwareMap") {
             try {
                 val topologyJson = valueElement.jsonPrimitive.content
                 val topology = Json.decodeFromString<HardwareTopology>(topologyJson)
@@ -372,7 +399,7 @@ open class Nt4ClientService(
         }
 
         // Intercept and handle console log messages
-        val lowerName = ntTopic.name.lowercase()
+        val lowerName = normalizedName.lowercase()
         if (lowerName.contains("console") || lowerName.contains("log") || lowerName.contains("print")) {
             try {
                 val text = if (valueElement is JsonPrimitive) valueElement.content else valueElement.toString()
@@ -406,7 +433,7 @@ open class Nt4ClientService(
                 val frame = TelemetryFrame(
                     timestampMs = timestampMs,
                     sessionId = sessionId,
-                    key = "${ntTopic.name}/$idx",
+                    key = "${normalizedName}/$idx",
                     value = doubleValue
                 )
                 frames.add(frame)
@@ -435,7 +462,7 @@ open class Nt4ClientService(
         val frame = TelemetryFrame(
             timestampMs = timestampMs,
             sessionId = sessionId,
-            key = ntTopic.name,
+            key = normalizedName,
             value = doubleValue
         )
 

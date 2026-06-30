@@ -38,7 +38,8 @@ class DatabaseService(dbPath: String = System.getProperty("user.home") + "/.ares
                 duration_ms INTEGER NOT NULL DEFAULT 0,
                 tags TEXT NOT NULL DEFAULT '[]',
                 match_number INTEGER,
-                alliance_color TEXT
+                alliance_color TEXT,
+                log_file_path TEXT
             );
             """.trimIndent(),
             """
@@ -114,6 +115,18 @@ class DatabaseService(dbPath: String = System.getProperty("user.home") + "/.ares
                 driver.execute(null, statement, 0)
             } catch (e: Exception) {
                 println("[DatabaseService] Failed to execute statement: $statement. Error: ${e.message}")
+            }
+        }
+
+        // Self-healing migrations for existing databases
+        val migrations = listOf(
+            "ALTER TABLE sessions ADD COLUMN log_file_path TEXT;"
+        )
+        for (migration in migrations) {
+            try {
+                driver.execute(null, migration, 0)
+            } catch (_: Exception) {
+                // Column already exists — safe to ignore
             }
         }
         
@@ -278,6 +291,10 @@ class DatabaseService(dbPath: String = System.getProperty("user.home") + "/.ares
             queries.updateSessionSummaryTags(tagsJson, sessionId)
             queries.updateSessionSummaryMatchDetails(matchLong, allianceColor, sessionId)
         }
+    }
+
+    suspend fun updateSessionLogFilePath(sessionId: String, logFilePath: String) = withContext(Dispatchers.IO) {
+        queries.updateSessionLogFilePath(logFilePath, sessionId)
     }
 
     // ────────────────────────────────────────────────────────────────────────────

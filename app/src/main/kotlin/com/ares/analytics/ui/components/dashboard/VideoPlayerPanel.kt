@@ -157,9 +157,9 @@ fun VideoPlayerPanel(
                     drawLine(AresGlass, Offset(0f, height * 0.75f), Offset(width, height * 0.75f), 0.5f)
 
                     // Draw simulated robot telemetry movement on canvas
-                    val poseX = currentFrame?.values?.get("/Drive/Pose_X") ?: 0.0
-                    val poseY = currentFrame?.values?.get("/Drive/Pose_Y") ?: 0.0
-                    val heading = currentFrame?.values?.get("/Drive/Pose_Heading") ?: 0.0
+                    val poseX = currentFrame?.values?.get("Drive/Pose_X") ?: 0.0
+                    val poseY = currentFrame?.values?.get("Drive/Pose_Y") ?: 0.0
+                    val heading = currentFrame?.values?.get("Drive/Pose_Heading") ?: 0.0
 
                     // Draw a visual representation of the robot moving
                     val rx = cx + (poseX * 80).toFloat()
@@ -231,9 +231,9 @@ fun VideoPlayerPanel(
                             .padding(8.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        val voltage = currentFrame?.values?.get("/Drive/Voltage")
-                        val loopTime = currentFrame?.values?.get("/LoopTimeMs")
-                        val drift = currentFrame?.values?.get("/Drive/EkfDrift")
+                        val voltage = currentFrame?.values?.get("Drive/Voltage")
+                        val loopTime = currentFrame?.values?.get("LoopTimeMs")
+                        val drift = currentFrame?.values?.get("Drive/EkfDrift")
 
                         Text("HUD METRICS:", color = AresCyan, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                         Text("Battery: ${if (voltage != null) String.format("%.2f V", voltage) else "N/A"}", color = AresTextPrimary, fontSize = 11.sp, fontFamily = FontFamily.Monospace)

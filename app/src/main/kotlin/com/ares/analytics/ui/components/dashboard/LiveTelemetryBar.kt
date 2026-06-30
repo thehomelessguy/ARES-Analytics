@@ -38,22 +38,22 @@ fun LiveTelemetryBar(
 
     // Selectively map voltage, EKF, loop time, etc.
     val voltage by telemetryFlow
-        .filter { it.key == "/Drive/Voltage" }
+        .filter { it.key == "Drive/Voltage" }
         .map { it.value }
         .collectAsState(initial = 12.0)
 
     val drift by telemetryFlow
-        .filter { it.key == "/Drive/EkfDrift" }
+        .filter { it.key == "Drive/EkfDrift" }
         .map { it.value }
         .collectAsState(initial = 0.0)
 
     val loopTime by telemetryFlow
-        .filter { it.key == "/LoopTimeMs" }
+        .filter { it.key == "LoopTimeMs" }
         .map { it.value }
         .collectAsState(initial = 8.0)
 
     val maxCurrent by telemetryFlow
-        .filter { it.key == "/Drive/MotorCurrentMax" }
+        .filter { it.key == "Drive/MotorCurrentMax" }
         .map { it.value }
         .collectAsState(initial = 0.0)
 

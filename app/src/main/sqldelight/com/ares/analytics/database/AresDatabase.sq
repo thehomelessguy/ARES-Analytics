@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS sessions (
     duration_ms INTEGER NOT NULL DEFAULT 0,
     tags TEXT NOT NULL DEFAULT '[]',
     match_number INTEGER,
-    alliance_color TEXT
+    alliance_color TEXT,
+    log_file_path TEXT
 );
 
 -- Session summaries table
@@ -96,6 +97,9 @@ UPDATE sessions SET tags = ? WHERE session_id = ?;
 
 updateSessionMatchDetails:
 UPDATE sessions SET match_number = ?, alliance_color = ? WHERE session_id = ?;
+
+updateSessionLogFilePath:
+UPDATE sessions SET log_file_path = ? WHERE session_id = ?;
 
 -- Session Summaries queries
 insertSessionSummary:

@@ -2,8 +2,11 @@ package com.ares.analytics.service
 
 import com.ares.analytics.shared.TelemetryFrame
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.encodeToString
@@ -34,6 +37,10 @@ class ReplayEngineService(private val databaseService: DatabaseService) {
 
     private val _progress = MutableStateFlow(0.0) // 0.0 to 1.0 percentage
     val progress: StateFlow<Double> = _progress.asStateFlow()
+
+    // Replay telemetry flow — emits individual TelemetryFrame objects for dashboard widget consumption
+    private val _replayTelemetryFlow = MutableSharedFlow<TelemetryFrame>(replay = 100, extraBufferCapacity = 500)
+    val replayTelemetryFlow: SharedFlow<TelemetryFrame> = _replayTelemetryFlow.asSharedFlow()
 
     private var replayJob: Job? = null
     private var allFrames: List<TelemetryFrame> = emptyList()
@@ -174,7 +181,20 @@ class ReplayEngineService(private val databaseService: DatabaseService) {
         val frame = ReplayFrame(targetTimestamp, valuesMap)
         _currentFrame.value = frame
 
-        // 3. Re-broadcast via UDP loopback for AdvantageScope / telemetry viewer compatibility
+        // 3. Emit individual TelemetryFrame objects for dashboard widget consumption
+        val sessionId = "replay"
+        for ((key, value) in valuesMap) {
+            val normalizedKey = key.removePrefix("/")
+            val telemetryFrame = TelemetryFrame(
+                timestampMs = targetTimestamp,
+                sessionId = sessionId,
+                key = normalizedKey,
+                value = value
+            )
+            _replayTelemetryFlow.tryEmit(telemetryFrame)
+        }
+
+        // 4. Re-broadcast via UDP loopback for AdvantageScope / telemetry viewer compatibility
         broadcastTelemetry(frame)
     }
 

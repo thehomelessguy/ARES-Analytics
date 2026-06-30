@@ -41,15 +41,15 @@ fun MecanumVisualizer(
     val currents = remember { mutableStateListOf(0.0, 0.0, 0.0, 0.0) }
 
     if (currentFrame != null) {
-        velocities[0] = currentFrame.values["/Drive/MotorVelocity_fl"] ?: currentFrame.values["Drive/MotorVelocity_fl"] ?: currentFrame.values["/Drive/MotorPower_fl"] ?: currentFrame.values["Drive/MotorPower_fl"] ?: 0.0
-        velocities[1] = currentFrame.values["/Drive/MotorVelocity_fr"] ?: currentFrame.values["Drive/MotorVelocity_fr"] ?: currentFrame.values["/Drive/MotorPower_fr"] ?: currentFrame.values["Drive/MotorPower_fr"] ?: 0.0
-        velocities[2] = currentFrame.values["/Drive/MotorVelocity_bl"] ?: currentFrame.values["Drive/MotorVelocity_bl"] ?: currentFrame.values["/Drive/MotorPower_bl"] ?: currentFrame.values["Drive/MotorPower_bl"] ?: 0.0
-        velocities[3] = currentFrame.values["/Drive/MotorVelocity_br"] ?: currentFrame.values["Drive/MotorVelocity_br"] ?: currentFrame.values["/Drive/MotorPower_br"] ?: currentFrame.values["Drive/MotorPower_br"] ?: 0.0
+        velocities[0] = currentFrame.values["Drive/MotorVelocity_fl"] ?: currentFrame.values["Drive/MotorPower_fl"] ?: 0.0
+        velocities[1] = currentFrame.values["Drive/MotorVelocity_fr"] ?: currentFrame.values["Drive/MotorPower_fr"] ?: 0.0
+        velocities[2] = currentFrame.values["Drive/MotorVelocity_bl"] ?: currentFrame.values["Drive/MotorPower_bl"] ?: 0.0
+        velocities[3] = currentFrame.values["Drive/MotorVelocity_br"] ?: currentFrame.values["Drive/MotorPower_br"] ?: 0.0
 
-        currents[0] = currentFrame.values["/Drive/MotorCurrent_fl"] ?: currentFrame.values["Drive/MotorCurrent_fl"] ?: 0.0
-        currents[1] = currentFrame.values["/Drive/MotorCurrent_fr"] ?: currentFrame.values["Drive/MotorCurrent_fr"] ?: 0.0
-        currents[2] = currentFrame.values["/Drive/MotorCurrent_bl"] ?: currentFrame.values["Drive/MotorCurrent_bl"] ?: 0.0
-        currents[3] = currentFrame.values["/Drive/MotorCurrent_br"] ?: currentFrame.values["Drive/MotorCurrent_br"] ?: 0.0
+        currents[0] = currentFrame.values["Drive/MotorCurrent_fl"] ?: 0.0
+        currents[1] = currentFrame.values["Drive/MotorCurrent_fr"] ?: 0.0
+        currents[2] = currentFrame.values["Drive/MotorCurrent_bl"] ?: 0.0
+        currents[3] = currentFrame.values["Drive/MotorCurrent_br"] ?: 0.0
     } else if (nt4ClientService != null) {
         LaunchedEffect(Unit) {
             scope.launch {
@@ -57,15 +57,15 @@ fun MecanumVisualizer(
                     val key = frame.key
                     val value = frame.value
                     when (key) {
-                        "Drive/MotorVelocity_fl", "/Drive/MotorVelocity_fl", "Drive/MotorPower_fl", "/Drive/MotorPower_fl" -> velocities[0] = value
-                        "Drive/MotorVelocity_fr", "/Drive/MotorVelocity_fr", "Drive/MotorPower_fr", "/Drive/MotorPower_fr" -> velocities[1] = value
-                        "Drive/MotorVelocity_bl", "/Drive/MotorVelocity_bl", "Drive/Drive/MotorPower_bl", "Drive/MotorPower_bl", "/Drive/MotorPower_bl" -> velocities[2] = value
-                        "Drive/MotorVelocity_br", "/Drive/MotorVelocity_br", "Drive/MotorPower_br", "/Drive/MotorPower_br" -> velocities[3] = value
+                        "Drive/MotorVelocity_fl", "Drive/MotorPower_fl" -> velocities[0] = value
+                        "Drive/MotorVelocity_fr", "Drive/MotorPower_fr" -> velocities[1] = value
+                        "Drive/MotorVelocity_bl", "Drive/MotorPower_bl" -> velocities[2] = value
+                        "Drive/MotorVelocity_br", "Drive/MotorPower_br" -> velocities[3] = value
                         
-                        "Drive/MotorCurrent_fl", "/Drive/MotorCurrent_fl" -> currents[0] = value
-                        "Drive/MotorCurrent_fr", "/Drive/MotorCurrent_fr" -> currents[1] = value
-                        "Drive/MotorCurrent_bl", "/Drive/MotorCurrent_bl" -> currents[2] = value
-                        "Drive/MotorCurrent_br", "/Drive/MotorCurrent_br" -> currents[3] = value
+                        "Drive/MotorCurrent_fl" -> currents[0] = value
+                        "Drive/MotorCurrent_fr" -> currents[1] = value
+                        "Drive/MotorCurrent_bl" -> currents[2] = value
+                        "Drive/MotorCurrent_br" -> currents[3] = value
                     }
                 }
             }

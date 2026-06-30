@@ -39,6 +39,32 @@ fun DashboardScreen(
     val scope = rememberCoroutineScope()
     var newLayoutName by remember { mutableStateOf("") }
 
+    // Replay integration
+    val replayEngine = services.replayEngineService
+    val replayState by replayEngine.state.collectAsState()
+    val replayProgress by replayEngine.progress.collectAsState()
+    val replaySpeed by replayEngine.speed.collectAsState()
+    val isReplayMode = state.primarySessionId != null && replayState != ReplayState.STOPPED
+
+    // Load replay session when primarySessionId changes
+    LaunchedEffect(state.primarySessionId) {
+        val sessionId = state.primarySessionId
+        if (sessionId != null) {
+            replayEngine.loadSession(sessionId)
+        } else {
+            replayEngine.stop()
+        }
+    }
+
+    // Bridge replay telemetry flow into the same nt4ClientService.telemetryFlow
+    LaunchedEffect(state.primarySessionId) {
+        if (state.primarySessionId != null) {
+            replayEngine.replayTelemetryFlow.collect { frame ->
+                services.nt4ClientService.emitReplayFrame(frame)
+            }
+        }
+    }
+
     LaunchedEffect(state.importSuccess) {
         if (state.importSuccess) {
             onImportSuccess()
@@ -256,6 +282,17 @@ fun DashboardScreen(
                 modifier = Modifier.weight(1f).fillMaxWidth()
             )
         }
+
+        // Timeline Scrubber Bar (visible only during replay)
+        if (isReplayMode || state.primarySessionId != null) {
+            ReplayTimelineScrubber(
+                replayEngine = replayEngine,
+                replayState = replayState,
+                progress = replayProgress,
+                speed = replaySpeed,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     }
 
     if (state.isPickerOpen) {
@@ -266,4 +303,131 @@ fun DashboardScreen(
             }
         )
     }
+}
+
+@Composable
+private fun ReplayTimelineScrubber(
+    replayEngine: ReplayEngineService,
+    replayState: ReplayState,
+    progress: Double,
+    speed: Double,
+    modifier: Modifier = Modifier
+) {
+    val scope = rememberCoroutineScope()
+
+    Surface(
+        modifier = modifier,
+        color = AresSurfaceElevated,
+        shape = RoundedCornerShape(8.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, AresBorder)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Play / Pause
+            IconButton(
+                onClick = {
+                    scope.launch {
+                        when (replayState) {
+                            ReplayState.PLAYING -> replayEngine.pause()
+                            ReplayState.PAUSED -> replayEngine.play()
+                            ReplayState.STOPPED -> replayEngine.play()
+                        }
+                    }
+                },
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    imageVector = if (replayState == ReplayState.PLAYING) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = if (replayState == ReplayState.PLAYING) "Pause" else "Play",
+                    tint = AresCyan,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            // Stop
+            IconButton(
+                onClick = { scope.launch { replayEngine.stop() } },
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(Icons.Default.Stop, contentDescription = "Stop", tint = AresTextSecondary, modifier = Modifier.size(20.dp))
+            }
+
+            // Step backward
+            IconButton(
+                onClick = { scope.launch { replayEngine.stepBackward() } },
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(Icons.Default.SkipPrevious, contentDescription = "Step Back", tint = AresTextSecondary, modifier = Modifier.size(18.dp))
+            }
+
+            // Step forward
+            IconButton(
+                onClick = { scope.launch { replayEngine.stepForward() } },
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(Icons.Default.SkipNext, contentDescription = "Step Forward", tint = AresTextSecondary, modifier = Modifier.size(18.dp))
+            }
+
+            // Progress slider
+            var sliderDragging by remember { mutableStateOf(false) }
+            var localSliderValue by remember { mutableStateOf(0f) }
+
+            Slider(
+                value = if (sliderDragging) localSliderValue else progress.toFloat(),
+                onValueChange = { newVal ->
+                    sliderDragging = true
+                    localSliderValue = newVal
+                },
+                onValueChangeFinished = {
+                    sliderDragging = false
+                    scope.launch { replayEngine.scrubTo(localSliderValue.toDouble()) }
+                },
+                modifier = Modifier.weight(1f),
+                colors = SliderDefaults.colors(
+                    thumbColor = AresCyan,
+                    activeTrackColor = AresCyan,
+                    inactiveTrackColor = AresBorder
+                )
+            )
+
+            // Time display
+            Text(
+                text = "${formatTime((progress * 100).toLong())}%",
+                color = AresTextSecondary,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            // Speed selector
+            var speedExpanded by remember { mutableStateOf(false) }
+            Box {
+                TextButton(
+                    onClick = { speedExpanded = !speedExpanded }
+                ) {
+                    Text("${speed}×", color = AresAmber, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+                DropdownMenu(
+                    expanded = speedExpanded,
+                    onDismissRequest = { speedExpanded = false }
+                ) {
+                    listOf(0.5, 1.0, 2.0, 4.0).forEach { s ->
+                        DropdownMenuItem(
+                            text = { Text("${s}×", color = AresTextPrimary) },
+                            onClick = {
+                                scope.launch { replayEngine.setSpeed(s) }
+                                speedExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun formatTime(percentage: Long): String {
+    return "$percentage"
 }

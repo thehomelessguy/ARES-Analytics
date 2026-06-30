@@ -125,39 +125,78 @@ All application-level logging uses SLF4J with Logback:
 
 ## 3. Data Protocols & Ingestion Pipelines
 
-### 3.1 Structural Data Flow Architecture
-* **Step 1:** [ROBOT RUN] streams telemetry variables via local networks.
-* **Step 2:** [LAPTOP A (COMPOSE APP)] ingests the raw streams via Ktor WebSocket client, computes mathematical summary metrics using Kotlin coroutines and structured concurrency, and writes variables to the [LOCAL SQLITE] database via SQLDelight.
-* **Step 3:** When network connections stabilize, [LAPTOP A] bundles the raw log array into a Parquet file and passes the pre-computed summary JSON straight to the [KTOR CLOUD GATEWAY].
-* **Step 4:** The Ktor gateway drops the pre-computed summary JSON directly into [FIRESTORE DOCS] (Master Summaries collection) and streams the Parquet data into [CLOUD STORAGE], which populates the [BIGQUERY TABLES].
-* **Step 5:** Secondary machines running the app [LAPTOP B] query the gateway's delta sync endpoint to pull down new missing elements from [FIRESTORE DOCS] directly into their local databases without downloading raw binaries.
+### 3.1 Two-Tier Data Strategy
+The system maintains two distinct data tiers with clear separation of concerns:
 
-### 3.2 Real-Time Streaming & Stateful Latching Pipeline
+| Tier | Storage | Contents | Lifecycle | Purpose |
+| :--- | :--- | :--- | :--- | :--- |
+| **Local Telemetry Frames** | SQLite (WAL mode) | Individual `TelemetryFrame(timestampMs, sessionId, key, value)` records captured from the live NT4 stream | Retained locally until the linked log file is confirmed synced to cloud; then eligible for automatic purge | **Instant replay** — scrub through a session the moment it ends without waiting for file import |
+| **Canonical Log Files** | Disk → Cloud (GCS) | Robot/simulator-produced log files: `.wpilog` (WPILib DataLogManager), ARES `.csv` (ARESDataLogger), `.hoot` (CTRE Phoenix 6) | Permanent — the authoritative record of every session | **Cloud backup & re-import** — can regenerate local frames on any machine at any time |
+
+#### Session–Log File Linkage
+The robot or simulator publishes its active log file path as an NT4 topic:
+* **Topic:** `ARES/Session/LogFilePath` (string)
+* **Published:** Once at the start of each logging session by `TelemetryPublisher` (simulator) or `ARESNetworkStatePublisher` (on-robot)
+* **Captured by:** `Nt4ClientService.dispatchValue()` — stored in the `Session` database record alongside the `sessionId`
+
+This creates a direct mapping: `sessionId` → `logFilePath`, enabling the cloud sync engine to locate and upload the correct file, and enabling the local cleanup engine to know when local frames can be safely purged.
+
+### 3.2 Structural Data Flow Architecture
+```
+┌──────────────┐       NT4 WebSocket        ┌──────────────────────────┐
+│  ROBOT / SIM │ ──────────────────────────► │  LAPTOP A (COMPOSE APP)  │
+│              │  Telemetry + LogFilePath    │                          │
+│  Writes:     │                            │  1. Live NT4 frames      │
+│  .wpilog     │                            │     → SQLite (instant    │
+│  .csv        │                            │       replay)            │
+│  .hoot       │                            │  2. Session record links │
+└──────┬───────┘                            │     sessionId → logFile  │
+       │                                    │  3. Summary metrics      │
+       │  Log file on disk                  │     computed edge-first  │
+       ▼                                    └────────────┬─────────────┘
+┌──────────────┐                                         │
+│  Cloud (GCS) │ ◄───── Log file upload ─────────────────┘
+│  + Firestore │ ◄───── Summary JSON ────────────────────┘
+└──────┬───────┘
+       │  Delta sync (summaries only, no raw frames)
+       ▼
+┌──────────────────────────┐
+│  LAPTOP B (COMPOSE APP)  │
+│  Pulls summaries from    │
+│  Firestore; re-imports   │
+│  log files from GCS to   │
+│  regenerate local frames │
+└──────────────────────────┘
+```
+
+### 3.3 Real-Time Streaming & Stateful Latching Pipeline
 1. The application launches a background Kotlin coroutine using `CoroutineScope(Dispatchers.IO)` to establish a persistent NT4 WebSocket client connection via the Ktor WebSocket client.
-2. Inbound telemetry streams are filtered against immediate safety rules defined in a local, active `thresholds.json` profile.
-3. Detected anomalies invoke a Stateful UI Latching Mechanism:
+2. **NT4 Key Normalization Convention:** All incoming NT4 topic names are stripped of leading `/` characters at the source (`Nt4ClientService.dispatchValue()`) before emission to any consumer. This ensures a single canonical key format (`Drive/Pose_X`, not `/Drive/Pose_X`) across live telemetry, replay frames, database storage, and widget matching.
+3. Inbound telemetry streams are filtered against immediate safety rules defined in a local, active `thresholds.json` profile.
+4. Detected anomalies invoke a Stateful UI Latching Mechanism:
    * **Active Invariant:** While a signal breaks a boundary, the dashboard ticker triggers a persistent flashing warning via Compose `animateColorAsState`. An audible alert tone plays through `javax.sound.sampled` to notify pit crew not actively watching the screen.
    * **Transient Capture Latch:** When a signal recovers, the alert transitions to a static amber latch tracking the exact starting timestamp and duration metrics.
    * **Visual Triage vs. Data Retention:** Clicking "Clear Panel" toggles an isolated visual state flag (`triaged = 1`) within the UI state. The underlying raw telemetry, alert records, and time-stamped tags are structurally locked inside the local database to preserve diagnostic integrity.
-4. All real-time telemetry elements are spooled locally into a high-performance SQLite database configured in Write-Ahead Logging (WAL) mode via SQLDelight.
+5. All real-time telemetry elements are spooled locally into a high-performance SQLite database configured in Write-Ahead Logging (WAL) mode via SQLDelight.
 
-### 3.3 Post-Run Log Archival & Multi-Client Sync
-1. Upon run termination, the user imports raw metrics (FRC `.wpilog` binary arrays or FTC text traces).
+### 3.4 Post-Run Log Archival & Multi-Client Sync
+1. Upon run termination, the user imports raw metrics (FRC `.wpilog` binary arrays or FTC text traces), or the application auto-locates the log file via the `ARES/Session/LogFilePath` linkage.
 2. The application parses the structures using Kotlin I/O streams, flattens relational lines, and exports a compressed Apache Parquet columnar data file locally using the Apache Parquet Java SDK.
 3. **The Edge-First Extraction Loop:** Before running cloud communications, the application runs single-pass mathematical parsing routines over the raw log array using Kotlin coroutines, calculating high-level performance signatures and writing the indices to a local `session_summaries` table.
 4. **Cloud Archival Handshake:**
    * The app authenticates against the Ktor gateway via a Firebase ID token, passing the pre-computed summary JSON payload.
    * The Ktor gateway writes the pre-computed summary map directly to Firestore under the team's account node.
    * The gateway returns a secure GCS Pre-Signed URL.
-   * The application performs a raw chunked HTTP PUT request (Ktor HTTP client) to stream the Parquet file straight to Google Cloud Storage, triggering serverless BigQuery append streams.
-5. **Multi-Client Desktop Delta Sync Engine:** On boot or project switch, the client sends an array of its known `session_id` keys to the Ktor gateway. The gateway matches the list against Firestore, extracts missing documents, and down-syncs a compressed JSON array containing the missing records. The local application parses this delta and populates its local SQLite engine, instantly updating local trends across different laptops.
+   * The application performs a raw chunked HTTP PUT request (Ktor HTTP client) to stream the **canonical log file** (`.wpilog`, `.csv`, or `.hoot`) straight to Google Cloud Storage. Raw telemetry frames from SQLite are **never** uploaded — only the compact, canonical log file.
+5. **Local Frame Cleanup:** Once the log file upload is confirmed (HTTP 200 from GCS), local `TelemetryFrame` rows for that session are eligible for automatic purge. The cleanup runs on a background coroutine, freeing SQLite storage while the canonical log file remains safely in the cloud.
+6. **Multi-Client Desktop Delta Sync Engine:** On boot or project switch, the client sends an array of its known `session_id` keys to the Ktor gateway. The gateway matches the list against Firestore, extracts missing documents, and down-syncs a compressed JSON array containing the missing records. To reconstruct telemetry frames, the client downloads the canonical log file from GCS and re-imports it via `LogParserService` / `HootDecoderService`.
 
-### 3.4 Session Annotations & Tagging
+### 3.5 Session Annotations & Tagging
 * Sessions support free-form text annotations (notes, observations, experiment descriptions) stored in a `session_annotations` SQLite table.
 * Custom tags (`#autonomous`, `#quals`, `#practice`, `#calibration`, `#broken-intake`) enable filtering and grouping across sessions.
 * Annotations and tags sync to Firestore alongside session summaries for multi-client access.
 
-### 3.5 ADB Device Management & Logcat Streaming
+### 3.6 ADB Device Management & Logcat Streaming
 * **ADB Connection Management:** The application manages Android Debug Bridge connections for FTC deployment workflows:
   * Auto-connect to Control Hub at `192.168.43.1:5555` when FTC league is selected.
   * Connection status displayed in the sidebar alongside NT4 status.
@@ -165,7 +204,7 @@ All application-level logging uses SLF4J with Logback:
   * `adb kill-server` / `adb start-server` auto-retry on connection failures.
 * **Live Logcat Streaming:** A parallel `adb logcat` process streams Android runtime logs into a dedicated tab within the terminal drawer, filtered by the `TeamCode` process ID. This runs alongside NT4 telemetry to provide full-stack debugging visibility.
 
-### 3.6 CTRE Phoenix 6 Hoot Log Ingestion & Post-Processing
+### 3.7 CTRE Phoenix 6 Hoot Log Ingestion & Post-Processing
 * **Hoot log decoding:** The application decodes CTRE `.hoot` logs into the SQLite database. It auto-discovers AdvantageScope's downloaded `owlet` CLI binaries (checking AppData directories on Windows, Library/Application Support on macOS, `.config` or `.ctre` folders on Linux) and spawns it in a background process (`owlet hootPath tempCsvPath -f csv`).
 * **Low-memory parsing:** The output CSV is parsed line-by-line using a `BufferedReader` and written to the SQLite database in transaction batches of 5000 telemetry frames to keep heap allocations constant.
 * **Post-processing diagnostic sweeps:** Once ingestion completes, a diagnostic pipeline is automatically executed:
@@ -189,7 +228,27 @@ All application-level logging uses SLF4J with Logback:
 * **Output Streaming Terminal View:** Standard `stdout` and `stderr` handles are actively piped into Kotlin coroutine `Flow` streams and collected by a Compose Canvas-based terminal view component with ANSI color code parsing. The terminal panel drawer animates into view (`AnimatedVisibility`) if a child compilation process outputs a non-zero exit code or emits a known syntax error footprint string.
 * **Keyboard Shortcuts:** `Ctrl+B` triggers build, `Ctrl+D` deploys to device, `Ctrl+K` kills running process, `Escape` dismisses the terminal drawer. Shortcuts are registered via Compose `onPreviewKeyEvent` modifiers.
 
-### 4.3 Code-Mutation Log Replay Execution
+### 4.3 Headless Simulation & Dashboard-Driven Control
+* When the simulator is launched from the dashboard (via `gradlew.bat :simulator:run -PappArgs=--headless`), it starts in **teleop mode by default**.
+* **Teleop Mode (default):** The dashboard's keyboard/joystick widget captures WASD/QE inputs and publishes them as NT4 topics (`ARES/Input/vx`, `ARES/Input/vy`, `ARES/Input/omega`). The simulator subscribes to these topics and feeds them into the OpMode's gamepad fields, driving the physics simulation in real time.
+* **Auto Mode (on demand):** A **"Run Auto"** toggle button on the dashboard toolbar publishes `ARES/Input/isTeleopMode = false` via NT4. The simulator switches to autonomous path-following mode using a `HolonomicDriveController` with PID controllers. Toggling back publishes `true` to return to teleop.
+* **Bidirectional NT4 Control Topics:**
+
+| Dashboard → Simulator (Published) | Type | Purpose |
+| :--- | :--- | :--- |
+| `ARES/Input/vx` | double | Forward/back drive velocity |
+| `ARES/Input/vy` | double | Strafe velocity |
+| `ARES/Input/omega` | double | Rotational velocity |
+| `ARES/Input/isTeleopMode` | boolean | Teleop/auto mode toggle |
+| `ARES/Input/isFieldCentric` | boolean | Field-centric drive toggle |
+| `ARES/Input/isIntaking` | boolean | Intake control |
+| `ARES/Input/isFlywheelOn` | boolean | Flywheel control |
+| `ARES/Input/isTransferring` | boolean | Transfer control |
+| `ARES/Input/isRedAlliance` | boolean | Alliance color |
+| `ARES/Input/heartbeat` | integer | Connection heartbeat |
+| `ARES/Input/obstacles` | string | Dynamic obstacle JSON |
+
+### 4.4 Code-Mutation Log Replay Execution
 * Selecting a "Deterministic Log Replay" run instructs the application to pair parameters written via the Constants Tuning Subsystem with an explicit historical log file selection.
 * The application kicks off the Gradle wrapper pipeline, injecting environment flags specifying lockstep replay ingestion parameters (e.g., routing target log paths as execution properties to your custom Kotlin simulation loops).
 * Mutated output data arrays generated by the modified software parameters loop back via network sockets straight onto the dashboard layers to handle side-by-side behavioral modeling.
@@ -233,22 +292,46 @@ All application-level logging uses SLF4J with Logback:
 
 ---
 
-## 6. High-Fidelity Log Replay Subsystem
+## 6. Unified Dashboard: Live Telemetry & Instant Replay
 
-### 6.1 Timeline State Machine
-* Loading historical time-series datasets from localized SQLite blocks instructs the application to construct an async background playback timing wheel worker using Kotlin coroutines with `delay()` and `Channel`-based state coordination.
-* The Compose viewport exposes interactive control states (Play, Pause, Stop, Step, and Speed Scalers: `0.5x`, `1x`, `2x`, `5x`) that pass timeline state adjustments directly to the playback coroutine via `MutableStateFlow`.
+The Dashboard is the single, unified interface for both **live telemetry** and **session replay**. There is no separate replay screen — the same widgets, same layout, and same field canvas operate in both modes.
 
-### 6.2 Scrubbing Interactivity & Local Loopback Emulation
-* **Scrubbing Interactivity:** Dragging the UI timeline slider sends a precise microsecond timestamp anchor directly to the playback engine (no IPC boundary — same JVM process). The engine runs an indexed `binarySearch` over the in-memory frame index to locate the nearest historical data matching block and updates Compose `MutableState` objects, which automatically recompose the dashboard charts and field canvas viewports.
-* **Local Loop Emulation:** During active playback loops, the application re-broadcasts decoded telemetry frames over a local network loopback port using Kotlin `DatagramSocket`. This allows auxiliary desktop debugging toolsets (e.g., AdvantageScope) to hook directly into the stream and display live log animations simultaneously.
+### 6.1 Dashboard Modes
+| Mode | Trigger | Data Source | Timeline Scrubber |
+| :--- | :--- | :--- | :--- |
+| **Live** | NT4 connection active, no session selected | `Nt4ClientService.telemetryFlow` (real-time NT4 WebSocket frames) | Hidden |
+| **Replay** | User selects a recorded session from the Runs Index | `ReplayEngineService` → emits stored `TelemetryFrame` rows into the same `telemetryFlow` | Visible at bottom of dashboard |
 
-### 6.3 Tabbed Replay Workspace & Diagnostic Viewports
-* The Log Replay panel features a modern Material 3 tab row allowing users to swap between four diagnostic viewports:
-  1. **Field 2D Viewport:** Renders the robot's real-time position vector over the 2D field canvas alongside the actual driven path.
-  2. **Mechanism Linkage Animator:** Draws jointed kinematic linkages (such as an arm and telescoping slide) in 2D space by reading angles (`/Mechanism/ArmAngle`) and heights (`/Mechanism/SlideHeight`).
-  3. **Swerve Module Vector Dashboard:** Displays the active steering angle and velocity vector magnitude arrows for the four swerve modules (FL, FR, BL, BR).
-  4. **Driver Joystick Monitor:** Draws a virtual gamepad overlay highlighting analog stick deflections, trigger fill levels, and action button clicks from physical controller inputs.
+Switching between modes is seamless: selecting a session transitions to replay mode; closing/deselecting returns to live mode (if an NT4 connection is active).
+
+### 6.2 Replay Engine (`ReplayEngineService`)
+* **Session Loading:** `loadSession(sessionId)` reads all `TelemetryFrame` rows for the session from SQLite, builds a sorted timestamp index, and sets the playhead to the start.
+* **Frame Emission:** `updateFrameAtPlayhead()` aggregates all key/value pairs up to the current playhead timestamp into a `ReplayFrame(timestampMs, values: Map<String, Double>)`. Each key/value pair is then emitted as an individual `TelemetryFrame` into the same `telemetryFlow` that live telemetry uses — ensuring all dashboard widgets (FieldViewerCard, TelemetryChartPanel, MecanumVisualizer, etc.) work identically in both modes with zero widget-level changes.
+* **Playback Controls:** Play, Pause, Stop, Step Forward, Step Backward, Speed Scaling (`0.5x`, `1x`, `2x`, `4x`), and percentage-based Scrub.
+* **Timing:** The playback loop runs at 50fps (`delay(20)`), advancing the playhead by `deltaRealTime * speedMultiplier` each tick.
+* **Binary Search Seeking:** `scrubTo(percentage)` computes the target timestamp and uses `binarySearch` over the timestamp index for O(log n) seeking.
+
+### 6.3 Timeline Scrubber Bar
+When a session is selected for replay, a timeline bar appears at the bottom of the Dashboard:
+* **Scrub Slider:** Draggable progress bar (0% → 100% of session duration)
+* **Play / Pause Button:** Toggles real-time playback
+* **Step Buttons:** Frame-by-frame forward/backward navigation
+* **Speed Selector:** `0.5×`, `1×`, `2×`, `4×` playback speed
+* **Time Labels:** Current playhead time / total session duration
+* **Mode Indicator:** Dashboard title changes from "Live" to "Replay: {session name}" to clearly indicate the active mode
+
+### 6.4 Local Loopback Emulation
+* During active playback, the `ReplayEngineService` re-broadcasts decoded telemetry frames over a local UDP loopback port (`127.0.0.1:5802`) using Kotlin `DatagramSocket`. This allows auxiliary desktop debugging toolsets (e.g., AdvantageScope) to hook directly into the replay stream and display log animations simultaneously.
+
+### 6.5 Dashboard Widgets in Both Modes
+All dashboard widgets consume from the same `telemetryFlow` and operate identically in both live and replay modes:
+  1. **Field 2D Viewer (`FieldViewerCard`):** Renders the robot's position on the field canvas. In replay mode, the full driven path is overlaid.
+  2. **Telemetry Chart (`TelemetryChartPanel`):** Plots user-selected channels over time. In replay mode, the time window follows the playhead.
+  3. **Mecanum Visualizer:** Shows wheel velocities/powers.
+  4. **Swerve Module Visualizer:** Displays steering angles and velocity vectors for swerve drivetrains.
+  5. **Joystick Visualizer:** Shows analog stick deflections, trigger levels, and button states.
+  6. **Mechanism Visualizer:** Draws arm angles and slide extensions.
+  7. **Console Viewer:** Displays log/console messages.
 
 ---
 

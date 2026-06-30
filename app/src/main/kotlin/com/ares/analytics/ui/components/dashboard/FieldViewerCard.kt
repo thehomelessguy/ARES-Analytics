@@ -48,23 +48,23 @@ fun FieldViewerCard(
                 val key = frame.key
                 val value = frame.value
                 when (key) {
-                    "AdvantageKit/RealOutputs/ARES/EstimatedPose/0", "/AdvantageKit/RealOutputs/ARES/EstimatedPose/0" -> robotX = value
-                    "AdvantageKit/RealOutputs/ARES/EstimatedPose/1", "/AdvantageKit/RealOutputs/ARES/EstimatedPose/1" -> robotY = value
-                    "AdvantageKit/RealOutputs/ARES/EstimatedPose/2", "/AdvantageKit/RealOutputs/ARES/EstimatedPose/2" -> robotHeading = value
-                    "Drive/Pose_X", "/Drive/Pose_X" -> robotX = value
-                    "Drive/Pose_Y", "/Drive/Pose_Y" -> robotY = value
-                    "Drive/Pose_Heading", "/Drive/Pose_Heading" -> robotHeading = value
+                    "AdvantageKit/RealOutputs/ARES/EstimatedPose/0" -> robotX = value
+                    "AdvantageKit/RealOutputs/ARES/EstimatedPose/1" -> robotY = value
+                    "AdvantageKit/RealOutputs/ARES/EstimatedPose/2" -> robotHeading = value
+                    "Drive/Pose_X" -> robotX = value
+                    "Drive/Pose_Y" -> robotY = value
+                    "Drive/Pose_Heading", "Drive/Drive_Heading" -> robotHeading = value
 
-                    "pinpoint_x", "/pinpoint_x", "pinpoint/x", "/pinpoint/x" -> ekfX = value
-                    "pinpoint_y", "/pinpoint_y", "pinpoint/y", "/pinpoint/y" -> ekfY = value
-                    "pinpoint_heading", "/pinpoint_heading", "pinpoint/heading", "/pinpoint/heading" -> ekfHeading = value
+                    "pinpoint_x", "pinpoint/x" -> ekfX = value
+                    "pinpoint_y", "pinpoint/y" -> ekfY = value
+                    "pinpoint_heading", "pinpoint/heading" -> ekfHeading = value
 
-                    "Vision/Pose_X", "/Vision/Pose_X", "Vision/Pose/X", "/Vision/Pose/X" -> visionX = value
-                    "Vision/Pose_Y", "/Vision/Pose_Y", "Vision/Pose/Y", "/Vision/Pose/Y" -> visionY = value
-                    "Vision/Pose_Heading", "/Vision/Pose_Heading", "Vision/Pose/Heading", "/Vision/Pose/Heading" -> visionHeading = value
+                    "Vision/Pose_X", "Vision/Pose/X" -> visionX = value
+                    "Vision/Pose_Y", "Vision/Pose/Y" -> visionY = value
+                    "Vision/Pose_Heading", "Vision/Pose/Heading" -> visionHeading = value
                 }
 
-                if (key.startsWith("AdvantageScope/VisionPose/") || key.startsWith("/AdvantageScope/VisionPose/")) {
+                if (key.startsWith("AdvantageScope/VisionPose/")) {
                     val idx = key.substringAfterLast("/").toIntOrNull()
                     if (idx != null) {
                         visionPoses[idx] = value

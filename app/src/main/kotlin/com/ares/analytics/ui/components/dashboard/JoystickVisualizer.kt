@@ -75,20 +75,20 @@ fun JoystickVisualizer(
 
     // 1. Receive data from telemetry logs or NetworkTables if Keyboard Drive is disabled
     if (currentFrame != null) {
-        lx = currentFrame.values["/Driver/LeftStickX"] ?: currentFrame.values["Driver/LeftStickX"] ?: 0.0
-        ly = currentFrame.values["/Driver/LeftStickY"] ?: currentFrame.values["Driver/LeftStickY"] ?: 0.0
-        rx = currentFrame.values["/Driver/RightStickX"] ?: currentFrame.values["Driver/RightStickX"] ?: 0.0
-        ry = currentFrame.values["/Driver/RightStickY"] ?: currentFrame.values["Driver/RightStickY"] ?: 0.0
-        lt = currentFrame.values["/Driver/LeftTrigger"] ?: currentFrame.values["Driver/LeftTrigger"] ?: 0.0
-        rt = currentFrame.values["/Driver/RightTrigger"] ?: currentFrame.values["Driver/RightTrigger"] ?: 0.0
-        btnA = (currentFrame.values["/Driver/AButton"] ?: currentFrame.values["Driver/AButton"] ?: 0.0) > 0.5
-        btnB = (currentFrame.values["/Driver/BButton"] ?: currentFrame.values["Driver/BButton"] ?: 0.0) > 0.5
-        btnX = (currentFrame.values["/Driver/XButton"] ?: currentFrame.values["Driver/XButton"] ?: 0.0) > 0.5
-        btnY = (currentFrame.values["/Driver/YButton"] ?: currentFrame.values["Driver/YButton"] ?: 0.0) > 0.5
-        dpadUp = (currentFrame.values["/Driver/DpadUp"] ?: 0.0) > 0.5
-        dpadDown = (currentFrame.values["/Driver/DpadDown"] ?: 0.0) > 0.5
-        dpadLeft = (currentFrame.values["/Driver/DpadLeft"] ?: 0.0) > 0.5
-        dpadRight = (currentFrame.values["/Driver/DpadRight"] ?: 0.0) > 0.5
+        lx = currentFrame.values["Driver/LeftStickX"] ?: 0.0
+        ly = currentFrame.values["Driver/LeftStickY"] ?: 0.0
+        rx = currentFrame.values["Driver/RightStickX"] ?: 0.0
+        ry = currentFrame.values["Driver/RightStickY"] ?: 0.0
+        lt = currentFrame.values["Driver/LeftTrigger"] ?: 0.0
+        rt = currentFrame.values["Driver/RightTrigger"] ?: 0.0
+        btnA = (currentFrame.values["Driver/AButton"] ?: 0.0) > 0.5
+        btnB = (currentFrame.values["Driver/BButton"] ?: 0.0) > 0.5
+        btnX = (currentFrame.values["Driver/XButton"] ?: 0.0) > 0.5
+        btnY = (currentFrame.values["Driver/YButton"] ?: 0.0) > 0.5
+        dpadUp = (currentFrame.values["Driver/DpadUp"] ?: 0.0) > 0.5
+        dpadDown = (currentFrame.values["Driver/DpadDown"] ?: 0.0) > 0.5
+        dpadLeft = (currentFrame.values["Driver/DpadLeft"] ?: 0.0) > 0.5
+        dpadRight = (currentFrame.values["Driver/DpadRight"] ?: 0.0) > 0.5
     } else if (nt4ClientService != null && !keyboardControlEnabled) {
         LaunchedEffect(Unit) {
             scope.launch {
@@ -96,20 +96,20 @@ fun JoystickVisualizer(
                     val key = frame.key
                     val value = frame.value
                     when (key) {
-                        "/Driver/LeftStickX", "Driver/LeftStickX" -> lx = value
-                        "/Driver/LeftStickY", "Driver/LeftStickY" -> ly = value
-                        "/Driver/RightStickX", "Driver/RightStickX" -> rx = value
-                        "/Driver/RightStickY", "Driver/RightStickY" -> ry = value
-                        "/Driver/LeftTrigger", "Driver/LeftTrigger" -> lt = value
-                        "/Driver/RightTrigger", "Driver/RightTrigger" -> rt = value
-                        "/Driver/AButton", "Driver/AButton" -> btnA = value > 0.5
-                        "/Driver/BButton", "Driver/BButton" -> btnB = value > 0.5
-                        "/Driver/XButton", "Driver/XButton" -> btnX = value > 0.5
-                        "/Driver/YButton", "Driver/YButton" -> btnY = value > 0.5
-                        "/Driver/DpadUp" -> dpadUp = value > 0.5
-                        "/Driver/DpadDown" -> dpadDown = value > 0.5
-                        "/Driver/DpadLeft" -> dpadLeft = value > 0.5
-                        "/Driver/DpadRight" -> dpadRight = value > 0.5
+                        "Driver/LeftStickX" -> lx = value
+                        "Driver/LeftStickY" -> ly = value
+                        "Driver/RightStickX" -> rx = value
+                        "Driver/RightStickY" -> ry = value
+                        "Driver/LeftTrigger" -> lt = value
+                        "Driver/RightTrigger" -> rt = value
+                        "Driver/AButton" -> btnA = value > 0.5
+                        "Driver/BButton" -> btnB = value > 0.5
+                        "Driver/XButton" -> btnX = value > 0.5
+                        "Driver/YButton" -> btnY = value > 0.5
+                        "Driver/DpadUp" -> dpadUp = value > 0.5
+                        "Driver/DpadDown" -> dpadDown = value > 0.5
+                        "Driver/DpadLeft" -> dpadLeft = value > 0.5
+                        "Driver/DpadRight" -> dpadRight = value > 0.5
                     }
                 }
             }

@@ -29,28 +29,28 @@ fun SwerveVisualizer(
     modifier: Modifier = Modifier
 ) {
     // Front Left Module
-    val angFl = currentFrame?.values?.get("/Drive/Swerve/Angle_FL")
-        ?: currentFrame?.values?.get("/Drive/Swerve/FL_Angle") ?: 0.0
-    val velFl = currentFrame?.values?.get("/Drive/Swerve/Vel_FL")
-        ?: currentFrame?.values?.get("/Drive/Swerve/FL_Vel") ?: 0.0
+    val angFl = currentFrame?.values?.get("Drive/Swerve/Angle_FL")
+        ?: currentFrame?.values?.get("Drive/Swerve/FL_Angle") ?: 0.0
+    val velFl = currentFrame?.values?.get("Drive/Swerve/Vel_FL")
+        ?: currentFrame?.values?.get("Drive/Swerve/FL_Vel") ?: 0.0
 
     // Front Right Module
-    val angFr = currentFrame?.values?.get("/Drive/Swerve/Angle_FR")
-        ?: currentFrame?.values?.get("/Drive/Swerve/FR_Angle") ?: 0.0
-    val velFr = currentFrame?.values?.get("/Drive/Swerve/Vel_FR")
-        ?: currentFrame?.values?.get("/Drive/Swerve/FR_Vel") ?: 0.0
+    val angFr = currentFrame?.values?.get("Drive/Swerve/Angle_FR")
+        ?: currentFrame?.values?.get("Drive/Swerve/FR_Angle") ?: 0.0
+    val velFr = currentFrame?.values?.get("Drive/Swerve/Vel_FR")
+        ?: currentFrame?.values?.get("Drive/Swerve/FR_Vel") ?: 0.0
 
     // Back Left Module
-    val angBl = currentFrame?.values?.get("/Drive/Swerve/Angle_BL")
-        ?: currentFrame?.values?.get("/Drive/Swerve/BL_Angle") ?: 0.0
-    val velBl = currentFrame?.values?.get("/Drive/Swerve/Vel_BL")
-        ?: currentFrame?.values?.get("/Drive/Swerve/BL_Vel") ?: 0.0
+    val angBl = currentFrame?.values?.get("Drive/Swerve/Angle_BL")
+        ?: currentFrame?.values?.get("Drive/Swerve/BL_Angle") ?: 0.0
+    val velBl = currentFrame?.values?.get("Drive/Swerve/Vel_BL")
+        ?: currentFrame?.values?.get("Drive/Swerve/BL_Vel") ?: 0.0
 
     // Back Right Module
-    val angBr = currentFrame?.values?.get("/Drive/Swerve/Angle_BR")
-        ?: currentFrame?.values?.get("/Drive/Swerve/BR_Angle") ?: 0.0
-    val velBr = currentFrame?.values?.get("/Drive/Swerve/Vel_BR")
-        ?: currentFrame?.values?.get("/Drive/Swerve/BR_Vel") ?: 0.0
+    val angBr = currentFrame?.values?.get("Drive/Swerve/Angle_BR")
+        ?: currentFrame?.values?.get("Drive/Swerve/BR_Angle") ?: 0.0
+    val velBr = currentFrame?.values?.get("Drive/Swerve/Vel_BR")
+        ?: currentFrame?.values?.get("Drive/Swerve/BR_Vel") ?: 0.0
 
     Column(
         modifier = modifier

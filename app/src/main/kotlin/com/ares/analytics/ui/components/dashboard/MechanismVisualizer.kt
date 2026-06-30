@@ -37,13 +37,11 @@ fun MechanismVisualizer(
     var slideExtension by remember { mutableStateOf(0.0) }
 
     if (currentFrame != null) {
-        armAngleDeg = currentFrame.values["/Mechanism/ArmAngle"]
-            ?: currentFrame.values["/Mechanism/ArmAngleDeg"]
-            ?: currentFrame.values["Mechanism/ArmAngle"]
+        armAngleDeg = currentFrame.values["Mechanism/ArmAngle"]
+            ?: currentFrame.values["Mechanism/ArmAngleDeg"]
             ?: 0.0
-        slideExtension = currentFrame.values["/Mechanism/SlideHeight"]
-            ?: currentFrame.values["/Mechanism/SlideExtension"]
-            ?: currentFrame.values["Mechanism/SlideHeight"]
+        slideExtension = currentFrame.values["Mechanism/SlideHeight"]
+            ?: currentFrame.values["Mechanism/SlideExtension"]
             ?: 0.0
     } else if (nt4ClientService != null) {
         LaunchedEffect(Unit) {
@@ -52,8 +50,8 @@ fun MechanismVisualizer(
                     val key = frame.key
                     val value = frame.value
                     when (key) {
-                        "/Mechanism/ArmAngle", "/Mechanism/ArmAngleDeg", "Mechanism/ArmAngle" -> armAngleDeg = value
-                        "/Mechanism/SlideHeight", "/Mechanism/SlideExtension", "Mechanism/SlideHeight" -> slideExtension = value
+                        "Mechanism/ArmAngle", "Mechanism/ArmAngleDeg" -> armAngleDeg = value
+                        "Mechanism/SlideHeight", "Mechanism/SlideExtension" -> slideExtension = value
                     }
                 }
             }
