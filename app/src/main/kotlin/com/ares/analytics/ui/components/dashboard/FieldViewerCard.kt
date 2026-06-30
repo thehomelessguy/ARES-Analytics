@@ -30,6 +30,14 @@ fun FieldViewerCard(
     var robotY by remember { mutableStateOf(0.0) }
     var robotHeading by remember { mutableStateOf(0.0) }
 
+    var ekfX by remember { mutableStateOf<Double?>(null) }
+    var ekfY by remember { mutableStateOf<Double?>(null) }
+    var ekfHeading by remember { mutableStateOf<Double?>(null) }
+
+    var visionX by remember { mutableStateOf<Double?>(null) }
+    var visionY by remember { mutableStateOf<Double?>(null) }
+    var visionHeading by remember { mutableStateOf<Double?>(null) }
+
     val isConnected by nt4ClientService.isConnected.collectAsState()
 
     LaunchedEffect(Unit) {
@@ -44,12 +52,32 @@ fun FieldViewerCard(
                     "Drive/Pose_X", "/Drive/Pose_X" -> robotX = value
                     "Drive/Pose_Y", "/Drive/Pose_Y" -> robotY = value
                     "Drive/Pose_Heading", "/Drive/Pose_Heading" -> robotHeading = value
+
+                    "pinpoint_x", "/pinpoint_x", "pinpoint/x", "/pinpoint/x" -> ekfX = value
+                    "pinpoint_y", "/pinpoint_y", "pinpoint/y", "/pinpoint/y" -> ekfY = value
+                    "pinpoint_heading", "/pinpoint_heading", "pinpoint/heading", "/pinpoint/heading" -> ekfHeading = value
+
+                    "Vision/Pose_X", "/Vision/Pose_X", "Vision/Pose/X", "/Vision/Pose/X" -> visionX = value
+                    "Vision/Pose_Y", "/Vision/Pose_Y", "Vision/Pose/Y", "/Vision/Pose/Y" -> visionY = value
+                    "Vision/Pose_Heading", "/Vision/Pose_Heading", "Vision/Pose/Heading", "/Vision/Pose/Heading" -> visionHeading = value
+
+                    "AdvantageScope/VisionPose/0", "/AdvantageScope/VisionPose/0" -> visionX = value
+                    "AdvantageScope/VisionPose/1", "/AdvantageScope/VisionPose/1" -> visionY = value
+                    "AdvantageScope/VisionPose/2", "/AdvantageScope/VisionPose/2" -> visionHeading = value
                 }
             }
         }
     }
 
     val currentPose = listOf(Waypoint(robotX, robotY, robotHeading))
+    
+    val estimatedPose = if (ekfX != null && ekfY != null && ekfHeading != null) {
+        Waypoint(ekfX!!, ekfY!!, ekfHeading!!)
+    } else null
+
+    val visionPose = if (visionX != null && visionY != null && visionHeading != null) {
+        Waypoint(visionX!!, visionY!!, visionHeading!!)
+    } else null
 
     Card(
         modifier = modifier
@@ -96,6 +124,8 @@ fun FieldViewerCard(
                     actualPath = currentPose,
                     onWaypointsChanged = {},
                     projectPath = projectPath,
+                    estimatedPose = estimatedPose,
+                    visionPose = visionPose,
                     showPathControls = false,
                     showObstacleControls = false,
                     modifier = Modifier.fillMaxSize()
