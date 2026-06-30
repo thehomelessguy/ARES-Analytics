@@ -75,6 +75,8 @@ class FirebaseClientService {
             
             val response = httpClient.post(url) {
                 contentType(ContentType.Application.Json)
+                header("Referer", "https://${projectId}.firebaseapp.com")
+                header("Origin", "https://${projectId}.firebaseapp.com")
                 setBody(buildJsonObject {
                     put("requestUri", "http://localhost")
                     put("postBody", postBody)
