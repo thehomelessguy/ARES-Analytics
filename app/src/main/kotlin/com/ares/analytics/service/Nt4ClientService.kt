@@ -41,7 +41,7 @@ open class Nt4ClientService(
     internal val topicMap = ConcurrentHashMap<Int, Nt4Topic>()
 
     fun getActiveTopics(): List<String> {
-        return topicMap.values.map { it.name }.sorted()
+        return topicMap.values.map { it.name.removePrefix("/") }.sorted()
     }
 
     private val pendingFrames = java.util.concurrent.ConcurrentLinkedQueue<TelemetryFrame>()
@@ -369,6 +369,10 @@ open class Nt4ClientService(
     ) {
         // Normalize key: strip leading '/' for consistent matching everywhere
         val normalizedName = ntTopic.name.removePrefix("/")
+
+        // Skip input topics that the dashboard publishes — they echo back from the
+        // simulator and cause 50Hz recomposition storms across all widgets
+        if (normalizedName.startsWith("ARES/Input/")) return
 
         // Intercept log file path linkage
         if (normalizedName == "ARES/Session/LogFilePath") {
