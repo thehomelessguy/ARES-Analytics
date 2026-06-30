@@ -31,7 +31,7 @@ import com.ares.analytics.ui.components.Sidebar
 import com.ares.analytics.ui.components.terminal.TerminalDrawer
 import com.ares.analytics.ui.theme.*
 import com.ares.analytics.viewmodel.*
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 
 @Composable
 fun MainScreen(services: ServiceRegistry) {
@@ -181,7 +181,17 @@ fun MainScreen(services: ServiceRegistry) {
     // Start NT4 connection once config is resolved or simulator status changes
     LaunchedEffect(currentConfig, isSimRunning) {
         focusRequester.requestFocus()
-        val host = if (isSimRunning) "127.0.0.1" else (currentConfig.nt4Host ?: "192.168.43.1")
+        val host = withContext(Dispatchers.IO) {
+            val isLocalSimOpen = try {
+                java.net.Socket().use { socket ->
+                    socket.connect(java.net.InetSocketAddress("127.0.0.1", 5810), 300)
+                    true
+                }
+            } catch (e: Exception) {
+                false
+            }
+            if (isSimRunning || isLocalSimOpen) "127.0.0.1" else (currentConfig.nt4Host ?: "192.168.43.1")
+        }
         services.nt4ClientService.start(
             host = host,
             teamId = currentConfig.teamId,
