@@ -76,7 +76,7 @@ class ProfileViewModel(
                     val cfg = intent.config
                     // Dynamically bind current Firebase API key override
                     firebaseClientService.apiKey = cfg.firebaseApiKey.takeIf { !it.isNullOrBlank() }
-                        ?: "AIzaSyCkTBJqV7CAFRsxm4047oGXwbm_QP-BT7I"
+                        ?: "AIzaSyB4cU7pgHpqoxtqtQalIE4HqZoz3X7bJH0"
 
                     _state.update {
                         it.copy(
@@ -93,7 +93,7 @@ class ProfileViewModel(
                 is ProfileIntent.GoogleSignIn -> {
                     // Update FirebaseClientService configuration context
                     val currentApiKey = _state.value.firebaseApiKey.takeIf { it.isNotBlank() }
-                        ?: "AIzaSyCkTBJqV7CAFRsxm4047oGXwbm_QP-BT7I"
+                        ?: "AIzaSyB4cU7pgHpqoxtqtQalIE4HqZoz3X7bJH0"
                     firebaseClientService.apiKey = currentApiKey
 
                     val targetClientId = intent.clientId.takeIf { it.isNotBlank() }
@@ -137,7 +137,7 @@ class ProfileViewModel(
                         tbaApiKey = intent.tbaApiKey.takeIf { it.isNotBlank() }
                     )
                     firebaseClientService.apiKey = intent.firebaseApiKey.takeIf { it.isNotBlank() }
-                        ?: "AIzaSyCkTBJqV7CAFRsxm4047oGXwbm_QP-BT7I"
+                        ?: "AIzaSyB4cU7pgHpqoxtqtQalIE4HqZoz3X7bJH0"
 
                     _state.update {
                         it.copy(
