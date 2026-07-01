@@ -171,7 +171,7 @@ This creates a direct mapping: `sessionId` → `logFilePath`, enabling the cloud
 
 ### 3.3 Real-Time Streaming & Stateful Latching Pipeline
 1. The application launches a background Kotlin coroutine using `CoroutineScope(Dispatchers.IO)` to establish a persistent NT4 WebSocket client connection via the Ktor WebSocket client.
-2. **NT4 Key Normalization Convention:** All incoming NT4 topic names are stripped of leading `/` characters at the source (`Nt4ClientService.dispatchValue()`) before emission to any consumer. This ensures a single canonical key format (`Drive/Pose_X`, not `/Drive/Pose_X`) across live telemetry, replay frames, database storage, and widget matching.
+2. **NT4 Key Normalization Convention:** All incoming and outgoing NT4 topic names are stripped of leading `/` characters (e.g. at the source in `Nt4ClientService.dispatchValue()` and during client topic publication) to ensure a single canonical key format (e.g. `ARES/Input/vx`, `Drive/Pose_X`, not `/ARES/Input/vx`, `/Drive/Pose_X`) across live telemetry, replay frames, database storage, and widget matching. This avoids duplicate topic registration on the C++ `ntcore` server, which treats keys with and without leading slashes as distinct.
 3. Inbound telemetry streams are filtered against immediate safety rules defined in a local, active `thresholds.json` profile.
 4. Detected anomalies invoke a Stateful UI Latching Mechanism:
    * **Active Invariant:** While a signal breaks a boundary, the dashboard ticker triggers a persistent flashing warning via Compose `animateColorAsState`. An audible alert tone plays through `javax.sound.sampled` to notify pit crew not actively watching the screen.
