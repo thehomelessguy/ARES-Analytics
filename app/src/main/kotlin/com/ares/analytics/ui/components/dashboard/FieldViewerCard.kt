@@ -55,9 +55,9 @@ fun FieldViewerCard(
                     "Drive/Pose_Y" -> robotY = value
                     "Drive/Pose_Heading", "Drive/Drive_Heading" -> robotHeading = value
 
-                    "pinpoint_x", "pinpoint/x" -> ekfX = value
-                    "pinpoint_y", "pinpoint/y" -> ekfY = value
-                    "pinpoint_heading", "pinpoint/heading" -> ekfHeading = value
+                    "Drive/Odom_X", "pinpoint_x", "pinpoint/x" -> ekfX = value
+                    "Drive/Odom_Y", "pinpoint_y", "pinpoint/y" -> ekfY = value
+                    "Drive/Odom_Heading", "pinpoint_heading", "pinpoint/heading" -> ekfHeading = value
 
                     "Vision/Pose_X", "Vision/Pose/X" -> visionX = value
                     "Vision/Pose_Y", "Vision/Pose/Y" -> visionY = value
