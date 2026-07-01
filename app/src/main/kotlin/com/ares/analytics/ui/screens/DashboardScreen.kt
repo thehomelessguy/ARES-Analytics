@@ -258,6 +258,9 @@ fun DashboardScreen(
                 "field_viewer" to { _, mod ->
                     FieldViewerCard(services.nt4ClientService, currentConfig.league, currentConfig.projectPath, mod)
                 },
+                "pose_viewer" to { _, mod ->
+                    PoseViewerCard(services.nt4ClientService, mod)
+                },
                 "trends_card" to { _, mod ->
                     TrendsCard(services.databaseService, mod)
                 },
