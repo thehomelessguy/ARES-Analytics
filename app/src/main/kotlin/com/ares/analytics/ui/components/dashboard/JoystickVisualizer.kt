@@ -76,20 +76,20 @@ fun JoystickVisualizer(
 
     // 1. Receive data from telemetry logs or NetworkTables if Keyboard Drive is disabled
     if (currentFrame != null) {
-        lx = currentFrame.values["Driver/LeftStickX"] ?: 0.0
-        ly = currentFrame.values["Driver/LeftStickY"] ?: 0.0
-        rx = currentFrame.values["Driver/RightStickX"] ?: 0.0
-        ry = currentFrame.values["Driver/RightStickY"] ?: 0.0
-        lt = currentFrame.values["Driver/LeftTrigger"] ?: 0.0
-        rt = currentFrame.values["Driver/RightTrigger"] ?: 0.0
-        btnA = (currentFrame.values["Driver/AButton"] ?: 0.0) > 0.5
-        btnB = (currentFrame.values["Driver/BButton"] ?: 0.0) > 0.5
-        btnX = (currentFrame.values["Driver/XButton"] ?: 0.0) > 0.5
-        btnY = (currentFrame.values["Driver/YButton"] ?: 0.0) > 0.5
-        dpadUp = (currentFrame.values["Driver/DpadUp"] ?: 0.0) > 0.5
-        dpadDown = (currentFrame.values["Driver/DpadDown"] ?: 0.0) > 0.5
-        dpadLeft = (currentFrame.values["Driver/DpadLeft"] ?: 0.0) > 0.5
-        dpadRight = (currentFrame.values["Driver/DpadRight"] ?: 0.0) > 0.5
+        lx = currentFrame.values["Gamepad1/LeftStick_X"] ?: 0.0
+        ly = currentFrame.values["Gamepad1/LeftStick_Y"] ?: 0.0
+        rx = currentFrame.values["Gamepad1/RightStick_X"] ?: 0.0
+        ry = currentFrame.values["Gamepad1/RightStick_Y"] ?: 0.0
+        lt = currentFrame.values["Gamepad1/LeftTrigger"] ?: 0.0
+        rt = currentFrame.values["Gamepad1/RightTrigger"] ?: 0.0
+        btnA = (currentFrame.values["Gamepad1/A"] ?: 0.0) > 0.5
+        btnB = (currentFrame.values["Gamepad1/B"] ?: 0.0) > 0.5
+        btnX = (currentFrame.values["Gamepad1/X"] ?: 0.0) > 0.5
+        btnY = (currentFrame.values["Gamepad1/Y"] ?: 0.0) > 0.5
+        dpadUp = (currentFrame.values["Gamepad1/DpadUp"] ?: 0.0) > 0.5
+        dpadDown = (currentFrame.values["Gamepad1/DpadDown"] ?: 0.0) > 0.5
+        dpadLeft = (currentFrame.values["Gamepad1/DpadLeft"] ?: 0.0) > 0.5
+        dpadRight = (currentFrame.values["Gamepad1/DpadRight"] ?: 0.0) > 0.5
     } else if (nt4ClientService != null && !keyboardControlEnabled) {
         LaunchedEffect(Unit) {
             scope.launch {
@@ -97,20 +97,20 @@ fun JoystickVisualizer(
                     val key = frame.key
                     val value = frame.value
                     when (key) {
-                        "Driver/LeftStickX" -> lx = value
-                        "Driver/LeftStickY" -> ly = value
-                        "Driver/RightStickX" -> rx = value
-                        "Driver/RightStickY" -> ry = value
-                        "Driver/LeftTrigger" -> lt = value
-                        "Driver/RightTrigger" -> rt = value
-                        "Driver/AButton" -> btnA = value > 0.5
-                        "Driver/BButton" -> btnB = value > 0.5
-                        "Driver/XButton" -> btnX = value > 0.5
-                        "Driver/YButton" -> btnY = value > 0.5
-                        "Driver/DpadUp" -> dpadUp = value > 0.5
-                        "Driver/DpadDown" -> dpadDown = value > 0.5
-                        "Driver/DpadLeft" -> dpadLeft = value > 0.5
-                        "Driver/DpadRight" -> dpadRight = value > 0.5
+                        "Gamepad1/LeftStick_X" -> lx = value
+                        "Gamepad1/LeftStick_Y" -> ly = value
+                        "Gamepad1/RightStick_X" -> rx = value
+                        "Gamepad1/RightStick_Y" -> ry = value
+                        "Gamepad1/LeftTrigger" -> lt = value
+                        "Gamepad1/RightTrigger" -> rt = value
+                        "Gamepad1/A" -> btnA = value > 0.5
+                        "Gamepad1/B" -> btnB = value > 0.5
+                        "Gamepad1/X" -> btnX = value > 0.5
+                        "Gamepad1/Y" -> btnY = value > 0.5
+                        "Gamepad1/DpadUp" -> dpadUp = value > 0.5
+                        "Gamepad1/DpadDown" -> dpadDown = value > 0.5
+                        "Gamepad1/DpadLeft" -> dpadLeft = value > 0.5
+                        "Gamepad1/DpadRight" -> dpadRight = value > 0.5
                     }
                 }
             }
