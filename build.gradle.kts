@@ -14,7 +14,7 @@ subprojects {
     version = rootProject.version
 
     tasks.matching { it.name == "run" || it.name == "clean" }.configureEach {
-        if (!project.hasProperty("fromRootRun")) {
+        if (!project.hasProperty("fromRootRun") && !project.hasProperty("skipKill")) {
             dependsOn(":killExisting")
         }
     }
@@ -122,7 +122,9 @@ tasks.register("killExisting") {
 }
 
 tasks.register("run") {
-    dependsOn("killExisting")
+    if (!project.hasProperty("skipKill")) {
+        dependsOn("killExisting")
+    }
     dependsOn(":shared:jar", ":gateway:classes", ":app:classes")
     doLast {
         val isWindows = System.getProperty("os.name").lowercase().contains("windows")
