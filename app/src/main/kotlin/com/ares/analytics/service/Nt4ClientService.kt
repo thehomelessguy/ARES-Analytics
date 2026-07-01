@@ -456,9 +456,7 @@ open class Nt4ClientService(
             }
             
             if (session != null) {
-                CoroutineScope(Dispatchers.IO).launch {
-                    databaseService.insertTelemetryFrames(frames)
-                }
+                pendingFrames.addAll(frames)
             }
             return
         }
