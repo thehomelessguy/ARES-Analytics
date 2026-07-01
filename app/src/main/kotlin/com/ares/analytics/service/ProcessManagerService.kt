@@ -101,12 +101,41 @@ class ProcessManagerService {
         }
     }
 
+    private fun killOrphanedSimulators() {
+        try {
+            val jpsProc = ProcessBuilder("jps", "-l").start()
+            val reader = BufferedReader(InputStreamReader(jpsProc.inputStream))
+            var line: String?
+            while (reader.readLine().also { line = it } != null) {
+                val parts = line!!.split("\\s+".toRegex()).filter { it.isNotEmpty() }
+                if (parts.size >= 2) {
+                    val pidString = parts[0]
+                    val mainClass = parts[1]
+                    if (mainClass.contains("com.areslib.sim") || mainClass.contains("DesktopSimLauncher")) {
+                        val pid = pidString.toLongOrNull()
+                        if (pid != null && pid != ProcessHandle.current().pid()) {
+                            ProcessHandle.of(pid).ifPresent { handle ->
+                                handle.destroyForcibly()
+                            }
+                        }
+                    }
+                }
+            }
+            jpsProc.waitFor()
+        } catch (e: Exception) {
+            // Ignore
+        }
+    }
+
     fun runSimulation(projectPath: String, league: League) {
         killActiveSim()
 
         activeSimJob = CoroutineScope(Dispatchers.IO).launch {
             try {
                 _isSimRunning.value = true
+                _buildOutput.emit("[SYSTEM] Terminating any orphaned simulator processes...")
+                killOrphanedSimulators()
+                
                 val isWindows = System.getProperty("os.name").contains("win", ignoreCase = true)
                 val cmd = if (isWindows) {
                     when (league) {

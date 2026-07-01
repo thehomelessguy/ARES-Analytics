@@ -14,15 +14,15 @@ subprojects {
     version = rootProject.version
 
     tasks.matching { it.name == "run" || it.name == "clean" }.configureEach {
-        dependsOn(":killExisting")
+        if (!project.hasProperty("fromRootRun")) {
+            dependsOn(":killExisting")
+        }
     }
 
     // Skip the default sequential subproject run tasks when running from the root project
     tasks.matching { it.name == "run" }.configureEach {
         onlyIf {
-            val taskNames = gradle.startParameter.taskNames
-            val isRootRun = taskNames.any { it == "run" || it == ":run" }
-            !isRootRun
+            !project.hasProperty("fromRootRun")
         }
     }
 }
@@ -69,6 +69,7 @@ tasks.register("killExisting") {
 
 tasks.register("run") {
     dependsOn("killExisting")
+    dependsOn(":shared:jar", ":gateway:classes", ":app:classes")
     doLast {
         val isWindows = System.getProperty("os.name").lowercase().contains("windows")
         val gradlew = if (isWindows) "gradlew.bat" else "./gradlew"
@@ -80,8 +81,8 @@ tasks.register("run") {
         
         println("[ARES-Analytics] Launching Gateway in background, logging to gateway.log...")
         val gatewayProcess = ProcessBuilder(
-            if (isWindows) listOf("cmd.exe", "/c", gradlew, ":gateway:run")
-            else listOf("bash", "-c", "$gradlew :gateway:run")
+            if (isWindows) listOf("cmd.exe", "/c", gradlew, ":gateway:run", "-PfromRootRun=true")
+            else listOf("bash", "-c", "$gradlew :gateway:run -PfromRootRun=true")
         ).redirectOutput(ProcessBuilder.Redirect.to(gatewayLog))
          .redirectError(ProcessBuilder.Redirect.to(gatewayLog))
          .start()
@@ -91,8 +92,8 @@ tasks.register("run") {
         
         println("[ARES-Analytics] Launching App in foreground, logging to app.log...")
         val appProcess = ProcessBuilder(
-            if (isWindows) listOf("cmd.exe", "/c", gradlew, ":app:run")
-            else listOf("bash", "-c", "$gradlew :app:run")
+            if (isWindows) listOf("cmd.exe", "/c", gradlew, ":app:run", "-PfromRootRun=true")
+            else listOf("bash", "-c", "$gradlew :app:run -PfromRootRun=true")
         ).redirectOutput(ProcessBuilder.Redirect.to(appLog))
          .redirectError(ProcessBuilder.Redirect.to(appLog))
          .start()
