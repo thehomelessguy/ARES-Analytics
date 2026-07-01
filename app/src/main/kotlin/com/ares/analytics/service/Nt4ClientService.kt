@@ -135,7 +135,8 @@ open class Nt4ClientService(
                                 }
                             }
                         } finally {
-                            println("[Nt4ClientService] Connection to $url closed.")
+                            val reason = closeReason.await()
+                            println("[Nt4ClientService] Connection to $url closed. Reason: ${reason?.message} (Code: ${reason?.code})")
                             webSocketSession = null
                             _isConnected.value = false
                         }
