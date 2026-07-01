@@ -35,7 +35,7 @@ tasks.register("killExisting") {
         var killedCount = 0
         
         // 1. Clean by Port
-        val portsToClean = listOf(5810, 1735, 8080)
+        val portsToClean = listOf(8080)
         val isWindows = System.getProperty("os.name").lowercase().contains("windows")
         for (port in portsToClean) {
             try {
@@ -95,10 +95,7 @@ tasks.register("killExisting") {
                 if (parts.size >= 2) {
                     val pidString = parts[0]
                     val mainClass = parts[1]
-                    if (mainClass.contains("com.ares.analytics") || 
-                        mainClass.contains("com.areslib.sim") ||
-                        mainClass.contains("DesktopSimLauncher")
-                    ) {
+                    if (mainClass.contains("com.ares.analytics")) {
                         val pid = pidString.toLongOrNull()
                         if (pid != null && pid != ProcessHandle.current().pid()) {
                             ProcessHandle.of(pid).ifPresent { handle ->

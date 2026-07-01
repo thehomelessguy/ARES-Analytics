@@ -3,6 +3,8 @@ package com.ares.analytics.service
 import com.ares.analytics.shared.*
 import io.ktor.client.*
 import io.ktor.client.plugins.websocket.*
+import io.ktor.client.request.header
+import io.ktor.http.HttpMethod
 import io.ktor.websocket.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -78,10 +80,36 @@ open class Nt4ClientService(
             }
 
             while (isActive) {
-                val url = "ws://$host:5810/nt/v4/websocket?client=ARES-Analytics-${System.currentTimeMillis()}"
+                var activeHost = host
+                if (activeHost != "127.0.0.1") {
+                    val isLocalSimOpen = try {
+                        java.net.Socket().use { socket ->
+                            socket.connect(java.net.InetSocketAddress("127.0.0.1", 5810), 200)
+                            true
+                        }
+                    } catch (_: Exception) {
+                        false
+                    }
+                    if (isLocalSimOpen) {
+                        println("[Nt4ClientService] Local simulator detected on port 5810. Overriding connection host to 127.0.0.1")
+                        activeHost = "127.0.0.1"
+                    }
+                }
+
+                val clientName = "ARES-Analytics-${System.currentTimeMillis()}"
+                val path = "/nt/$clientName"
+                val url = "ws://$activeHost:5810$path"
                 try {
                     println("[Nt4ClientService] Attempting to connect to $url")
-                    client.webSocket(url) {
+                    client.webSocket(
+                        method = HttpMethod.Get,
+                        host = activeHost,
+                        port = 5810,
+                        path = path,
+                        request = {
+                            header("Sec-WebSocket-Protocol", "networktables.first.wpi.edu")
+                        }
+                    ) {
                         println("[Nt4ClientService] Connected to $url successfully!")
                         _isConnected.value = true
                         webSocketSession = this
@@ -90,16 +118,16 @@ open class Nt4ClientService(
                         // 1. Announce input topics
                         val announceInputsMsg = """
                             [
-                              {"method": "publish", "params": {"name": "/ARES/Input/vx", "pubuid": 1001, "type": "double"}},
-                              {"method": "publish", "params": {"name": "/ARES/Input/vy", "pubuid": 1002, "type": "double"}},
-                              {"method": "publish", "params": {"name": "/ARES/Input/omega", "pubuid": 1003, "type": "double"}},
-                              {"method": "publish", "params": {"name": "/ARES/Input/isIntaking", "pubuid": 1004, "type": "boolean"}},
-                              {"method": "publish", "params": {"name": "/ARES/Input/isFlywheelOn", "pubuid": 1005, "type": "boolean"}},
-                              {"method": "publish", "params": {"name": "/ARES/Input/isTransferring", "pubuid": 1006, "type": "boolean"}},
-                              {"method": "publish", "params": {"name": "/ARES/Input/isTeleopMode", "pubuid": 1007, "type": "boolean"}},
-                              {"method": "publish", "params": {"name": "/ARES/Input/isFieldCentric", "pubuid": 1008, "type": "boolean"}},
-                              {"method": "publish", "params": {"name": "/ARES/Input/isRedAlliance", "pubuid": 1009, "type": "boolean"}},
-                              {"method": "publish", "params": {"name": "/ARES/Input/heartbeat", "pubuid": 1010, "type": "int"}}
+                              {"method": "publish", "params": {"name": "ARES/Input/vx", "pubuid": 1001, "type": "double"}},
+                              {"method": "publish", "params": {"name": "ARES/Input/vy", "pubuid": 1002, "type": "double"}},
+                              {"method": "publish", "params": {"name": "ARES/Input/omega", "pubuid": 1003, "type": "double"}},
+                              {"method": "publish", "params": {"name": "ARES/Input/isIntaking", "pubuid": 1004, "type": "boolean"}},
+                              {"method": "publish", "params": {"name": "ARES/Input/isFlywheelOn", "pubuid": 1005, "type": "boolean"}},
+                              {"method": "publish", "params": {"name": "ARES/Input/isTransferring", "pubuid": 1006, "type": "boolean"}},
+                              {"method": "publish", "params": {"name": "ARES/Input/isTeleopMode", "pubuid": 1007, "type": "boolean"}},
+                              {"method": "publish", "params": {"name": "ARES/Input/isFieldCentric", "pubuid": 1008, "type": "boolean"}},
+                              {"method": "publish", "params": {"name": "ARES/Input/isRedAlliance", "pubuid": 1009, "type": "boolean"}},
+                              {"method": "publish", "params": {"name": "ARES/Input/heartbeat", "pubuid": 1010, "type": "int"}}
                             ]
                         """.trimIndent()
                         send(Frame.Text(announceInputsMsg))
@@ -184,6 +212,11 @@ open class Nt4ClientService(
         
         // Write value bytes (already MsgPack encoded)
         System.arraycopy(valueBytes, 0, buffer, 14, valueBytes.size)
+        
+        if (pubuid == 1010) {
+            val bytesStr = buffer.joinToString("") { String.format("%02x", it) }
+            println("[Nt4ClientService] sendBinaryUpdate 1010 (heartbeat): timestampUs=$timestampUs, buffer=$bytesStr")
+        }
         
         webSocketSession?.send(Frame.Binary(true, buffer))
     }
@@ -297,11 +330,13 @@ open class Nt4ClientService(
                             val name = params["name"]?.jsonPrimitive?.content ?: continue
                             val id = params["id"]?.jsonPrimitive?.intOrNull ?: continue
                             val type = params["type"]?.jsonPrimitive?.content ?: "double"
+                            println("[Nt4ClientService] Server announced topic: $name (id=$id, type=$type)")
                             topicMap[id] = Nt4Topic(id, name, type)
                         }
                         "unannounce" -> {
                             val params = obj["params"]?.jsonObject ?: continue
                             val id = params["id"]?.jsonPrimitive?.intOrNull ?: continue
+                            println("[Nt4ClientService] Server unannounced topic id: $id")
                             topicMap.remove(id)
                         }
                     }

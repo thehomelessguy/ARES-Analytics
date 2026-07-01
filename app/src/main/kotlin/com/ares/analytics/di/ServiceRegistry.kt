@@ -107,8 +107,8 @@ class ServiceRegistry {
 }
 
 class KeyboardDriveState {
-    var enabled by androidx.compose.runtime.mutableStateOf(false)
-    var isWPressed by androidx.compose.runtime.mutableStateOf(false)
+    var enabled by androidx.compose.runtime.mutableStateOf(true)
+    var isWPressed by androidx.compose.runtime.mutableStateOf(true)
     var isSPressed by androidx.compose.runtime.mutableStateOf(false)
     var isAPressed by androidx.compose.runtime.mutableStateOf(false)
     var isDPressed by androidx.compose.runtime.mutableStateOf(false)
