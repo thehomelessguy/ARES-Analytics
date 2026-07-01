@@ -369,7 +369,8 @@ open class Nt4ClientService(
                 offset = currentOffset
             }
         } catch (e: Exception) {
-            // Ignore malformed frames
+            println("[Nt4ClientService] Error handling incoming binary: ${e.message}")
+            e.printStackTrace()
         }
     }
 
