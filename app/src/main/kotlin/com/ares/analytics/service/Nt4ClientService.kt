@@ -154,30 +154,33 @@ open class Nt4ClientService(
 
     private suspend fun sendBinaryUpdate(pubuid: Int, typeId: Byte, valueBytes: ByteArray) {
         val timestampUs = System.currentTimeMillis() * 1000L
-        val size = 4 + 8 + 1 + valueBytes.size
+        val size = 14 + valueBytes.size
         val buffer = ByteArray(size)
         
-        // Write pubuid (4 bytes, Big Endian)
-        buffer[0] = (pubuid shr 24).toByte()
-        buffer[1] = (pubuid shr 16).toByte()
+        // Write array header (MsgPack array of 4 elements = 0x94)
+        buffer[0] = 0x94.toByte()
+        
+        // Write pubuid (encoded as MsgPack uint16)
+        buffer[1] = 0xcd.toByte()
         buffer[2] = (pubuid shr 8).toByte()
         buffer[3] = pubuid.toByte()
         
-        // Write timestampUs (8 bytes, Big Endian)
-        buffer[4] = (timestampUs shr 56).toByte()
-        buffer[5] = (timestampUs shr 48).toByte()
-        buffer[6] = (timestampUs shr 40).toByte()
-        buffer[7] = (timestampUs shr 32).toByte()
-        buffer[8] = (timestampUs shr 24).toByte()
-        buffer[9] = (timestampUs shr 16).toByte()
-        buffer[10] = (timestampUs shr 8).toByte()
-        buffer[11] = timestampUs.toByte()
+        // Write timestampUs (encoded as MsgPack uint64)
+        buffer[4] = 0xcf.toByte()
+        buffer[5] = (timestampUs shr 56).toByte()
+        buffer[6] = (timestampUs shr 48).toByte()
+        buffer[7] = (timestampUs shr 40).toByte()
+        buffer[8] = (timestampUs shr 32).toByte()
+        buffer[9] = (timestampUs shr 24).toByte()
+        buffer[10] = (timestampUs shr 16).toByte()
+        buffer[11] = (timestampUs shr 8).toByte()
+        buffer[12] = timestampUs.toByte()
         
-        // Write typeId (1 byte)
-        buffer[12] = typeId
+        // Write typeId (encoded as positive fixint since typeId < 128)
+        buffer[13] = typeId
         
-        // Write value bytes
-        System.arraycopy(valueBytes, 0, buffer, 13, valueBytes.size)
+        // Write value bytes (already MsgPack encoded)
+        System.arraycopy(valueBytes, 0, buffer, 14, valueBytes.size)
         
         webSocketSession?.send(Frame.Binary(true, buffer))
     }
@@ -213,7 +216,7 @@ open class Nt4ClientService(
         valueBytes[6] = (value shr 16).toByte()
         valueBytes[7] = (value shr 8).toByte()
         valueBytes[8] = value.toByte()
-        sendBinaryUpdate(pubuid, 7.toByte(), valueBytes)
+        sendBinaryUpdate(pubuid, 2.toByte(), valueBytes)
     }
 
     fun stop() {
