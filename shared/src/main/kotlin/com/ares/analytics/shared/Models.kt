@@ -305,12 +305,14 @@ data class FieldImageConfig(
 sealed class Obstacle {
     abstract val id: String
     abstract val name: String
+    abstract val locked: Boolean
 
     @Serializable
     data class Polygon(
         override val id: String,
         override val name: String,
-        val vertices: List<PathPoint>
+        val vertices: List<PathPoint>,
+        override val locked: Boolean = false
     ) : Obstacle()
 
     @Serializable
@@ -319,7 +321,8 @@ sealed class Obstacle {
         override val name: String,
         val centerX: Double,
         val centerY: Double,
-        val radius: Double
+        val radius: Double,
+        override val locked: Boolean = false
     ) : Obstacle()
 
     @Serializable
@@ -330,7 +333,8 @@ sealed class Obstacle {
         val centerY: Double,
         val width: Double,
         val height: Double,
-        val rotation: Double = 0.0
+        val rotation: Double = 0.0,
+        override val locked: Boolean = false
     ) : Obstacle()
 }
 
@@ -340,7 +344,8 @@ data class GamePiece(
     val name: String,
     val x: Double,
     val y: Double,
-    val type: String = "Custom"
+    val type: String = "Custom",
+    val locked: Boolean = false
 )
 
 @Serializable
@@ -350,7 +355,8 @@ data class AprilTagPlacement(
     val x: Double,
     val y: Double,
     val z: Double = 0.5,
-    val yawDegrees: Double = 0.0
+    val yawDegrees: Double = 0.0,
+    val locked: Boolean = false
 )
 
 @Serializable

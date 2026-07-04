@@ -173,6 +173,8 @@ fun MainScreen(services: ServiceRegistry) {
             databaseService = services.databaseService,
             syncEngineService = services.syncEngineService,
             firebaseClientService = services.firebaseClientService,
+            nt4ClientService = services.nt4ClientService,
+            logParserService = services.logParserService,
             scope = scope
         )
     }
@@ -435,52 +437,80 @@ fun MainScreen(services: ServiceRegistry) {
                             }
                         )
 
-                        // Recording Controls
+                        // Dashboard Config
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            IconButton(
-                                onClick = { mainViewModel.onIntent(MainIntent.SetKeybindingsOpen(!isKeybindingsOpen)) },
-                                modifier = Modifier
-                                    .background(if (isKeybindingsOpen) AresCyan else AresSurface, RoundedCornerShape(6.dp))
-                                    .border(1.dp, AresBorder, RoundedCornerShape(6.dp))
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.SportsEsports,
-                                    contentDescription = "View Keybindings",
-                                    tint = if (isKeybindingsOpen) AresBackground else AresTextSecondary
+                            if (activeNav == NavigationTarget.DASHBOARD) {
+                                val dashState by dashboardViewModel.state.collectAsState()
+                                var newLayoutName by remember { mutableStateOf("") }
+                                
+                                // Profile Selection
+                                Box {
+                                    TextButton(onClick = { dashboardViewModel.onIntent(DashboardIntent.SetProfileExpanded(true)) }) {
+                                        Text(dashState.currentRoleProfile, color = AresCyan, fontWeight = FontWeight.Bold)
+                                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = AresCyan)
+                                    }
+                                    DropdownMenu(
+                                        expanded = dashState.profileExpanded,
+                                        onDismissRequest = { dashboardViewModel.onIntent(DashboardIntent.SetProfileExpanded(false)) },
+                                        modifier = Modifier.background(AresSurfaceElevated).border(1.dp, AresBorder)
+                                    ) {
+                                        dashState.availableProfiles.forEach { profile ->
+                                            DropdownMenuItem(
+                                                text = { Text(profile, color = AresTextPrimary) },
+                                                onClick = {
+                                                    dashboardViewModel.onIntent(DashboardIntent.ChangeProfile(profile))
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                                
+                                // Save Layout Input
+                                OutlinedTextField(
+                                    value = newLayoutName,
+                                    onValueChange = { newLayoutName = it },
+                                    placeholder = { Text("Layout Name", fontSize = 11.sp, color = AresTextTertiary) },
+                                    singleLine = true,
+                                    textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
+                                    modifier = Modifier.width(130.dp).height(38.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = AresCyan,
+                                        unfocusedBorderColor = AresBorder,
+                                        focusedContainerColor = AresSurfaceElevated,
+                                        unfocusedContainerColor = AresSurfaceElevated
+                                    )
                                 )
-                            }
-                            
-                            val activeSession by services.nt4ClientService.currentSession.collectAsState()
-                            if (activeSession == null) {
+
+                                // Save Button
                                 Button(
                                     onClick = {
-                                        scope.launch {
-                                            services.nt4ClientService.startRecordingSession(
-                                                teamId = currentConfig.teamId,
-                                                seasonId = currentConfig.seasonId,
-                                                robotId = currentConfig.robotId
-                                            )
+                                        if (newLayoutName.trim().isNotEmpty()) {
+                                            dashboardViewModel.onIntent(DashboardIntent.SaveLayoutAs(newLayoutName.trim()))
+                                            newLayoutName = ""
                                         }
                                     },
                                     colors = ButtonDefaults.buttonColors(containerColor = AresCyan),
                                     shape = RoundedCornerShape(6.dp)
                                 ) {
-                                    Icon(imageVector = Icons.Default.FiberManualRecord, contentDescription = null, tint = AresBackground)
+                                    Icon(Icons.Default.Save, contentDescription = null, tint = AresBackground, modifier = Modifier.size(16.dp))
                                     Spacer(Modifier.width(4.dp))
-                                    Text("Start Record", color = AresBackground, fontWeight = FontWeight.Bold)
+                                    Text("Save Layout", color = AresBackground, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                 }
-                            } else {
+
+                                // Reset Profile
                                 Button(
-                                    onClick = { scope.launch { services.nt4ClientService.stopRecordingSession() } },
-                                    colors = ButtonDefaults.buttonColors(containerColor = AresRed),
+                                    onClick = {
+                                        dashboardViewModel.onIntent(DashboardIntent.ResetProfile)
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = AresBorder),
                                     shape = RoundedCornerShape(6.dp)
                                 ) {
-                                    Icon(imageVector = Icons.Default.Stop, contentDescription = null, tint = AresTextPrimary)
+                                    Icon(Icons.Default.Refresh, contentDescription = null, tint = AresTextPrimary, modifier = Modifier.size(16.dp))
                                     Spacer(Modifier.width(4.dp))
-                                    Text("Stop Record", color = AresTextPrimary, fontWeight = FontWeight.Bold)
+                                    Text("Reset Profile", color = AresTextPrimary, fontSize = 12.sp)
                                 }
                             }
                         }

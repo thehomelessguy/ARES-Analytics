@@ -49,8 +49,20 @@ fun FtcDriverStationWidget(
     var matchState by remember { mutableStateOf(MatchState.IDLE) }
     var matchTimeRemaining by remember { mutableIntStateOf(0) }
     
-    var teleOps by remember { mutableStateOf(emptyList<String>()) }
-    var autos by remember { mutableStateOf(emptyList<String>()) }
+    var teleOps by remember { 
+        mutableStateOf(
+            nt4Client.latestValues["ARES/DriverStation/TeleOpList"]?.stringValue?.let {
+                try { Json.decodeFromString<List<String>>(it) } catch(e: Exception) { emptyList() }
+            } ?: emptyList()
+        ) 
+    }
+    var autos by remember { 
+        mutableStateOf(
+            nt4Client.latestValues["ARES/DriverStation/AutonomousList"]?.stringValue?.let {
+                try { Json.decodeFromString<List<String>>(it) } catch(e: Exception) { emptyList() }
+            } ?: emptyList()
+        ) 
+    }
     val telemetryLines = remember { mutableStateListOf<String>() }
     var isAutoExpanded by remember { mutableStateOf(false) }
     var isTeleOpExpanded by remember { mutableStateOf(false) }
@@ -386,11 +398,12 @@ fun FtcDriverStationWidget(
             Button(
                 onClick = {
                     dsState = DsState.STOP
+                    matchState = MatchState.IDLE
                     scope.launch {
                         nt4Client.publishInputString(1011, "STOP")
                     }
                 },
-                enabled = dsState == DsState.INIT || dsState == DsState.START,
+                enabled = true, // Always allow emergency stop
                 colors = ButtonDefaults.buttonColors(
                     containerColor = AresError,
                     disabledContainerColor = AresSurfaceElevated

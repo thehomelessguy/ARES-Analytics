@@ -12,6 +12,8 @@ import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,6 +25,7 @@ import com.ares.analytics.shared.SessionSummary
 import com.ares.analytics.ui.theme.*
 import com.ares.analytics.viewmodel.CloudIntent
 import com.ares.analytics.viewmodel.CloudViewModel
+import com.ares.analytics.viewmodel.RobotLogFileInfo
 
 @Composable
 fun CloudScreen(
@@ -63,19 +66,30 @@ fun CloudScreen(
                     }
                 }
             }
-
-            Button(
-                onClick = { viewModel.onIntent(CloudIntent.PerformDeltaSync(teamId, seasonId)) },
-                enabled = !state.isSyncing,
-                colors = ButtonDefaults.buttonColors(containerColor = AresCyan, disabledContainerColor = AresSurfaceElevated)
-            ) {
-                if (state.isSyncing) {
-                    CircularProgressIndicator(modifier = Modifier.size(16.dp), color = AresCyan, strokeWidth = 2.dp)
-                } else {
-                    Icon(Icons.Default.Sync, contentDescription = null, tint = AresBackground)
+            
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = { viewModel.onIntent(CloudIntent.RefreshRobotLogs) },
+                    colors = ButtonDefaults.buttonColors(containerColor = AresSurfaceElevated)
+                ) {
+                    Icon(Icons.Default.Refresh, contentDescription = null, tint = AresCyan)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Refresh Robot", color = AresCyan)
                 }
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Sync Now", color = if (state.isSyncing) AresTextTertiary else AresBackground, fontWeight = FontWeight.Bold)
+                
+                Button(
+                    onClick = { viewModel.onIntent(CloudIntent.PerformDeltaSync(teamId, seasonId)) },
+                    enabled = !state.isSyncing,
+                    colors = ButtonDefaults.buttonColors(containerColor = AresCyan, disabledContainerColor = AresSurfaceElevated)
+                ) {
+                    if (state.isSyncing) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), color = AresCyan, strokeWidth = 2.dp)
+                    } else {
+                        Icon(Icons.Default.Sync, contentDescription = null, tint = AresBackground)
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Sync Cloud", color = if (state.isSyncing) AresTextTertiary else AresBackground, fontWeight = FontWeight.Bold)
+                }
             }
         }
 
@@ -97,25 +111,66 @@ fun CloudScreen(
             }
         }
 
-        // Sessions List
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .background(AresSurface)
-                .border(1.dp, AresBorder, RoundedCornerShape(8.dp))
-                .padding(16.dp)
+        // Dual Lists
+        Row(
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            if (state.summaries.isEmpty()) {
-                Text("No sessions found. Import a log or run a simulation.", color = AresTextSecondary, modifier = Modifier.align(Alignment.Center))
-            } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(state.summaries, key = { it.sessionId }) { summary ->
-                        SessionCloudRow(
-                            summary = summary,
-                            isUploading = state.uploadingSessionId == summary.sessionId,
-                            onUpload = { viewModel.onIntent(CloudIntent.UploadSession(summary.sessionId)) }
-                        )
+            // Left Pane: Robot Logs
+            Column(
+                modifier = Modifier.weight(1f).fillMaxHeight()
+            ) {
+                Text("Robot Logs (Local)", color = AresTextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(AresSurface)
+                        .border(1.dp, AresBorder, RoundedCornerShape(8.dp))
+                        .padding(8.dp)
+                ) {
+                    if (state.isFetchingRobotLogs && state.robotRuns.isEmpty()) {
+                        CircularProgressIndicator(color = AresCyan, modifier = Modifier.align(Alignment.Center))
+                    } else if (state.robotRuns.isEmpty()) {
+                        Text("No logs found on connected robot.", color = AresTextSecondary, modifier = Modifier.align(Alignment.Center))
+                    } else {
+                        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            items(state.robotRuns, key = { it.runId }) { run ->
+                                RobotRunRow(
+                                    run = run,
+                                    isUploading = state.isUploadingRobotLog == run.runId,
+                                    onUpload = { viewModel.onIntent(CloudIntent.UploadRobotRun(run.runId, teamId, seasonId, "robot-1")) },
+                                    onDelete = { viewModel.onIntent(CloudIntent.DeleteRobotRun(run.runId)) }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Right Pane: Cloud Logs
+            Column(
+                modifier = Modifier.weight(1f).fillMaxHeight()
+            ) {
+                Text("Cloud Logs (Remote)", color = AresTextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(AresSurface)
+                        .border(1.dp, AresBorder, RoundedCornerShape(8.dp))
+                        .padding(8.dp)
+                ) {
+                    if (state.cloudLogs.isEmpty()) {
+                        Text("No cloud sessions found.", color = AresTextSecondary, modifier = Modifier.align(Alignment.Center))
+                    } else {
+                        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            items(state.cloudLogs, key = { it.sessionId }) { summary ->
+                                CloudLogRow(
+                                    summary = summary,
+                                    isDownloading = state.isDownloadingCloudLog == summary.sessionId,
+                                    onDownload = { viewModel.onIntent(CloudIntent.DownloadCloudLog(summary.sessionId)) }
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -124,10 +179,57 @@ fun CloudScreen(
 }
 
 @Composable
-fun SessionCloudRow(
-    summary: SessionSummary,
+fun RobotRunRow(
+    run: com.ares.analytics.viewmodel.RobotRun,
     isUploading: Boolean,
-    onUpload: () -> Unit
+    onUpload: () -> Unit,
+    onDelete: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(AresBackground, RoundedCornerShape(6.dp))
+            .border(1.dp, AresBorder, RoundedCornerShape(6.dp))
+            .padding(12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column {
+            Text("Run: ${run.runId}", color = AresTextPrimary, fontWeight = FontWeight.Bold)
+            val statusText = if (run.isActive) " | ACTIVE RECORDING..." else ""
+            Text(
+                "Files: ${run.files.size} | Size: ${run.totalSizeBytes / 1024} KB | ${run.lastModifiedFmt}$statusText",
+                color = if (run.isActive) AresCyan else AresTextSecondary,
+                fontSize = 12.sp
+            )
+        }
+        
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            IconButton(onClick = onDelete, enabled = !isUploading && !run.isActive) {
+                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = AresRed)
+            }
+            Button(
+                onClick = onUpload,
+                enabled = !isUploading && !run.isActive,
+                colors = ButtonDefaults.buttonColors(containerColor = AresSurfaceElevated)
+            ) {
+                if (isUploading) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), color = AresCyan, strokeWidth = 2.dp)
+                } else {
+                    Icon(Icons.Default.CloudUpload, contentDescription = null, tint = AresCyan, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Upload", color = AresCyan)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CloudLogRow(
+    summary: SessionSummary,
+    isDownloading: Boolean,
+    onDownload: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -141,25 +243,23 @@ fun SessionCloudRow(
         Column {
             Text("Session: ${summary.sessionId.takeLast(8)}", color = AresTextPrimary, fontWeight = FontWeight.Bold)
             Text(
-                "Match: ${summary.matchNumber ?: "None"} | Robot: ${summary.robotId} | Date: ${java.util.Date(summary.createdAt)}",
+                "Match: ${summary.matchNumber ?: "None"} | Date: ${java.util.Date(summary.createdAt)}",
                 color = AresTextSecondary,
                 fontSize = 12.sp
             )
         }
         
         Button(
-            onClick = onUpload,
-            enabled = !isUploading,
+            onClick = onDownload,
+            enabled = !isDownloading,
             colors = ButtonDefaults.buttonColors(containerColor = AresSurfaceElevated)
         ) {
-            if (isUploading) {
+            if (isDownloading) {
                 CircularProgressIndicator(modifier = Modifier.size(16.dp), color = AresCyan, strokeWidth = 2.dp)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Uploading...", color = AresCyan)
             } else {
-                Icon(Icons.Default.CloudUpload, contentDescription = null, tint = AresCyan, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Upload to Cloud", color = AresCyan)
+                Icon(Icons.Default.CloudDownload, contentDescription = null, tint = AresCyan, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Load Local", color = AresCyan)
             }
         }
     }

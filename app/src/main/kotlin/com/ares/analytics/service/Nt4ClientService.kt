@@ -17,6 +17,8 @@ open class Nt4ClientService(
     private val databaseService: DatabaseService,
     private val client: HttpClient = HttpClient { install(WebSockets) }
 ) {
+    var serverIp: String = "127.0.0.1"
+
     private val _isConnected = MutableStateFlow(false)
     open val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
 
@@ -52,6 +54,7 @@ open class Nt4ClientService(
     // Topic ID to Topic Name mapping
     internal val topicMap = ConcurrentHashMap<Int, Nt4Topic>()
     private val discoveredKeys = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    val latestValues = ConcurrentHashMap<String, TelemetryFrame>()
 
     fun getActiveTopics(): List<String> {
         return topicMap.values.map { it.name.removePrefix("/") }.sorted()
@@ -119,6 +122,7 @@ open class Nt4ClientService(
                 val clientName = "ARES-Analytics-${System.currentTimeMillis()}"
                 val path = "/nt/$clientName"
                 val url = "ws://$activeHost:5810$path"
+                this@Nt4ClientService.serverIp = activeHost
                 try {
                     println("[Nt4ClientService] Attempting to connect to $url")
                     client.webSocket(
@@ -546,6 +550,7 @@ open class Nt4ClientService(
                     stringValue = stringValue
                 )
                 frames.add(frame)
+                latestValues[frame.key] = frame
                 if (!isReplayActive.value) {
                     _telemetryFlow.emit(frame)
                 }
@@ -584,6 +589,7 @@ open class Nt4ClientService(
         )
 
         pendingFrames.add(frame)
+        latestValues[frame.key] = frame
         if (!isReplayActive.value) {
             _telemetryFlow.emit(frame)
         }
