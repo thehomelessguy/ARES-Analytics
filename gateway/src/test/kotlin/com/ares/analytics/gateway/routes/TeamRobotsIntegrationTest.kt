@@ -1,6 +1,6 @@
 package com.ares.analytics.gateway.routes
 
-import com.ares.analytics.gateway.auth.firebase
+import com.ares.analytics.gateway.auth.*
 import com.ares.analytics.shared.*
 import com.google.api.core.ApiFuture
 import com.google.cloud.firestore.CollectionReference
@@ -58,9 +58,7 @@ class TeamRobotsIntegrationTest {
                     ignoreUnknownKeys = true
                 })
             }
-            install(Authentication) {
-                firebase("firebase")
-            }
+            installFirebaseAuthentication()
             routing {
                 archiveRoutes(customFirestore = mockFirestore)
             }
@@ -95,7 +93,7 @@ class TeamRobotsIntegrationTest {
         val mockUserGetFuture = mock(ApiFuture::class.java) as ApiFuture<DocumentSnapshot>
         val mockUserDocSnapshot = mock(DocumentSnapshot::class.java)
 
-        `when`(mockFirestore.collection("users")).thenReturn(mockUsersCol)
+        `when`(mockFirestore.collection("authorized_users")).thenReturn(mockUsersCol)
         `when`(mockUsersCol.document("uid")).thenReturn(mockUserDocRef)
         `when`(mockUserDocRef.get()).thenReturn(mockUserGetFuture)
         `when`(mockUserGetFuture.get()).thenReturn(mockUserDocSnapshot)
@@ -116,9 +114,7 @@ class TeamRobotsIntegrationTest {
                     ignoreUnknownKeys = true
                 })
             }
-            install(Authentication) {
-                firebase("firebase")
-            }
+            installFirebaseAuthentication()
             routing {
                 archiveRoutes(customFirestore = mockFirestore)
             }
@@ -134,6 +130,9 @@ class TeamRobotsIntegrationTest {
             contentType(ContentType.Application.Json)
             setBody(Json.encodeToString(AddRobotRequest.serializer(), addReq))
         }
+        if (addResponse.status != HttpStatusCode.OK) {
+            println("Add robot failed: ${addResponse.bodyAsText()}")
+        }
         assertEquals(HttpStatusCode.OK, addResponse.status)
 
         // Test Delete
@@ -145,6 +144,9 @@ class TeamRobotsIntegrationTest {
             header(HttpHeaders.Authorization, "Bearer mock-token:uid:email:name")
             contentType(ContentType.Application.Json)
             setBody(Json.encodeToString(DeleteRobotRequest.serializer(), deleteReq))
+        }
+        if (deleteResponse.status != HttpStatusCode.OK) {
+            println("Delete robot failed: ${deleteResponse.bodyAsText()}")
         }
         assertEquals(HttpStatusCode.OK, deleteResponse.status)
     }

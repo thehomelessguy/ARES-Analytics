@@ -55,7 +55,20 @@ class EnvironmentService(
 
     suspend fun loadConfig(): WorkspaceConfig? {
         val app = loadWorkspaces()
-        return app.workspaces.find { it.id == app.activeWorkspaceId } ?: app.workspaces.firstOrNull()
+        val baseConfig = app.workspaces.find { it.id == app.activeWorkspaceId } ?: app.workspaces.firstOrNull()
+        if (baseConfig != null) {
+            val aresRobotConfig = readAresRobotJson(baseConfig.projectPath)
+            if (aresRobotConfig != null) {
+                return baseConfig.copy(
+                    teamId = aresRobotConfig.teamId,
+                    seasonId = aresRobotConfig.seasonId,
+                    robotId = aresRobotConfig.robotId,
+                    robotName = aresRobotConfig.name,
+                    league = if (aresRobotConfig.league.equals("FRC", ignoreCase = true)) League.FRC else League.FTC
+                )
+            }
+        }
+        return baseConfig
     }
 
     suspend fun saveConfig(config: WorkspaceConfig) {
@@ -71,17 +84,18 @@ class EnvironmentService(
 
     suspend fun verifyJavaEnvironment(): JavaEnvResult = withContext(Dispatchers.IO) {
         val javaHome = System.getenv("JAVA_HOME")
-        if (javaHome.isNullOrEmpty()) {
-            return@withContext JavaEnvResult(false, "JAVA_HOME environment variable is not set.")
-        }
-
-        val javaExe = if (System.getProperty("os.name").contains("win", ignoreCase = true)) {
-            "$javaHome\\bin\\java.exe"
+        
+        val javaExe = if (!javaHome.isNullOrEmpty()) {
+            if (System.getProperty("os.name").contains("win", ignoreCase = true)) {
+                "$javaHome\\bin\\java.exe"
+            } else {
+                "$javaHome/bin/java"
+            }
         } else {
-            "$javaHome/bin/java"
+            "java" // Fallback to PATH
         }
 
-        if (!File(javaExe).exists()) {
+        if (javaExe != "java" && !File(javaExe).exists()) {
             return@withContext JavaEnvResult(false, "java executable not found at $javaExe")
         }
 
@@ -138,9 +152,30 @@ class EnvironmentService(
             }
         }
     }
+
+    suspend fun readAresRobotJson(projectPath: String): AresRobotConfig? = withContext(Dispatchers.IO) {
+        val file = File(projectPath, ".ares-robot.json")
+        if (file.exists()) {
+            try {
+                return@withContext json.decodeFromString<AresRobotConfig>(file.readText())
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+        null
+    }
 }
 
 data class JavaEnvResult(
     val isValid: Boolean,
     val message: String
+)
+
+@kotlinx.serialization.Serializable
+data class AresRobotConfig(
+    val teamId: String,
+    val seasonId: String,
+    val robotId: String,
+    val name: String = "",
+    val league: String = "FTC"
 )

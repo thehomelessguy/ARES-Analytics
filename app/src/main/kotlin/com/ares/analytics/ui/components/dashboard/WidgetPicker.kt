@@ -29,6 +29,7 @@ data class AvailableWidget(
 )
 
 val availableWidgetsList = listOf(
+    AvailableWidget("driver_station", "Driver Station", "Simulated FTC Driver Station to select and run OpModes.", Icons.Default.SportsEsports),
     AvailableWidget("runs_index", "Recorded Sessions", "List of practice runs, match logs, and annotation tagging.", Icons.Default.History),
     AvailableWidget("alerts", "Live Alerts", "Real-time warning notifications for battery, motor, and sensors.", Icons.Default.Warning),
     AvailableWidget("telemetry_chart", "Live Telemetry Chart", "Searchable scrolling multi-channel line chart.", Icons.Default.ShowChart),
@@ -41,11 +42,17 @@ val availableWidgetsList = listOf(
     AvailableWidget("joystick_visualizer", "Gamepad Monitor", "Real-time controller sticks, triggers, and button deflections.", Icons.Default.Gamepad),
     AvailableWidget("mechanism_visualizer", "Linkage Animator", "Real-time 2D rendering of arm angles and slide height extensions.", Icons.Default.Build),
     AvailableWidget("mecanum_visualizer", "Mecanum Force Visualizer", "Real-time wheel spin velocities and traction force vectors.", Icons.Default.Settings),
+    AvailableWidget("camera_stream", "Camera Stream", "Live MJPEG video stream from Limelight, PhotonVision, or WPILib.", Icons.Default.Videocam),
     AvailableWidget("field_viewer", "Field 2D Viewer", "Real-time 2D visualization of the robot's pose on the game field.", Icons.Default.Map),
     AvailableWidget("pose_viewer", "Robot Pose Tracker", "Real-time numeric coordinate values for EKF, Odometry, and Vision.", Icons.Default.MyLocation),
     AvailableWidget("trends_card", "Battery Trends", "Multi-session battery voltage degradation trend lines and linear regression.", Icons.Default.TrendingDown),
     AvailableWidget("battery_health", "Battery Diagnostics", "Real-time battery voltage monitoring and brownout warnings.", Icons.Default.BatteryChargingFull),
-    AvailableWidget("statistics_panel", "Signal Statistics", "Descriptive statistics, error forensics, and distribution histograms.", Icons.Default.Analytics)
+    AvailableWidget("statistics_panel", "Signal Statistics", "Descriptive statistics, error forensics, and distribution histograms.", Icons.Default.Analytics),
+    AvailableWidget("control_profiler", "Control Loop Profiler", "Real-time target vs actual tracking and error plotting for mechanisms.", Icons.Default.Speed),
+    AvailableWidget("state_tracker", "Subsystem State Tracker", "Current state machine states for active subsystems.", Icons.Default.AccountTree),
+    AvailableWidget("system_health", "System Health Monitor", "Control loop frequency, CPU usage, and memory profiling.", Icons.Default.Memory),
+    AvailableWidget("imu_visualizer", "IMU Visualizer", "Robot orientation via roll, pitch, and yaw 3D attitude indicators.", Icons.Default.CompassCalibration),
+    AvailableWidget("power_distribution", "Power Distribution", "Instantaneous current draw per PDP/PDH channel.", Icons.Default.ElectricBolt)
 )
 
 @Composable

@@ -18,6 +18,8 @@ class SyncEngineService(
     private val databaseService: DatabaseService,
     private val parquetExporterService: ParquetExporterService,
     private val firebaseClientService: FirebaseClientService,
+    private val environmentService: EnvironmentService,
+    private val teamApiService: TeamApiService,
     private val gatewayUrl: String = "https://ares-analytics-gateway-staging-205869391101.us-central1.run.app", // default cloud run address
     private val httpClient: HttpClient = HttpClient {
         install(ContentNegotiation) {
@@ -93,6 +95,27 @@ class SyncEngineService(
     suspend fun performDeltaSync(teamId: String, seasonId: String, authToken: String? = null) = withContext(Dispatchers.IO) {
         val token = getActiveToken(authToken)
         
+        // --- Sync local workspaces to cloud ---
+        try {
+            val workspaces = environmentService.loadWorkspaces().workspaces
+            val remoteRobots = teamApiService.fetchTeamRobots(teamId, authToken).map { it.robotId }.toSet()
+            
+            for (ws in workspaces) {
+                if (ws.teamId == teamId && !remoteRobots.contains(ws.robotId)) {
+                    val profile = RobotProfile(
+                        robotId = ws.robotId,
+                        league = ws.league,
+                        seasonId = ws.seasonId,
+                        name = "${ws.robotId} Local Config"
+                    )
+                    teamApiService.addRobotProfile(teamId, profile, authToken)
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            // Continue with delta sync even if robot upload fails
+        }
+
         // 1. Collect all local session IDs
         val localSummaries = databaseService.getAllSessionSummaries()
         val localIds = localSummaries.map { it.sessionId }

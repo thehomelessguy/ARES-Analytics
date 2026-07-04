@@ -84,14 +84,25 @@ class AutoImportService(
 
             for (file in files) {
                 if (file.isDirectory) continue
+                
+                // Skip files currently being written to
+                if (isFileInUseLocally(file)) {
+                    continue
+                }
+
                 try {
                     _importNotifications.emit("[AUTO-IMPORT] Found local log: ${file.name}. Importing...")
+                    val baseTags = mutableListOf("auto-import")
+                    if (file.name.lowercase().startsWith("sim_")) {
+                        baseTags.add("simulated")
+                    }
+
                     val sessionId = if (file.name.endsWith(".hoot", ignoreCase = true)) {
                         hootDecoderService.importHootLog(file, config.teamId, config.seasonId, config.robotId)
                     } else {
                         val session = logParserService.parseLogFile(
                             file, config.teamId, config.seasonId, config.robotId,
-                            tags = listOf("auto-import")
+                            tags = baseTags
                         )
                         session.sessionId
                     }
@@ -133,6 +144,12 @@ class AutoImportService(
                 val lower = filename.lowercase()
                 if (lower.endsWith(".wpilog") || lower.endsWith(".jsonl") || lower.endsWith(".csv") || lower.endsWith(".hoot")) {
                     val remotePath = "$robotDir$filename"
+                    
+                    // Check if file is still being written to by ARESDataLogger
+                    if (isFileInUseOnFtcRobot(adbPath, remotePath)) {
+                        continue
+                    }
+
                     val tempLocalFile = File(System.getProperty("java.io.tmpdir"), filename)
                     
                     try {
@@ -184,6 +201,12 @@ class AutoImportService(
                 val lower = filename.lowercase()
                 if (lower.endsWith(".wpilog") || lower.endsWith(".jsonl") || lower.endsWith(".csv") || lower.endsWith(".hoot")) {
                     val remotePath = "$robotDir$filename"
+
+                    // Check if file is still being written to by DataLogManager
+                    if (isFileInUseOnFrcRobot(host, remotePath)) {
+                        continue
+                    }
+
                     val tempLocalFile = File(System.getProperty("java.io.tmpdir"), filename)
                     
                     try {
@@ -270,6 +293,18 @@ class AutoImportService(
         }
     }
 
+    private suspend fun isFileInUseOnFtcRobot(adbPath: String, remotePath: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val pb = ProcessBuilder(adbPath, "shell", "lsof", remotePath)
+            val proc = pb.start()
+            val output = proc.inputStream.bufferedReader().use { it.readText() }
+            proc.waitFor(10, TimeUnit.SECONDS)
+            output.contains(remotePath) || output.isNotBlank()
+        } catch (e: Exception) {
+            false // If lsof fails, assume not in use to avoid blocking
+        }
+    }
+
     // --- FRC SSH/SCP Helper Methods ---
 
     private suspend fun listFilesOnFrcRobot(host: String, directory: String): List<String> = withContext(Dispatchers.IO) {
@@ -344,6 +379,25 @@ class AutoImportService(
         }
     }
 
+    private suspend fun isFileInUseOnFrcRobot(host: String, remotePath: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val pb = ProcessBuilder(
+                "ssh",
+                "-o", "StrictHostKeyChecking=no",
+                "-o", "UserKnownHostsFile=/dev/null",
+                "-o", "ConnectTimeout=3",
+                "-o", "BatchMode=yes",
+                "lvuser@$host",
+                "fuser $remotePath"
+            )
+            val proc = pb.start()
+            proc.waitFor(10, TimeUnit.SECONDS)
+            proc.exitValue() == 0 // fuser returns 0 if any process is using the file
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     private suspend fun isHostReachable(host: String): Boolean = withContext(Dispatchers.IO) {
         try {
             val isWindows = System.getProperty("os.name").contains("win", ignoreCase = true)
@@ -361,6 +415,15 @@ class AutoImportService(
     }
 
     // --- General Utility Methods ---
+
+    private fun isFileInUseLocally(file: File): Boolean {
+        return try {
+            java.io.RandomAccessFile(file, "rw").use { }
+            false
+        } catch (e: Exception) {
+            true
+        }
+    }
 
     private fun findAdbPath(): String {
         try {

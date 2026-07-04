@@ -12,6 +12,7 @@ data class WorkspaceConfig(
     val teamId: String,
     val seasonId: String,
     val robotId: String,
+    val robotName: String = "",
     val projectPath: String,
     val league: League,
     val nt4Host: String? = null,
@@ -20,7 +21,8 @@ data class WorkspaceConfig(
     val tbaApiKey: String? = null,
     val googleClientId: String? = null,
     val firebaseApiKey: String? = null,
-    val googleClientSecret: String? = null
+    val googleClientSecret: String? = null,
+    val simulatorCommand: String? = null
 )
 
 @Serializable
@@ -90,6 +92,10 @@ data class SessionSummary(
     val p95LoopTimeMs: Double = 0.0,
     val motorCurrentAverages: Map<String, Double> = emptyMap(),
     val visionAcceptanceRate: Double = 0.0,
+    val avgCrossTrackError: Double = 0.0,
+    val avgBatteryResistance: Double = 0.0,
+    val maxMotorTemps: Map<String, Double> = emptyMap(),
+    val avgVisionLatencyMs: Double = 0.0,
     val tags: List<String> = emptyList(),
     val matchNumber: Int? = null,
     val allianceColor: String? = null
@@ -109,7 +115,8 @@ data class TelemetryFrame(
     val timestampMs: Long,
     val sessionId: String,
     val key: String,
-    val value: Double
+    val value: Double,
+    val stringValue: String? = null
 )
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -279,6 +286,9 @@ data class DriverProfile(
 data class PathPoint(val x: Double, val y: Double)
 
 @Serializable
+enum class FTCCoordinateSystem { DIAMOND, SQUARE }
+
+@Serializable
 data class FieldImageConfig(
     val imagePath: String = "",
     val rotationDegrees: Double = 0.0,
@@ -287,7 +297,8 @@ data class FieldImageConfig(
     val cropTop: Double = 0.0,
     val cropBottom: Double = 1.0,
     val widthMeters: Double = 3.65,
-    val heightMeters: Double = 3.65
+    val heightMeters: Double = 3.65,
+    val ftcCoordinateSystem: FTCCoordinateSystem = FTCCoordinateSystem.DIAMOND
 )
 
 @Serializable
@@ -333,9 +344,26 @@ data class GamePiece(
 )
 
 @Serializable
+data class AprilTagPlacement(
+    val id: String,
+    val tagId: Int,
+    val x: Double,
+    val y: Double,
+    val z: Double = 0.5,
+    val yawDegrees: Double = 0.0
+)
+
+@Serializable
 data class ConsoleMessage(
     val timestampMs: Long,
     val text: String,
     val severity: String
 )
 
+data class ControllerBinding(
+    val gamepadId: String,
+    val button: String,
+    val action: String,
+    val sourceFile: String,
+    val lineNumber: Int
+)

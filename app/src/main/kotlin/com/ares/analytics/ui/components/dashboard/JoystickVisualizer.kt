@@ -27,72 +27,10 @@ fun JoystickVisualizer(
     services: com.ares.analytics.di.ServiceRegistry? = null,
     modifier: Modifier = Modifier
 ) {
-    val scope = rememberCoroutineScope()
-
-    // Active visualizer states (what is shown on the UI)
-    var lx by remember { mutableStateOf(0.0) }
-    var ly by remember { mutableStateOf(0.0) }
-    var rx by remember { mutableStateOf(0.0) }
-    var ry by remember { mutableStateOf(0.0) }
-    var lt by remember { mutableStateOf(0.0) }
-    var rt by remember { mutableStateOf(0.0) }
-    var btnA by remember { mutableStateOf(false) }
-    var btnB by remember { mutableStateOf(false) }
-    var btnX by remember { mutableStateOf(false) }
-    var btnY by remember { mutableStateOf(false) }
-    var dpadUp by remember { mutableStateOf(false) }
-    var dpadDown by remember { mutableStateOf(false) }
-    var dpadLeft by remember { mutableStateOf(false) }
-    var dpadRight by remember { mutableStateOf(false) }
-
-    // Keyboard drive state (gets from global services or dummy local state if null)
     val keyboardState = services?.keyboardDriveState ?: remember { com.ares.analytics.di.KeyboardDriveState() }
     val keyboardControlEnabled = keyboardState.enabled
 
-    // 1. Receive data from telemetry logs or NetworkTables if Keyboard Drive is disabled
-    if (currentFrame != null) {
-        lx = currentFrame.values["Gamepad1/LeftStick_X"] ?: 0.0
-        ly = currentFrame.values["Gamepad1/LeftStick_Y"] ?: 0.0
-        rx = currentFrame.values["Gamepad1/RightStick_X"] ?: 0.0
-        ry = currentFrame.values["Gamepad1/RightStick_Y"] ?: 0.0
-        lt = currentFrame.values["Gamepad1/LeftTrigger"] ?: 0.0
-        rt = currentFrame.values["Gamepad1/RightTrigger"] ?: 0.0
-        btnA = (currentFrame.values["Gamepad1/A"] ?: 0.0) > 0.5
-        btnB = (currentFrame.values["Gamepad1/B"] ?: 0.0) > 0.5
-        btnX = (currentFrame.values["Gamepad1/X"] ?: 0.0) > 0.5
-        btnY = (currentFrame.values["Gamepad1/Y"] ?: 0.0) > 0.5
-        dpadUp = (currentFrame.values["Gamepad1/DpadUp"] ?: 0.0) > 0.5
-        dpadDown = (currentFrame.values["Gamepad1/DpadDown"] ?: 0.0) > 0.5
-        dpadLeft = (currentFrame.values["Gamepad1/DpadLeft"] ?: 0.0) > 0.5
-        dpadRight = (currentFrame.values["Gamepad1/DpadRight"] ?: 0.0) > 0.5
-    } else if (nt4ClientService != null && !keyboardControlEnabled) {
-        LaunchedEffect(Unit) {
-            scope.launch {
-                nt4ClientService.telemetryFlow.collect { frame ->
-                    val key = frame.key
-                    val value = frame.value
-                    when (key) {
-                        "Gamepad1/LeftStick_X" -> lx = value
-                        "Gamepad1/LeftStick_Y" -> ly = value
-                        "Gamepad1/RightStick_X" -> rx = value
-                        "Gamepad1/RightStick_Y" -> ry = value
-                        "Gamepad1/LeftTrigger" -> lt = value
-                        "Gamepad1/RightTrigger" -> rt = value
-                        "Gamepad1/A" -> btnA = value > 0.5
-                        "Gamepad1/B" -> btnB = value > 0.5
-                        "Gamepad1/X" -> btnX = value > 0.5
-                        "Gamepad1/Y" -> btnY = value > 0.5
-                        "Gamepad1/DpadUp" -> dpadUp = value > 0.5
-                        "Gamepad1/DpadDown" -> dpadDown = value > 0.5
-                        "Gamepad1/DpadLeft" -> dpadLeft = value > 0.5
-                        "Gamepad1/DpadRight" -> dpadRight = value > 0.5
-                    }
-                }
-            }
-        }
-    }
-
-    // 2. Headless Keyboard controller publishing loop (50Hz / 20ms)
+    // Keyboard controller publishing loop
     LaunchedEffect(keyboardControlEnabled) {
         if (keyboardControlEnabled && nt4ClientService != null) {
             var heartbeat = 0L
@@ -111,17 +49,6 @@ fun JoystickVisualizer(
                 nt4ClientService.publishInputBoolean(1008, keyboardState.isFieldCentric)
                 nt4ClientService.publishInputBoolean(1009, keyboardState.isRedAlliance)
                 nt4ClientService.publishInputLong(1010, heartbeat++)
-
-                // Reflect visual changes locally
-                lx = if (keyboardState.isAPressed) -1.0 else if (keyboardState.isDPressed) 1.0 else 0.0
-                ly = if (keyboardState.isWPressed) -1.0 else if (keyboardState.isSPressed) 1.0 else 0.0
-                rx = if (keyboardState.isQPressed) -1.0 else if (keyboardState.isEPressed) 1.0 else 0.0
-                lt = if (keyboardState.isIntaking) 1.0 else 0.0
-                rt = if (keyboardState.isTransferring) 1.0 else 0.0
-                btnA = keyboardState.isTeleopMode
-                btnB = keyboardState.isFieldCentric
-                btnX = keyboardState.isRedAlliance
-                btnY = keyboardState.isFlywheelOn
 
                 kotlinx.coroutines.delay(20)
             }
@@ -147,7 +74,7 @@ fun JoystickVisualizer(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                "Joystick/Gamepad Input Monitor",
+                "Gamepad Monitor",
                 color = AresTextPrimary,
                 fontWeight = FontWeight.Bold,
                 style = MaterialTheme.typography.titleMedium
@@ -182,116 +109,207 @@ fun JoystickVisualizer(
             )
         }
 
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .background(AresBackground, RoundedCornerShape(8.dp))
-                .border(1.dp, AresBorder, RoundedCornerShape(8.dp))
+        Row(
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            SingleGamepadVisualizer(
+                title = "Gamepad 1 (Driver)",
+                gamepadId = "Gamepad1",
+                currentFrame = currentFrame,
+                nt4ClientService = nt4ClientService,
+                keyboardControlEnabled = keyboardControlEnabled,
+                keyboardState = keyboardState,
+                modifier = Modifier.weight(1f)
+            )
+            SingleGamepadVisualizer(
+                title = "Gamepad 2 (Operator)",
+                gamepadId = "Gamepad2",
+                currentFrame = currentFrame,
+                nt4ClientService = nt4ClientService,
+                keyboardControlEnabled = false,
+                keyboardState = null,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+fun SingleGamepadVisualizer(
+    title: String,
+    gamepadId: String,
+    currentFrame: ReplayFrame?,
+    nt4ClientService: Nt4ClientService?,
+    keyboardControlEnabled: Boolean,
+    keyboardState: com.ares.analytics.di.KeyboardDriveState?,
+    modifier: Modifier = Modifier
+) {
+    val scope = rememberCoroutineScope()
+
+    var lx by remember { mutableStateOf(0.0) }
+    var ly by remember { mutableStateOf(0.0) }
+    var rx by remember { mutableStateOf(0.0) }
+    var ry by remember { mutableStateOf(0.0) }
+    var lt by remember { mutableStateOf(0.0) }
+    var rt by remember { mutableStateOf(0.0) }
+    var btnA by remember { mutableStateOf(false) }
+    var btnB by remember { mutableStateOf(false) }
+    var btnX by remember { mutableStateOf(false) }
+    var btnY by remember { mutableStateOf(false) }
+    var dpadUp by remember { mutableStateOf(false) }
+    var dpadDown by remember { mutableStateOf(false) }
+    var dpadLeft by remember { mutableStateOf(false) }
+    var dpadRight by remember { mutableStateOf(false) }
+
+    if (currentFrame != null) {
+        lx = currentFrame.values["$gamepadId/LeftStick_X"] ?: 0.0
+        ly = currentFrame.values["$gamepadId/LeftStick_Y"] ?: 0.0
+        rx = currentFrame.values["$gamepadId/RightStick_X"] ?: 0.0
+        ry = currentFrame.values["$gamepadId/RightStick_Y"] ?: 0.0
+        lt = currentFrame.values["$gamepadId/LeftTrigger"] ?: 0.0
+        rt = currentFrame.values["$gamepadId/RightTrigger"] ?: 0.0
+        btnA = (currentFrame.values["$gamepadId/A"] ?: 0.0) > 0.5
+        btnB = (currentFrame.values["$gamepadId/B"] ?: 0.0) > 0.5
+        btnX = (currentFrame.values["$gamepadId/X"] ?: 0.0) > 0.5
+        btnY = (currentFrame.values["$gamepadId/Y"] ?: 0.0) > 0.5
+        dpadUp = (currentFrame.values["$gamepadId/DpadUp"] ?: 0.0) > 0.5
+        dpadDown = (currentFrame.values["$gamepadId/DpadDown"] ?: 0.0) > 0.5
+        dpadLeft = (currentFrame.values["$gamepadId/DpadLeft"] ?: 0.0) > 0.5
+        dpadRight = (currentFrame.values["$gamepadId/DpadRight"] ?: 0.0) > 0.5
+    } else if (nt4ClientService != null && !keyboardControlEnabled) {
+        LaunchedEffect(Unit) {
+            scope.launch {
+                nt4ClientService.telemetryFlow.collect { frame ->
+                    val key = frame.key
+                    val value = frame.value as? Double ?: return@collect
+                    when (key) {
+                        "$gamepadId/LeftStick_X" -> lx = value
+                        "$gamepadId/LeftStick_Y" -> ly = value
+                        "$gamepadId/RightStick_X" -> rx = value
+                        "$gamepadId/RightStick_Y" -> ry = value
+                        "$gamepadId/LeftTrigger" -> lt = value
+                        "$gamepadId/RightTrigger" -> rt = value
+                        "$gamepadId/A" -> btnA = value > 0.5
+                        "$gamepadId/B" -> btnB = value > 0.5
+                        "$gamepadId/X" -> btnX = value > 0.5
+                        "$gamepadId/Y" -> btnY = value > 0.5
+                        "$gamepadId/DpadUp" -> dpadUp = value > 0.5
+                        "$gamepadId/DpadDown" -> dpadDown = value > 0.5
+                        "$gamepadId/DpadLeft" -> dpadLeft = value > 0.5
+                        "$gamepadId/DpadRight" -> dpadRight = value > 0.5
+                    }
+                }
+            }
+        }
+    }
+
+    if (keyboardControlEnabled && keyboardState != null) {
+        LaunchedEffect(Unit) {
+            while (true) {
+                lx = if (keyboardState.isAPressed) -1.0 else if (keyboardState.isDPressed) 1.0 else 0.0
+                ly = if (keyboardState.isWPressed) -1.0 else if (keyboardState.isSPressed) 1.0 else 0.0
+                rx = if (keyboardState.isQPressed) -1.0 else if (keyboardState.isEPressed) 1.0 else 0.0
+                ry = 0.0
+                lt = if (keyboardState.isIntaking) 1.0 else 0.0
+                rt = if (keyboardState.isTransferring) 1.0 else 0.0
+                btnA = keyboardState.isTeleopMode
+                btnB = keyboardState.isFieldCentric
+                btnX = keyboardState.isRedAlliance
+                btnY = keyboardState.isFlywheelOn
+                kotlinx.coroutines.delay(20)
+            }
+        }
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxHeight()
+            .background(AresBackground, RoundedCornerShape(8.dp))
+            .border(1.dp, AresBorder, RoundedCornerShape(8.dp))
+            .padding(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(title, color = AresTextSecondary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(4.dp))
+        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val cx = size.width / 2f
                 val cy = size.height / 2f
 
-                // 1. Draw Controller Main Body Outline
-                val bodyW = 340f
-                val bodyH = 180f
+                // Scale the controller to fit half the width now
+                val scale = minOf(size.width / 380f, size.height / 200f).coerceAtMost(1f)
+                val bodyW = 340f * scale
+                val bodyH = 180f * scale
+
                 drawRoundRect(
                     color = AresSurfaceElevated,
                     topLeft = Offset(cx - bodyW / 2f, cy - bodyH / 2f),
                     size = Size(bodyW, bodyH),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(40f, 40f)
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(40f * scale, 40f * scale)
                 )
                 drawRoundRect(
                     color = if (keyboardControlEnabled) AresGreen else AresBorder,
                     topLeft = Offset(cx - bodyW / 2f, cy - bodyH / 2f),
                     size = Size(bodyW, bodyH),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(40f, 40f),
-                    style = Stroke(width = 2.5f)
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(40f * scale, 40f * scale),
+                    style = Stroke(width = 2.5f * scale)
                 )
 
-                // 2. Draw Analog Sticks (Left Stick at x-85, y+15; Right Stick at x+45, y+15)
-                val stickRadius = 32f
-                val leftStickCenter = Offset(cx - 85f, cy + 15f)
-                val rightStickCenter = Offset(cx + 45f, cy + 15f)
+                val stickRadius = 32f * scale
+                val leftStickCenter = Offset(cx - 85f * scale, cy + 15f * scale)
+                val rightStickCenter = Offset(cx + 45f * scale, cy + 15f * scale)
 
-                // Left Stick Base
                 drawCircle(color = AresSurface, radius = stickRadius, center = leftStickCenter)
-                drawCircle(color = AresBorder, radius = stickRadius, center = leftStickCenter, style = Stroke(width = 1.5f))
-
-                // Left Stick Deflection Node (WASD keys map here)
+                drawCircle(color = AresBorder, radius = stickRadius, center = leftStickCenter, style = Stroke(width = 1.5f * scale))
                 val lNodeX = leftStickCenter.x + (lx * stickRadius * 0.7).toFloat()
                 val lNodeY = leftStickCenter.y + (ly * stickRadius * 0.7).toFloat()
-                drawCircle(color = if (keyboardControlEnabled) AresGreen else AresCyan, radius = 12f, center = Offset(lNodeX, lNodeY))
+                drawCircle(color = if (keyboardControlEnabled) AresGreen else AresCyan, radius = 12f * scale, center = Offset(lNodeX, lNodeY))
 
-                // Right Stick Base
                 drawCircle(color = AresSurface, radius = stickRadius, center = rightStickCenter)
-                drawCircle(color = AresBorder, radius = stickRadius, center = rightStickCenter, style = Stroke(width = 1.5f))
-
-                // Right Stick Deflection Node (QE keys map here)
+                drawCircle(color = AresBorder, radius = stickRadius, center = rightStickCenter, style = Stroke(width = 1.5f * scale))
                 val rNodeX = rightStickCenter.x + (rx * stickRadius * 0.7).toFloat()
                 val rNodeY = rightStickCenter.y + (ry * stickRadius * 0.7).toFloat()
-                drawCircle(color = if (keyboardControlEnabled) AresGreen else AresCyan, radius = 12f, center = Offset(rNodeX, rNodeY))
+                drawCircle(color = if (keyboardControlEnabled) AresGreen else AresCyan, radius = 12f * scale, center = Offset(rNodeX, rNodeY))
 
-                // 3. Draw D-pad (Left side: center x-135, y-25)
-                val dpadCenter = Offset(cx - 135f, cy - 25f)
-                val dpadSize = 16f
-
-                // Draw D-pad background cross
+                val dpadCenter = Offset(cx - 135f * scale, cy - 25f * scale)
+                val dpadSize = 16f * scale
                 drawRect(color = AresSurface, topLeft = Offset(dpadCenter.x - dpadSize * 2.5f, dpadCenter.y - dpadSize / 2f), size = Size(dpadSize * 5f, dpadSize))
                 drawRect(color = AresSurface, topLeft = Offset(dpadCenter.x - dpadSize / 2f, dpadCenter.y - dpadSize * 2.5f), size = Size(dpadSize, dpadSize * 5f))
-
-                // Draw directions with highlight colors
                 drawRect(color = if (dpadLeft) AresCyan else AresBorder, topLeft = Offset(dpadCenter.x - dpadSize * 2.5f, dpadCenter.y - dpadSize / 2f), size = Size(dpadSize, dpadSize))
                 drawRect(color = if (dpadRight) AresCyan else AresBorder, topLeft = Offset(dpadCenter.x + dpadSize * 1.5f, dpadCenter.y - dpadSize / 2f), size = Size(dpadSize, dpadSize))
                 drawRect(color = if (dpadUp) AresCyan else AresBorder, topLeft = Offset(dpadCenter.x - dpadSize / 2f, dpadCenter.y - dpadSize * 2.5f), size = Size(dpadSize, dpadSize))
                 drawRect(color = if (dpadDown) AresCyan else AresBorder, topLeft = Offset(dpadCenter.x - dpadSize / 2f, dpadCenter.y + dpadSize * 1.5f), size = Size(dpadSize, dpadSize))
 
-                // 4. Draw Buttons A/B/X/Y (Right side: center x+105, y-25)
-                val buttonsCenter = Offset(cx + 105f, cy - 25f)
-                val btnRadius = 12f
-                val btnOffset = 24f
-
-                // Y Button (Flywheel state indicator)
+                val buttonsCenter = Offset(cx + 105f * scale, cy - 25f * scale)
+                val btnRadius = 12f * scale
+                val btnOffset = 24f * scale
                 drawCircle(color = if (btnY) AresGold else AresSurface, radius = btnRadius, center = Offset(buttonsCenter.x, buttonsCenter.y - btnOffset))
-                drawCircle(color = AresBorder, radius = btnRadius, center = Offset(buttonsCenter.x, buttonsCenter.y - btnOffset), style = Stroke(width = 1.5f))
-
-                // A Button (Drive mode indicator - Teleop vs Auto)
+                drawCircle(color = AresBorder, radius = btnRadius, center = Offset(buttonsCenter.x, buttonsCenter.y - btnOffset), style = Stroke(width = 1.5f * scale))
                 drawCircle(color = if (btnA) AresGold else AresSurface, radius = btnRadius, center = Offset(buttonsCenter.x, buttonsCenter.y + btnOffset))
-                drawCircle(color = AresBorder, radius = btnRadius, center = Offset(buttonsCenter.x, buttonsCenter.y + btnOffset), style = Stroke(width = 1.5f))
-
-                // X Button (Alliance state indicator - Red vs Blue)
+                drawCircle(color = AresBorder, radius = btnRadius, center = Offset(buttonsCenter.x, buttonsCenter.y + btnOffset), style = Stroke(width = 1.5f * scale))
                 drawCircle(color = if (btnX) AresRed else AresSurface, radius = btnRadius, center = Offset(buttonsCenter.x - btnOffset, buttonsCenter.y))
-                drawCircle(color = AresBorder, radius = btnRadius, center = Offset(buttonsCenter.x - btnOffset, buttonsCenter.y), style = Stroke(width = 1.5f))
-
-                // B Button (Field centric state indicator)
+                drawCircle(color = AresBorder, radius = btnRadius, center = Offset(buttonsCenter.x - btnOffset, buttonsCenter.y), style = Stroke(width = 1.5f * scale))
                 drawCircle(color = if (btnB) AresCyan else AresSurface, radius = btnRadius, center = Offset(buttonsCenter.x + btnOffset, buttonsCenter.y))
-                drawCircle(color = AresBorder, radius = btnRadius, center = Offset(buttonsCenter.x + btnOffset, buttonsCenter.y), style = Stroke(width = 1.5f))
+                drawCircle(color = AresBorder, radius = btnRadius, center = Offset(buttonsCenter.x + btnOffset, buttonsCenter.y), style = Stroke(width = 1.5f * scale))
 
-                // 5. Draw Triggers and Bumpers (Top: left x-120, right x+60)
-                val triggerW = 60f
-                val triggerH = 14f
-
-                // Left Trigger Bar (Intake state indicator)
-                drawRect(color = AresSurface, topLeft = Offset(cx - 120f, cy - bodyH / 2f - 20f), size = Size(triggerW, triggerH))
-                drawRect(color = if (keyboardControlEnabled) AresGreen else AresCyan, topLeft = Offset(cx - 120f, cy - bodyH / 2f - 20f), size = Size(triggerW * lt.toFloat(), triggerH))
-                drawRect(color = AresBorder, topLeft = Offset(cx - 120f, cy - bodyH / 2f - 20f), size = Size(triggerW, triggerH), style = Stroke(width = 1.5f))
-
-                // Right Trigger Bar (Transfer/Shoot indicator)
-                drawRect(color = AresSurface, topLeft = Offset(cx + 60f, cy - bodyH / 2f - 20f), size = Size(triggerW, triggerH))
-                drawRect(color = if (keyboardControlEnabled) AresGreen else AresCyan, topLeft = Offset(cx + 60f, cy - bodyH / 2f - 20f), size = Size(triggerW * rt.toFloat(), triggerH))
-                drawRect(color = AresBorder, topLeft = Offset(cx + 60f, cy - bodyH / 2f - 20f), size = Size(triggerW, triggerH), style = Stroke(width = 1.5f))
+                val triggerW = 60f * scale
+                val triggerH = 14f * scale
+                drawRect(color = AresSurface, topLeft = Offset(cx - 120f * scale, cy - bodyH / 2f - 20f * scale), size = Size(triggerW, triggerH))
+                drawRect(color = if (keyboardControlEnabled) AresGreen else AresCyan, topLeft = Offset(cx - 120f * scale, cy - bodyH / 2f - 20f * scale), size = Size(triggerW * lt.toFloat(), triggerH))
+                drawRect(color = AresBorder, topLeft = Offset(cx - 120f * scale, cy - bodyH / 2f - 20f * scale), size = Size(triggerW, triggerH), style = Stroke(width = 1.5f * scale))
+                drawRect(color = AresSurface, topLeft = Offset(cx + 60f * scale, cy - bodyH / 2f - 20f * scale), size = Size(triggerW, triggerH))
+                drawRect(color = if (keyboardControlEnabled) AresGreen else AresCyan, topLeft = Offset(cx + 60f * scale, cy - bodyH / 2f - 20f * scale), size = Size(triggerW * rt.toFloat(), triggerH))
+                drawRect(color = AresBorder, topLeft = Offset(cx + 60f * scale, cy - bodyH / 2f - 20f * scale), size = Size(triggerW, triggerH), style = Stroke(width = 1.5f * scale))
             }
         }
-
-        // Details Panel
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(text = "L Stick: (${"%.2f".format(lx)}, ${"%.2f".format(ly)})", color = AresTextSecondary, fontSize = 11.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
-            Text(text = "R Stick: (${"%.2f".format(rx)}, ${"%.2f".format(ry)})", color = AresTextSecondary, fontSize = 11.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
-            Text(text = "L Trigger: ${"%.2f".format(lt)} | R Trigger: ${"%.2f".format(rt)}", color = AresTextSecondary, fontSize = 11.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+            Text(text = "L: (${"%.2f".format(lx)}, ${"%.2f".format(ly)})", color = AresTextSecondary, fontSize = 9.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+            Text(text = "R: (${"%.2f".format(rx)}, ${"%.2f".format(ry)})", color = AresTextSecondary, fontSize = 9.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+            Text(text = "T: ${"%.2f".format(lt)} | ${"%.2f".format(rt)}", color = AresTextSecondary, fontSize = 9.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
         }
     }
 }

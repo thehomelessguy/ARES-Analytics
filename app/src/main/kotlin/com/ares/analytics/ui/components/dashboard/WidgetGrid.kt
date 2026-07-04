@@ -46,6 +46,8 @@ fun WidgetGrid(
     val maxRow = widgets.maxOfOrNull { it.row + it.rowSpan } ?: 0
     val gridHeight = rowHeight * maxRow + spacing * (maxRow - 1).coerceAtLeast(0) + 120.dp
 
+    val currentWidgets by rememberUpdatedState(widgets)
+
     Box(modifier = modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
@@ -59,9 +61,10 @@ fun WidgetGrid(
                     .padding(bottom = 80.dp)
             ) {
             widgets.forEach { widget ->
-                var offsetX by remember { mutableStateOf(0f) }
-                var offsetY by remember { mutableStateOf(0f) }
-                var isDragging by remember { mutableStateOf(false) }
+                key(widget.id) {
+                    var offsetX by remember { mutableStateOf(0f) }
+                    var offsetY by remember { mutableStateOf(0f) }
+                    var isDragging by remember { mutableStateOf(false) }
 
                 var resizeWidthOffset by remember { mutableStateOf(0f) }
                 var resizeHeightOffset by remember { mutableStateOf(0f) }
@@ -94,36 +97,39 @@ fun WidgetGrid(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(40.dp)
-                                .pointerInput(widget) {
-                                    detectDragGestures(
-                                        onDragStart = { isDragging = true },
-                                        onDragEnd = {
-                                            isDragging = false
-                                            val deltaCol = ((offsetX / density) / 120f).roundToInt()
-                                            val deltaRow = ((offsetY / density) / 80f).roundToInt()
-                                            offsetX = 0f
-                                            offsetY = 0f
-                                            if (deltaCol != 0 || deltaRow != 0) {
-                                                val newCol = (widget.col + deltaCol).coerceIn(0, 18 - widget.colSpan)
-                                                val newRow = (widget.row + deltaRow).coerceIn(0, 30)
-                                                val updated = widgets.map {
-                                                    if (it.id == widget.id) it.copy(col = newCol, row = newRow) else it
+                                .then(
+                                    if (widget.isLocked) Modifier
+                                    else Modifier.pointerInput(widget) {
+                                        detectDragGestures(
+                                            onDragStart = { isDragging = true },
+                                            onDragEnd = {
+                                                isDragging = false
+                                                val deltaCol = ((offsetX / density) / 120f).roundToInt()
+                                                val deltaRow = ((offsetY / density) / 80f).roundToInt()
+                                                offsetX = 0f
+                                                offsetY = 0f
+                                                if (deltaCol != 0 || deltaRow != 0) {
+                                                    val newCol = (widget.col + deltaCol).coerceIn(0, 18 - widget.colSpan)
+                                                    val newRow = (widget.row + deltaRow).coerceIn(0, 30)
+                                                    val updated = currentWidgets.map {
+                                                        if (it.id == widget.id) it.copy(col = newCol, row = newRow) else it
+                                                    }
+                                                    onLayoutChanged(resolveOverlaps(updated, widget.id))
                                                 }
-                                                onLayoutChanged(resolveOverlaps(updated, widget.id))
+                                            },
+                                            onDragCancel = {
+                                                isDragging = false
+                                                offsetX = 0f
+                                                offsetY = 0f
+                                            },
+                                            onDrag = { change, dragAmount ->
+                                                change.consume()
+                                                offsetX += dragAmount.x
+                                                offsetY += dragAmount.y
                                             }
-                                        },
-                                        onDragCancel = {
-                                            isDragging = false
-                                            offsetX = 0f
-                                            offsetY = 0f
-                                        },
-                                        onDrag = { change, dragAmount ->
-                                            change.consume()
-                                            offsetX += dragAmount.x
-                                            offsetY += dragAmount.y
-                                        }
-                                    )
-                                }
+                                        )
+                                    }
+                                )
                                 .padding(horizontal = 12.dp, vertical = 6.dp)
                         ) {
                             Row(
@@ -132,11 +138,32 @@ fun WidgetGrid(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(Icons.Default.DragIndicator, contentDescription = "Drag", tint = AresTextTertiary)
-                                IconButton(
-                                    onClick = { onRemoveWidget(widget.id) },
-                                    modifier = Modifier.size(24.dp)
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(Icons.Default.Close, contentDescription = "Remove", tint = AresError, modifier = Modifier.size(16.dp))
+                                    IconButton(
+                                        onClick = { 
+                                            val updated = widgets.map {
+                                                if (it.id == widget.id) it.copy(isLocked = !it.isLocked) else it
+                                            }
+                                            onLayoutChanged(updated)
+                                        },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(
+                                            if (widget.isLocked) Icons.Default.Lock else Icons.Default.LockOpen, 
+                                            contentDescription = "Toggle Lock", 
+                                            tint = if (widget.isLocked) AresCyan else AresTextTertiary, 
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    IconButton(
+                                        onClick = { onRemoveWidget(widget.id) },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(Icons.Default.Close, contentDescription = "Remove", tint = AresError, modifier = Modifier.size(16.dp))
+                                    }
                                 }
                             }
                         }
@@ -155,36 +182,39 @@ fun WidgetGrid(
                             modifier = Modifier
                                 .size(24.dp)
                                 .align(Alignment.BottomEnd)
-                                .pointerInput(widget) {
-                                    detectDragGestures(
-                                        onDragStart = { isResizing = true },
-                                        onDragEnd = {
-                                            isResizing = false
-                                            val deltaColSpan = ((resizeWidthOffset / density) / 120f).roundToInt()
-                                            val deltaRowSpan = ((resizeHeightOffset / density) / 80f).roundToInt()
-                                            resizeWidthOffset = 0f
-                                            resizeHeightOffset = 0f
-                                            if (deltaColSpan != 0 || deltaRowSpan != 0) {
-                                                val newColSpan = (widget.colSpan + deltaColSpan).coerceIn(1, 18 - widget.col)
-                                                val newRowSpan = (widget.rowSpan + deltaRowSpan).coerceIn(1, 12)
-                                                val updated = widgets.map {
-                                                    if (it.id == widget.id) it.copy(colSpan = newColSpan, rowSpan = newRowSpan) else it
+                                .then(
+                                    if (widget.isLocked) Modifier
+                                    else Modifier.pointerInput(widget) {
+                                        detectDragGestures(
+                                            onDragStart = { isResizing = true },
+                                            onDragEnd = {
+                                                isResizing = false
+                                                val deltaColSpan = ((resizeWidthOffset / density) / 120f).roundToInt()
+                                                val deltaRowSpan = ((resizeHeightOffset / density) / 80f).roundToInt()
+                                                resizeWidthOffset = 0f
+                                                resizeHeightOffset = 0f
+                                                if (deltaColSpan != 0 || deltaRowSpan != 0) {
+                                                    val newColSpan = (widget.colSpan + deltaColSpan).coerceIn(1, 18 - widget.col)
+                                                    val newRowSpan = (widget.rowSpan + deltaRowSpan).coerceIn(1, 12)
+                                                    val updated = currentWidgets.map {
+                                                        if (it.id == widget.id) it.copy(colSpan = newColSpan, rowSpan = newRowSpan) else it
+                                                    }
+                                                    onLayoutChanged(resolveOverlaps(updated, widget.id))
                                                 }
-                                                onLayoutChanged(resolveOverlaps(updated, widget.id))
+                                            },
+                                            onDragCancel = {
+                                                isResizing = false
+                                                resizeWidthOffset = 0f
+                                                resizeHeightOffset = 0f
+                                            },
+                                            onDrag = { change, dragAmount ->
+                                                change.consume()
+                                                resizeWidthOffset += dragAmount.x
+                                                resizeHeightOffset += dragAmount.y
                                             }
-                                        },
-                                        onDragCancel = {
-                                            isResizing = false
-                                            resizeWidthOffset = 0f
-                                            resizeHeightOffset = 0f
-                                        },
-                                        onDrag = { change, dragAmount ->
-                                            change.consume()
-                                            resizeWidthOffset += dragAmount.x
-                                            resizeHeightOffset += dragAmount.y
-                                        }
-                                    )
-                                }
+                                        )
+                                    }
+                                )
                                 .padding(4.dp),
                             contentAlignment = Alignment.BottomEnd
                         ) {
@@ -196,6 +226,7 @@ fun WidgetGrid(
                             )
                         }
                     }
+                }
                 }
             }
         }
@@ -227,28 +258,37 @@ fun WidgetGrid(
  */
 private fun resolveOverlaps(widgets: List<WidgetConfig>, activeWidgetId: String): List<WidgetConfig> {
     val active = widgets.find { it.id == activeWidgetId } ?: return widgets
-    val others = widgets.filter { it.id != activeWidgetId }.sortedWith(
+    val others = widgets.filter { it.id != activeWidgetId }
+    val resolved = mutableListOf<WidgetConfig>()
+
+    // 1. Locked widgets are completely stationary, they get placed first
+    val lockedOthers = others.filter { it.isLocked }
+    resolved.addAll(lockedOthers)
+
+    // Helper to check overlap
+    fun hasOverlap(w: WidgetConfig): Boolean {
+        return resolved.any { placed ->
+            val overlapX = w.col < placed.col + placed.colSpan && w.col + w.colSpan > placed.col
+            val overlapY = w.row < placed.row + placed.rowSpan && w.row + w.rowSpan > placed.row
+            overlapX && overlapY
+        }
+    }
+
+    // 2. Add the active widget, resolving its position around locked widgets
+    var currentActive = active
+    while (hasOverlap(currentActive)) {
+        currentActive = currentActive.copy(row = currentActive.row + 1)
+    }
+    resolved.add(currentActive)
+
+    // 3. Add unlocked others, resolving around locked AND active widgets
+    val unlockedOthers = others.filter { !it.isLocked }.sortedWith(
         compareBy<WidgetConfig> { it.row }.thenBy { it.col }
     )
-
-    val resolved = mutableListOf<WidgetConfig>()
-    resolved.add(active)
-
-    for (widget in others) {
+    for (widget in unlockedOthers) {
         var currentWidget = widget
-        while (true) {
-            val hasOverlap = resolved.any { placed ->
-                val overlapX = currentWidget.col < placed.col + placed.colSpan &&
-                               currentWidget.col + currentWidget.colSpan > placed.col
-                val overlapY = currentWidget.row < placed.row + placed.rowSpan &&
-                               currentWidget.row + currentWidget.rowSpan > placed.row
-                overlapX && overlapY
-            }
-            if (hasOverlap) {
-                currentWidget = currentWidget.copy(row = currentWidget.row + 1)
-            } else {
-                break
-            }
+        while (hasOverlap(currentWidget)) {
+            currentWidget = currentWidget.copy(row = currentWidget.row + 1)
         }
         resolved.add(currentWidget)
     }

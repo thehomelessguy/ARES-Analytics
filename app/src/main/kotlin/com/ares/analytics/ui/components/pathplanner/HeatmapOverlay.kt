@@ -7,26 +7,51 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import com.ares.analytics.shared.League
 
 object HeatmapOverlay {
+    // Stateful grid for accumulation
+    private val globalCounts = Array(100) { IntArray(100) }
+    private var globalMaxCount = 0
+    private var lastPathSize = 0
+    private var lastFirstPoint: Waypoint? = null
+
+    fun resetHeatmap() {
+        for (i in globalCounts.indices) {
+            for (j in globalCounts[i].indices) {
+                globalCounts[i][j] = 0
+            }
+        }
+        globalMaxCount = 0
+        lastPathSize = 0
+        lastFirstPoint = null
+    }
+
     fun drawHeatmap(
         drawScope: DrawScope,
         actualPath: List<Waypoint>,
         fieldWidthM: Double,
         fieldHeightM: Double,
         league: League,
-        gridSize: Int = 40,
+        gridSize: Int = 100,
         opacity: Float = 0.6f
     ) {
-        if (actualPath.isEmpty()) return
+        // Check if path was reset or if we have new points
+        if (actualPath.isEmpty()) {
+            resetHeatmap()
+            return
+        }
 
         val width = drawScope.size.width
         val height = drawScope.size.height
+        
+        // If the path seems completely new (e.g. simulation reset), clear the heatmap
+        if (lastPathSize > actualPath.size || (actualPath.isNotEmpty() && lastFirstPoint != actualPath.first())) {
+            resetHeatmap()
+        }
 
-        // 1. Compute grid bounds and counts
-        val counts = Array(gridSize) { IntArray(gridSize) }
-        var maxCount = 0
-
-        actualPath.forEach { wp ->
-            // Map robot coordinates to grid index
+        // Add only the NEW points to the heatmap
+        val startIndex = if (lastPathSize <= actualPath.size && lastFirstPoint == actualPath.firstOrNull()) lastPathSize else 0
+        
+        for (i in startIndex until actualPath.size) {
+            val wp = actualPath[i]
             val pctX = if (league == League.FTC) {
                 ((wp.x + fieldWidthM / 2.0) / fieldWidthM).coerceIn(0.0, 1.0)
             } else {
@@ -34,7 +59,7 @@ object HeatmapOverlay {
             }
 
             val pctY = if (league == League.FTC) {
-                ((wp.y + fieldHeightM / 2.0) / fieldHeightM).coerceIn(0.0, 1.0)
+                ((fieldHeightM / 2.0 - wp.y) / fieldHeightM).coerceIn(0.0, 1.0)
             } else {
                 ((fieldHeightM - wp.y) / fieldHeightM).coerceIn(0.0, 1.0)
             }
@@ -42,13 +67,16 @@ object HeatmapOverlay {
             val col = (pctX * (gridSize - 1)).toInt()
             val row = (pctY * (gridSize - 1)).toInt()
 
-            counts[row][col]++
-            if (counts[row][col] > maxCount) {
-                maxCount = counts[row][col]
+            globalCounts[row][col]++
+            if (globalCounts[row][col] > globalMaxCount) {
+                globalMaxCount = globalCounts[row][col]
             }
         }
 
-        if (maxCount == 0) return
+        lastPathSize = actualPath.size
+        lastFirstPoint = actualPath.firstOrNull()
+
+        if (globalMaxCount == 0) return
 
         // 2. Draw density rectangles
         val cellW = width / gridSize
@@ -56,27 +84,23 @@ object HeatmapOverlay {
 
         for (row in 0 until gridSize) {
             for (col in 0 until gridSize) {
-                val count = counts[row][col]
+                val count = globalCounts[row][col]
                 if (count > 0) {
-                    val density = count.toDouble() / maxCount
+                    val density = count.toDouble() / globalMaxCount
                     val color = when {
                         density < 0.25 -> {
-                            // Cool: Blue to Cyan
                             val t = (density / 0.25).toFloat()
                             Color(0f, t, 1f, opacity)
                         }
                         density < 0.5 -> {
-                            // Mid-Cool: Cyan to Green
                             val t = ((density - 0.25) / 0.25).toFloat()
                             Color(0f, 1f, 1f - t, opacity)
                         }
                         density < 0.75 -> {
-                            // Warm: Green to Yellow/Orange
                             val t = ((density - 0.5) / 0.25).toFloat()
                             Color(t, 1f, 0f, opacity)
                         }
                         else -> {
-                            // Hot: Orange to Red
                             val t = ((density - 0.75) / 0.25).toFloat()
                             Color(1f, 1f - t, 0f, opacity)
                         }

@@ -133,7 +133,8 @@ class HootDecoderService(
         databaseService.insertSession(session)
 
         // Generate summary details
-        summaryEngineService.generateSummary(session)
+        val summary = summaryEngineService.generateSummary(session)
+        databaseService.insertSessionSummary(summary)
 
         // Execute Post-Processing diagnostic pipeline
         runDiagnostics(sessionId, parsedKeys, firstTime, lastTime, durationMs)

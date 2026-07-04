@@ -89,7 +89,7 @@ class Nt4ClientServiceTest {
         withTimeout(2000) {
             nt4ClientService.handleIncomingText(valuePayload, "team-1", "season-1", "robot-1")
             val frame = nt4ClientService.telemetryFlow.first()
-            assertEquals("/Drive/Pose_X", frame.key)
+            assertEquals("Drive/Pose_X", frame.key)
             assertEquals(1.25, frame.value)
             assertEquals(1000L, frame.timestampMs) // 1000000 micros = 1000 ms
         }
@@ -127,13 +127,13 @@ class Nt4ClientServiceTest {
 
         assertEquals(3, results.size)
         
-        assertEquals("/Drive/EstimatedPose/0", results[0].key)
+        assertEquals("Drive/EstimatedPose/0", results[0].key)
         assertEquals(1.5, results[0].value)
         
-        assertEquals("/Drive/EstimatedPose/1", results[1].key)
+        assertEquals("Drive/EstimatedPose/1", results[1].key)
         assertEquals(-2.5, results[1].value)
 
-        assertEquals("/Drive/EstimatedPose/2", results[2].key)
+        assertEquals("Drive/EstimatedPose/2", results[2].key)
         assertEquals(3.14, results[2].value)
     }
 

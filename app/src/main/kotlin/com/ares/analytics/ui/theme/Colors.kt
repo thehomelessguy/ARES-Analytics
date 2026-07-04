@@ -46,9 +46,9 @@ val AresTextTertiary = Color(0xFF5A6174)
 
 // ── Borders & Dividers ───────────────────────────────────────────────────────
 /** Subtle border for cards and panels */
-val AresBorder = Color(0xFF2A2F3C)
+val AresBorder = Color(0xFF6B7B98)
 /** Brighter border for focused/hovered elements */
-val AresBorderFocused = Color(0xFF3D4456)
+val AresBorderFocused = Color(0xFF8B9BB8)
 
 // ── Glassmorphism ────────────────────────────────────────────────────────────
 /** Translucent glass surface for overlay panels */

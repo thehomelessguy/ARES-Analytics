@@ -14,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -23,8 +24,16 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.input.pointer.PointerEvent
+import androidx.compose.ui.input.pointer.isShiftPressed
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerButton
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.material.DropdownMenu
 import androidx.compose.ui.res.loadImageBitmap
+import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -49,7 +58,7 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 enum class EditorMode {
-    SELECT, ADD_WAYPOINT, DRAW_POLYGON, DRAW_CIRCLE, DRAW_RECTANGLE, PLACE_GAME_PIECE, ERASER
+    SELECT, ADD_WAYPOINT, DRAW_POLYGON, DRAW_CIRCLE, DRAW_RECTANGLE, PLACE_GAME_PIECE, PLACE_APRILTAG, ERASER
 }
 
 private data class PointTowardsZoneRenderData(
@@ -57,6 +66,7 @@ private data class PointTowardsZoneRenderData(
     val splinePoints: List<Waypoint>
 )
 
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun FieldCanvas(
     league: League,
@@ -72,6 +82,8 @@ fun FieldCanvas(
     onObstaclesChanged: ((List<Obstacle>) -> Unit)? = null,
     gamePieces: List<GamePiece>? = null,
     onGamePiecesChanged: ((List<GamePiece>) -> Unit)? = null,
+    aprilTags: List<com.ares.analytics.shared.AprilTagPlacement>? = null,
+    onAprilTagsChanged: ((List<com.ares.analytics.shared.AprilTagPlacement>) -> Unit)? = null,
     eventMarkers: List<PathPlannerEventMarker> = emptyList(),
     onEventMarkersChanged: ((List<PathPlannerEventMarker>) -> Unit)? = null,
     rotationTargets: List<RotationTarget> = emptyList(),
@@ -80,12 +92,16 @@ fun FieldCanvas(
     globalConstraints: PathConstraints = PathConstraints(),
     estimatedPose: Waypoint? = null,
     visionPoses: List<Waypoint> = emptyList(),
+    onItemSelected: ((String?, String?) -> Unit)? = null,
+    onItemDoubleTapped: ((String, String) -> Unit)? = null,
+    initialViewRotation: Float = 0f,
+    onViewRotationChanged: ((Float) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var localFieldImage by remember { mutableStateOf<ImageBitmap?>(null) }
     var localFieldImageConfig by remember { mutableStateOf(FieldImageConfig()) }
     var isDraggingHeading by remember { mutableStateOf(false) }
-
+    val textMeasurer = androidx.compose.ui.text.rememberTextMeasurer()
     // Precomputed Cache Data Structures for zero-allocation rendering performance
     class PathCacheHolder {
         var splinePoints: List<Waypoint> = emptyList()
@@ -100,6 +116,14 @@ fun FieldCanvas(
     
     val pathCache = remember { PathCacheHolder() }
 
+    var contextMenuExpanded by remember { mutableStateOf(false) }
+    var contextMenuOffset by remember { mutableStateOf(DpOffset.Zero) }
+    var contextTargetType by remember { mutableStateOf<String?>(null) }
+    var contextTargetId by remember { mutableStateOf<String?>(null) }
+    var contextTargetIndex by remember { mutableStateOf<Int>(-1) }
+
+    val density = LocalDensity.current
+
     val splinePoints = remember(waypoints) {
         if (waypoints.size < 2) {
             emptyList<Waypoint>()
@@ -107,15 +131,17 @@ fun FieldCanvas(
             val list = ArrayList<Waypoint>((waypoints.size - 1) * 30 + 1)
             val density = 30
             for (i in 0 until waypoints.size - 1) {
-                val p0 = waypoints[maxOf(0, i - 1)]
-                val p1 = waypoints[i]
-                val p2 = waypoints[i + 1]
-                val p3 = waypoints[minOf(waypoints.size - 1, i + 2)]
+                val p0 = waypoints[i]
+                val p1 = waypoints[i + 1]
+                val v0x = kotlin.math.cos(p0.headingRad) * p0.tangentMagnitude
+                val v0y = kotlin.math.sin(p0.headingRad) * p0.tangentMagnitude
+                val v1x = kotlin.math.cos(p1.headingRad) * p1.tangentMagnitude
+                val v1y = kotlin.math.sin(p1.headingRad) * p1.tangentMagnitude
 
                 for (j in 1..density) {
                     val t = j.toDouble() / density
-                    val px = catmullRom(p0.x, p1.x, p2.x, p3.x, t)
-                    val py = catmullRom(p0.y, p1.y, p2.y, p3.y, t)
+                    val px = cubicHermite(p0.x, v0x, p1.x, v1x, t)
+                    val py = cubicHermite(p0.y, v0y, p1.y, v1y, t)
                     list.add(Waypoint(px, py))
                 }
             }
@@ -177,19 +203,26 @@ fun FieldCanvas(
     var selectedWaypointIndex by remember { mutableStateOf(-1) }
     var selectedEventMarkerIndex by remember { mutableStateOf(-1) }
     var selectedObstacleId by remember { mutableStateOf<String?>(null) }
+    var selectedAprilTagId by remember { mutableStateOf<String?>(null) }
+    var selectedGamePieceId by remember { mutableStateOf<String?>(null) }
     var activeGamePieceType by remember { mutableStateOf(if (league == League.FTC) "Sample (Yellow)" else "Note") }
     
     // Zoom & Pan state
     var zoomScale by remember { mutableStateOf(1f) }
     var panOffset by remember { mutableStateOf(Offset.Zero) }
     var showHeatmap by remember { mutableStateOf(false) }
+    val windowInfo = androidx.compose.ui.platform.LocalWindowInfo.current
+    val isShiftPressed = windowInfo.keyboardModifiers.isShiftPressed
+    var viewRotation by remember(initialViewRotation) { mutableStateOf(initialViewRotation) }
     
     // Local lists for when parameters are null
     val localObstacles = remember { mutableStateListOf<Obstacle>() }
     val localGamePieces = remember { mutableStateListOf<GamePiece>() }
+    val localAprilTags = remember { mutableStateListOf<com.ares.analytics.shared.AprilTagPlacement>() }
 
     val activeObstacles = obstacles ?: localObstacles
     val activeGamePieces = gamePieces ?: localGamePieces
+    val activeAprilTags = aprilTags ?: localAprilTags
 
     val updateObstacles: (List<Obstacle>) -> Unit = { newObstacles ->
         if (onObstaclesChanged != null) {
@@ -235,6 +268,28 @@ fun FieldCanvas(
         }
     }
     
+    val updateAprilTags: (List<com.ares.analytics.shared.AprilTagPlacement>) -> Unit = { newTags ->
+        if (onAprilTagsChanged != null) {
+            onAprilTagsChanged(newTags)
+        } else {
+            localAprilTags.clear()
+            localAprilTags.addAll(newTags)
+        }
+        if (!projectPath.isNullOrEmpty()) {
+            try {
+                val relativeDir = if (league == League.FTC) "src/main/assets/paths" else "src/main/deploy/paths"
+                val targetDir = File(projectPath, relativeDir)
+                targetDir.mkdirs()
+                val targetFile = File(targetDir, "apriltags.json")
+                val jsonFormat = Json { prettyPrint = true }
+                val content = jsonFormat.encodeToString(newTags)
+                targetFile.writeText(content)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+    
     // Save path name state
     var pathName by remember { mutableStateOf("autonomous_route") }
     var saveStatus by remember { mutableStateOf("") }
@@ -244,10 +299,12 @@ fun FieldCanvas(
     val currentWaypoints by rememberUpdatedState(waypoints)
     val currentActiveObstacles by rememberUpdatedState(activeObstacles)
     val currentActiveGamePieces by rememberUpdatedState(activeGamePieces)
+    val currentActiveAprilTags by rememberUpdatedState(activeAprilTags)
     val currentEventMarkers by rememberUpdatedState(eventMarkers)
     val currentOnWaypointsChanged by rememberUpdatedState(onWaypointsChanged)
     val currentUpdateObstacles by rememberUpdatedState(updateObstacles)
     val currentUpdateGamePieces by rememberUpdatedState(updateGamePieces)
+    val currentUpdateAprilTags by rememberUpdatedState(updateAprilTags)
     val currentRotationTargets by rememberUpdatedState(rotationTargets)
     val currentConstraintZones by rememberUpdatedState(constraintZones)
     val currentPointTowardsZones by rememberUpdatedState(pointTowardsZones)
@@ -283,6 +340,23 @@ fun FieldCanvas(
                     } else {
                         localGamePieces.clear()
                         localGamePieces.addAll(loaded)
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
+            try {
+                val relativeDir = if (league == League.FTC) "src/main/assets/paths" else "src/main/deploy/paths"
+                val file = File(File(projectPath, relativeDir), "apriltags.json")
+                if (file.exists()) {
+                    val content = file.readText()
+                    val loaded = Json.decodeFromString<List<com.ares.analytics.shared.AprilTagPlacement>>(content)
+                    if (aprilTags != null && onAprilTagsChanged != null) {
+                        onAprilTagsChanged(loaded)
+                    } else {
+                        localAprilTags.clear()
+                        localAprilTags.addAll(loaded)
                     }
                 }
             } catch (e: Exception) {
@@ -372,7 +446,7 @@ fun FieldCanvas(
                         onClick = { editorMode = EditorMode.DRAW_POLYGON },
                         colors = IconButtonDefaults.iconButtonColors(contentColor = if (editorMode == EditorMode.DRAW_POLYGON) AresCyan else AresTextTertiary)
                     ) {
-                        Icon(Icons.Default.Category, contentDescription = "Draw Poly Obstacle")
+                        Icon(Icons.Default.Polyline, contentDescription = "Draw Free Form Obstacle")
                     }
                 }
                 
@@ -390,7 +464,7 @@ fun FieldCanvas(
                             currentPolygonPoints.clear()
                         }
                     ) {
-                        Text("Close Poly", color = AresCyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text("Finish Poly", color = AresCyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
                 }
 
@@ -465,6 +539,16 @@ fun FieldCanvas(
                     }
                 }
 
+                // Place AprilTag Mode
+                if (showObstacleControls && league == League.FTC) {
+                    IconButton(
+                        onClick = { editorMode = EditorMode.PLACE_APRILTAG },
+                        colors = IconButtonDefaults.iconButtonColors(contentColor = if (editorMode == EditorMode.PLACE_APRILTAG) AresCyan else AresTextTertiary)
+                    ) {
+                        Icon(Icons.Default.QrCodeScanner, contentDescription = "Place AprilTag")
+                    }
+                }
+
                 // Eraser Mode
                 if (showPathControls || showObstacleControls) {
                     IconButton(
@@ -498,6 +582,14 @@ fun FieldCanvas(
                 ) {
                     Icon(Icons.Default.Whatshot, contentDescription = "Toggle Heatmap")
                 }
+                IconButton(
+                    onClick = { 
+                        viewRotation = (viewRotation - 90f + 360f) % 360f 
+                        onViewRotationChanged?.invoke(viewRotation)
+                    }
+                ) {
+                    Icon(Icons.Default.RotateRight, contentDescription = "Rotate View", tint = AresTextSecondary)
+                }
             }
         }
 
@@ -507,6 +599,7 @@ fun FieldCanvas(
                 modifier = Modifier
                     .aspectRatio(fieldWidthM.toFloat() / fieldHeightM.toFloat())
                     .align(Alignment.Center)
+                    .rotate(viewRotation)
                     .background(AresSurface)
                     .pointerInput(Unit) {
                         detectDragGestures(
@@ -515,12 +608,16 @@ fun FieldCanvas(
                                 selectedWaypointIndex = -1
                                 selectedEventMarkerIndex = -1
                                 selectedObstacleId = null
+                                selectedAprilTagId = null
+                                selectedGamePieceId = null
                                 isDraggingHeading = false
                             },
                             onDragCancel = {
                                 selectedWaypointIndex = -1
                                 selectedEventMarkerIndex = -1
                                 selectedObstacleId = null
+                                selectedAprilTagId = null
+                                selectedGamePieceId = null
                                 isDraggingHeading = false
                             },
                             onDrag = { change, dragAmount ->
@@ -529,6 +626,10 @@ fun FieldCanvas(
                                 val selectedIdx = selectedWaypointIndex
                                 val selectedEventIdx = selectedEventMarkerIndex
                                 val selectedObs = selectedObstacleId
+                                val selectedAt = selectedAprilTagId
+                                val selectedGp = selectedGamePieceId
+                                
+                                fun snap(v: Double) = if (isShiftPressed) kotlin.math.round(v * 10.0) / 10.0 else v
                                 
                                 if (selectedEventIdx != -1 && onEventMarkersChanged != null) {
                                     val pos = change.position
@@ -552,15 +653,21 @@ fun FieldCanvas(
                                         val wpOffset = getTransformedCanvasOffset(wp, w, h)
                                         val dx = pos.x - wpOffset.x
                                         val dy = pos.y - wpOffset.y
-                                        val angle = kotlin.math.atan2(-dy.toDouble(), dx.toDouble())
+                                        val rawAngle = kotlin.math.atan2(-dy.toDouble(), dx.toDouble())
+                                        val angle = if (isShiftPressed) snap(rawAngle * 180.0 / Math.PI) * Math.PI / 180.0 else rawAngle
+                                        
+                                        val posMeters = getRobotCoordFromScreen(pos, w, h)
+                                        val mag = sqrt((posMeters.x - wp.x).pow(2) + (posMeters.y - wp.y).pow(2))
+                                        val finalMag = if (isShiftPressed) snap(mag) else mag
+                                        
                                         val updated = currentWaypoints.toMutableList().apply {
-                                            set(selectedIdx, wp.copy(headingRad = angle))
+                                            set(selectedIdx, wp.copy(headingRad = angle, tangentMagnitude = finalMag))
                                         }
                                         currentOnWaypointsChanged(updated)
                                     } else {
                                         val wp = getRobotCoordFromScreen(pos, w, h)
                                         val updated = currentWaypoints.toMutableList().apply {
-                                            set(selectedIdx, Waypoint(wp.x, wp.y, this[selectedIdx].headingRad))
+                                            set(selectedIdx, Waypoint(snap(wp.x), snap(wp.y), this[selectedIdx].headingRad))
                                         }
                                         currentOnWaypointsChanged(updated)
                                     }
@@ -575,13 +682,41 @@ fun FieldCanvas(
                                     val updatedObsList = currentActiveObstacles.map { obs ->
                                         if (obs.id == selectedObs) {
                                             when (obs) {
-                                                is Obstacle.Circle -> obs.copy(centerX = obs.centerX + dx, centerY = obs.centerY + dy)
-                                                is Obstacle.Rectangle -> obs.copy(centerX = obs.centerX + dx, centerY = obs.centerY + dy)
-                                                is Obstacle.Polygon -> obs.copy(vertices = obs.vertices.map { PathPoint(it.x + dx, it.y + dy) })
+                                                is Obstacle.Circle -> obs.copy(centerX = snap(obs.centerX + dx), centerY = snap(obs.centerY + dy))
+                                                is Obstacle.Rectangle -> obs.copy(centerX = snap(obs.centerX + dx), centerY = snap(obs.centerY + dy))
+                                                is Obstacle.Polygon -> obs.copy(vertices = obs.vertices.map { PathPoint(snap(it.x + dx), snap(it.y + dy)) })
                                             }
                                         } else obs
                                     }
                                     currentUpdateObstacles(updatedObsList)
+                                } else if (selectedAt != null) {
+                                    val prevPos = change.previousPosition
+                                    val currPos = change.position
+                                    val prevWp = getRobotCoordFromScreen(prevPos, w, h)
+                                    val currWp = getRobotCoordFromScreen(currPos, w, h)
+                                    val dx = currWp.x - prevWp.x
+                                    val dy = currWp.y - prevWp.y
+
+                                    val updatedList = currentActiveAprilTags.map { at ->
+                                        if (at.id == selectedAt) {
+                                            at.copy(x = snap(at.x + dx), y = snap(at.y + dy))
+                                        } else at
+                                    }
+                                    currentUpdateAprilTags(updatedList)
+                                } else if (selectedGp != null) {
+                                    val prevPos = change.previousPosition
+                                    val currPos = change.position
+                                    val prevWp = getRobotCoordFromScreen(prevPos, w, h)
+                                    val currWp = getRobotCoordFromScreen(currPos, w, h)
+                                    val dx = currWp.x - prevWp.x
+                                    val dy = currWp.y - prevWp.y
+
+                                    val updatedList = currentActiveGamePieces.map { gp ->
+                                        if (gp.id == selectedGp) {
+                                            gp.copy(x = snap(gp.x + dx), y = snap(gp.y + dy))
+                                        } else gp
+                                    }
+                                    currentUpdateGamePieces(updatedList)
                                 } else {
                                     // Panning field background is disabled as requested by the user
                                 }
@@ -590,6 +725,62 @@ fun FieldCanvas(
                     }
                     .pointerInput(Unit) {
                         detectTapGestures(
+                            onDoubleTap = { offset ->
+                                val w = size.width.toFloat()
+                                val h = size.height.toFloat()
+                                if (editorMode == EditorMode.SELECT) {
+                                    val clickCoord = getRobotCoordFromScreen(offset, w, h)
+                                    // Check obstacles
+                                    var hitObsId: String? = null
+                                    for (obs in currentActiveObstacles) {
+                                        val isHit = when (obs) {
+                                            is Obstacle.Circle -> {
+                                                val dist = sqrt((clickCoord.x - obs.centerX).pow(2) + (clickCoord.y - obs.centerY).pow(2))
+                                                dist <= obs.radius
+                                            }
+                                            is Obstacle.Rectangle -> {
+                                                val dx = clickCoord.x - obs.centerX
+                                                val dy = clickCoord.y - obs.centerY
+                                                val rad = Math.toRadians(-obs.rotation)
+                                                val rx = dx * cos(rad) - dy * sin(rad)
+                                                val ry = dx * sin(rad) + dy * cos(rad)
+                                                kotlin.math.abs(rx) <= obs.width / 2.0 && kotlin.math.abs(ry) <= obs.height / 2.0
+                                            }
+                                            is Obstacle.Polygon -> {
+                                                var nearVertex = false
+                                                for (v in obs.vertices) {
+                                                    val d = sqrt((clickCoord.x - v.x).pow(2) + (clickCoord.y - v.y).pow(2))
+                                                    if (d < 0.3) {
+                                                        nearVertex = true
+                                                        break
+                                                    }
+                                                }
+                                                nearVertex
+                                            }
+                                        }
+                                        if (isHit) {
+                                            hitObsId = obs.id
+                                            break
+                                        }
+                                    }
+                                    if (hitObsId != null) {
+                                        onItemDoubleTapped?.invoke(hitObsId, "Obstacle")
+                                    } else {
+                                        // Check AprilTags
+                                        var hitAtId: String? = null
+                                        for (at in currentActiveAprilTags) {
+                                            val dist = sqrt((clickCoord.x - at.x).pow(2) + (clickCoord.y - at.y).pow(2))
+                                            if (dist < 0.3) {
+                                                hitAtId = at.id
+                                                break
+                                            }
+                                        }
+                                        if (hitAtId != null) {
+                                            onItemDoubleTapped?.invoke(hitAtId, "AprilTag")
+                                        }
+                                    }
+                                }
+                            },
                             onPress = { offset ->
                                 val w = size.width.toFloat()
                                 val h = size.height.toFloat()
@@ -599,14 +790,10 @@ fun FieldCanvas(
                                         // Hit test heading handles first
                                         var hitIdx = -1
                                         var hitHeading = false
-                                        val arrowLength = 30.dp.toPx()
                                         for (i in currentWaypoints.indices) {
                                             val wp = currentWaypoints[i]
-                                            val wpOffset = getTransformedCanvasOffset(wp, w, h)
-                                            val handleOffset = wpOffset + Offset(
-                                                arrowLength * cos(wp.headingRad).toFloat(),
-                                                -arrowLength * sin(wp.headingRad).toFloat()
-                                            )
+                                            val handleMeters = Waypoint(wp.x + wp.tangentMagnitude * kotlin.math.cos(wp.headingRad), wp.y + wp.tangentMagnitude * kotlin.math.sin(wp.headingRad))
+                                            val handleOffset = getCanvasOffsetBase(handleMeters, w, h, fieldWidthM, fieldHeightM, league)
                                             val distHandle = sqrt((offset.x - handleOffset.x).pow(2) + (offset.y - handleOffset.y).pow(2))
                                             if (distHandle < 15.dp.toPx()) {
                                                 hitIdx = i
@@ -683,8 +870,51 @@ fun FieldCanvas(
                                                 }
                                             }
                                             selectedObstacleId = hitObsId
+                                            if (hitObsId != null) {
+                                                onItemSelected?.invoke(hitObsId, "Obstacle")
+                                            }
                                         } else {
                                             selectedObstacleId = null
+                                        }
+
+                                        if (hitIdx == -1 && hitEventIdx == -1 && selectedObstacleId == null) {
+                                            val clickCoord = getRobotCoordFromScreen(offset, w, h)
+                                            var hitAtId: String? = null
+                                            for (at in currentActiveAprilTags) {
+                                                val dist = sqrt((clickCoord.x - at.x).pow(2) + (clickCoord.y - at.y).pow(2))
+                                                if (dist < 0.3) {
+                                                    hitAtId = at.id
+                                                    break
+                                                }
+                                            }
+                                            selectedAprilTagId = hitAtId
+                                            if (hitAtId != null) {
+                                                onItemSelected?.invoke(hitAtId, "AprilTag")
+                                            }
+                                        } else {
+                                            selectedAprilTagId = null
+                                        }
+
+                                        if (hitIdx == -1 && hitEventIdx == -1 && selectedObstacleId == null && selectedAprilTagId == null) {
+                                            val clickCoord = getRobotCoordFromScreen(offset, w, h)
+                                            var hitGpId: String? = null
+                                            for (gp in currentActiveGamePieces) {
+                                                val dist = sqrt((clickCoord.x - gp.x).pow(2) + (clickCoord.y - gp.y).pow(2))
+                                                if (dist < 0.2) {
+                                                    hitGpId = gp.id
+                                                    break
+                                                }
+                                            }
+                                            selectedGamePieceId = hitGpId
+                                            if (hitGpId != null) {
+                                                onItemSelected?.invoke(hitGpId, "GamePiece")
+                                            }
+                                        } else {
+                                            selectedGamePieceId = null
+                                        }
+
+                                        if (selectedObstacleId == null && selectedAprilTagId == null && selectedGamePieceId == null) {
+                                            onItemSelected?.invoke(null, null)
                                         }
                                     }
                                     EditorMode.ADD_WAYPOINT -> {
@@ -742,6 +972,18 @@ fun FieldCanvas(
                                         )
                                         currentUpdateGamePieces(currentActiveGamePieces + newPiece)
                                     }
+                                    EditorMode.PLACE_APRILTAG -> {
+                                        val newWp = getRobotCoordFromScreen(offset, w, h)
+                                        val newTag = com.ares.analytics.shared.AprilTagPlacement(
+                                            id = "apriltag_${System.currentTimeMillis()}",
+                                            tagId = 11 + currentActiveAprilTags.size,
+                                            x = newWp.x,
+                                            y = newWp.y,
+                                            z = 0.5,
+                                            yawDegrees = 0.0
+                                        )
+                                        currentUpdateAprilTags(currentActiveAprilTags + newTag)
+                                    }
                                     EditorMode.ERASER -> {
                                         var hitIdx = -1
                                         for (i in currentWaypoints.indices) {
@@ -796,6 +1038,19 @@ fun FieldCanvas(
                                                 }
                                                 if (closestObstacle != null && minObstacleDist < 0.5) {
                                                     currentUpdateObstacles(currentActiveObstacles.filter { it != closestObstacle })
+                                                } else {
+                                                    var closestTag: com.ares.analytics.shared.AprilTagPlacement? = null
+                                                    var minTagDist = Double.MAX_VALUE
+                                                    for (at in currentActiveAprilTags) {
+                                                        val dist = sqrt((robotWp.x - at.x).pow(2) + (robotWp.y - at.y).pow(2))
+                                                        if (dist < minTagDist) {
+                                                            minTagDist = dist
+                                                            closestTag = at
+                                                        }
+                                                    }
+                                                    if (closestTag != null && minTagDist < 0.3) {
+                                                        currentUpdateAprilTags(currentActiveAprilTags.filter { it != closestTag })
+                                                    }
                                                 }
                                             }
                                         }
@@ -803,6 +1058,128 @@ fun FieldCanvas(
                                 }
                             }
                         )
+                    }
+                    .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                if (event.type == PointerEventType.Press && event.button == PointerButton.Secondary) {
+                                    val offset = event.changes.first().position
+                                    contextMenuOffset = with(density) { DpOffset(offset.x.toDp(), offset.y.toDp()) }
+                                    val w = size.width.toFloat()
+                                    val h = size.height.toFloat()
+                                    
+                                    // Hit test Waypoints
+                                    var hitWpIdx = -1
+                                    for (i in currentWaypoints.indices) {
+                                        val wpOffset = getTransformedCanvasOffset(currentWaypoints[i], w, h)
+                                        val dist = kotlin.math.sqrt((offset.x - wpOffset.x).pow(2) + (offset.y - wpOffset.y).pow(2))
+                                        if (dist < 20.dp.toPx()) {
+                                            hitWpIdx = i
+                                            break
+                                        }
+                                    }
+                                    if (hitWpIdx != -1) {
+                                        contextTargetType = "Waypoint"
+                                        contextTargetIndex = hitWpIdx
+                                        contextMenuExpanded = true
+                                        continue
+                                    }
+                                    
+                                    // Hit test Event Markers
+                                    var hitEventIdx = -1
+                                    for (i in currentEventMarkers.indices) {
+                                        val markerWp = getPositionOnSpline(currentEventMarkers[i].waypointRelativePos, currentWaypoints)
+                                        val markerOffset = getCanvasOffsetBase(markerWp, w, h, fieldWidthM, fieldHeightM, league)
+                                        val dist = kotlin.math.sqrt((offset.x - markerOffset.x).pow(2) + (offset.y - markerOffset.y).pow(2))
+                                        if (dist < 15.dp.toPx()) {
+                                            hitEventIdx = i
+                                            break
+                                        }
+                                    }
+                                    if (hitEventIdx != -1) {
+                                        contextTargetType = "EventMarker"
+                                        contextTargetIndex = hitEventIdx
+                                        contextMenuExpanded = true
+                                        continue
+                                    }
+                                    
+                                    val clickCoord = getRobotCoordFromScreen(offset, w, h)
+                                    
+                                    // Hit test Obstacles
+                                    var hitObsId: String? = null
+                                    for (obs in currentActiveObstacles) {
+                                        val isHit = when (obs) {
+                                            is Obstacle.Circle -> {
+                                                val dist = kotlin.math.sqrt((clickCoord.x - obs.centerX).pow(2) + (clickCoord.y - obs.centerY).pow(2))
+                                                dist <= obs.radius
+                                            }
+                                            is Obstacle.Rectangle -> {
+                                                val dx = clickCoord.x - obs.centerX
+                                                val dy = clickCoord.y - obs.centerY
+                                                val rad = Math.toRadians(-obs.rotation)
+                                                val rx = dx * kotlin.math.cos(rad) - dy * kotlin.math.sin(rad)
+                                                val ry = dx * kotlin.math.sin(rad) + dy * kotlin.math.cos(rad)
+                                                kotlin.math.abs(rx) <= obs.width / 2.0 && kotlin.math.abs(ry) <= obs.height / 2.0
+                                            }
+                                            is Obstacle.Polygon -> {
+                                                var nearVertex = false
+                                                for (v in obs.vertices) {
+                                                    val d = kotlin.math.sqrt((clickCoord.x - v.x).pow(2) + (clickCoord.y - v.y).pow(2))
+                                                    if (d < 0.3) {
+                                                        nearVertex = true
+                                                        break
+                                                    }
+                                                }
+                                                nearVertex
+                                            }
+                                        }
+                                        if (isHit) {
+                                            hitObsId = obs.id
+                                            break
+                                        }
+                                    }
+                                    if (hitObsId != null) {
+                                        contextTargetType = "Obstacle"
+                                        contextTargetId = hitObsId
+                                        contextMenuExpanded = true
+                                        continue
+                                    }
+                                    
+                                    // Hit test AprilTags
+                                    var hitAtId: String? = null
+                                    for (at in currentActiveAprilTags) {
+                                        val dist = kotlin.math.sqrt((clickCoord.x - at.x).pow(2) + (clickCoord.y - at.y).pow(2))
+                                        if (dist < 0.3) {
+                                            hitAtId = at.id
+                                            break
+                                        }
+                                    }
+                                    if (hitAtId != null) {
+                                        contextTargetType = "AprilTag"
+                                        contextTargetId = hitAtId
+                                        contextMenuExpanded = true
+                                        continue
+                                    }
+                                    
+                                    // Hit test GamePieces
+                                    var hitGpId: String? = null
+                                    for (gp in currentActiveGamePieces) {
+                                        val dist = kotlin.math.sqrt((clickCoord.x - gp.x).pow(2) + (clickCoord.y - gp.y).pow(2))
+                                        if (dist < 0.2) {
+                                            hitGpId = gp.id
+                                            break
+                                        }
+                                    }
+                                    if (hitGpId != null) {
+                                        contextTargetType = "GamePiece"
+                                        contextTargetId = hitGpId
+                                        contextMenuExpanded = true
+                                        continue
+                                    }
+                                }
+                            }
+                        }
                     }
             ) {
                 val w = size.width
@@ -856,24 +1233,62 @@ fun FieldCanvas(
                     )
                 }
                 
-                val stepM = if (league == League.FTC) 0.6 else 1.0
+                val stepX = if (league == League.FTC) fieldWidthM / 6.0 else 1.0
+                val stepY = if (league == League.FTC) fieldHeightM / 6.0 else 1.0
+                
                 var curX = if (league == League.FTC) -fieldWidthM/2 else 0.0
-                while (curX <= fieldWidthM/2) {
+                // Add a small epsilon to avoid precision issues missing the last line
+                while (curX <= fieldWidthM/2 + 0.001) {
                     val wp = Waypoint(curX, 0.0)
                     val offset = getCanvasOffsetBase(wp, w, h, fieldWidthM, fieldHeightM, league)
                     drawLine(color = AresBorder, start = Offset(offset.x, 0f), end = Offset(offset.x, h), strokeWidth = 1f)
-                    curX += stepM
+                    curX += stepX
                 }
                 var curY = if (league == League.FTC) -fieldHeightM/2 else 0.0
-                while (curY <= fieldHeightM/2) {
+                while (curY <= fieldHeightM/2 + 0.001) {
                     val wp = Waypoint(0.0, curY)
                     val offset = getCanvasOffsetBase(wp, w, h, fieldWidthM, fieldHeightM, league)
                     drawLine(color = AresBorder, start = Offset(0f, offset.y), end = Offset(w, offset.y), strokeWidth = 1f)
-                    curY += stepM
+                    curY += stepY
                 }
-
                 // Field Outline
                 drawRect(color = AresBorderFocused, style = Stroke(width = 3f))
+
+                // FTC Alliance Station Overlays
+                if (league == League.FTC) {
+                    val strokeW = 12f
+                    val redColor = AresRed.copy(alpha = 0.7f)
+                    val blueColor = AresCyan.copy(alpha = 0.7f)
+                    
+                    when (activeConfig.ftcCoordinateSystem) {
+                        com.ares.analytics.shared.FTCCoordinateSystem.SQUARE -> {
+                            // Audience -X. Red -Y, Blue +Y
+                            val redStart = getCanvasOffsetBase(Waypoint(-fieldWidthM/2, -fieldHeightM/2), w, h, fieldWidthM, fieldHeightM, league)
+                            val redEnd = getCanvasOffsetBase(Waypoint(fieldWidthM/2, -fieldHeightM/2), w, h, fieldWidthM, fieldHeightM, league)
+                            drawLine(redColor, start = redStart, end = redEnd, strokeWidth = strokeW)
+                            
+                            val blueStart = getCanvasOffsetBase(Waypoint(-fieldWidthM/2, fieldHeightM/2), w, h, fieldWidthM, fieldHeightM, league)
+                            val blueEnd = getCanvasOffsetBase(Waypoint(fieldWidthM/2, fieldHeightM/2), w, h, fieldWidthM, fieldHeightM, league)
+                            drawLine(blueColor, start = blueStart, end = blueEnd, strokeWidth = strokeW)
+                        }
+                        com.ares.analytics.shared.FTCCoordinateSystem.DIAMOND -> {
+                            // Red -Y, Blue +X
+                            // Red -Y
+                            val redStart = getCanvasOffsetBase(Waypoint(-fieldWidthM/2, -fieldHeightM/2), w, h, fieldWidthM, fieldHeightM, league)
+                            val redEnd = getCanvasOffsetBase(Waypoint(fieldWidthM/2, -fieldHeightM/2), w, h, fieldWidthM, fieldHeightM, league)
+                            drawLine(redColor, start = redStart, end = redEnd, strokeWidth = strokeW)
+                            
+                            // Blue +X
+                            val blueStart = getCanvasOffsetBase(Waypoint(fieldWidthM/2, -fieldHeightM/2), w, h, fieldWidthM, fieldHeightM, league)
+                            val blueEnd = getCanvasOffsetBase(Waypoint(fieldWidthM/2, fieldHeightM/2), w, h, fieldWidthM, fieldHeightM, league)
+                            drawLine(blueColor, start = blueStart, end = blueEnd, strokeWidth = strokeW)
+                        }
+                        null -> {} // Do nothing if no coordinate system is set
+                    }
+                    
+                    // Draw Coordinate Axes at origin
+                    drawCoordinateAxes(w, h, fieldWidthM, fieldHeightM, league, textMeasurer)
+                }
 
                 // 2. Render Custom Obstacles
                 activeObstacles.forEach { obs ->
@@ -960,6 +1375,26 @@ fun FieldCanvas(
                             drawPath(path = path, color = Color(0xFF9C27B0), style = Stroke(width = 2f))
                         }
                     }
+                }
+
+                // 2.6 Render Placed AprilTags
+                activeAprilTags.forEach { at ->
+                    val atOffset = getCanvasOffsetBase(Waypoint(at.x, at.y), w, h, fieldWidthM, fieldHeightM, league)
+                    val rw = (0.15 / fieldWidthM) * w
+                    val rh = (0.15 / fieldHeightM) * h
+                    
+                    drawContext.canvas.save()
+                    drawContext.transform.rotate(degrees = -at.yawDegrees.toFloat(), pivot = atOffset)
+                    
+                    val rectOffset = Offset((atOffset.x - rw/2).toFloat(), (atOffset.y - rh/2).toFloat())
+                    
+                    // White border
+                    drawRect(color = Color.White, topLeft = rectOffset, size = Size(rw.toFloat(), rh.toFloat()))
+                    // Black inner
+                    val innerOffset = Offset((atOffset.x - rw/2 + 2).toFloat(), (atOffset.y - rh/2 + 2).toFloat())
+                    drawRect(color = Color.Black, topLeft = innerOffset, size = Size((rw - 4).toFloat(), (rh - 4).toFloat()))
+                    
+                    drawContext.canvas.restore()
                 }
 
                 // Render current active drawing polygon points
@@ -1300,11 +1735,8 @@ fun FieldCanvas(
                     drawCircle(color = color, radius = 8.dp.toPx(), center = offset)
                     drawCircle(color = AresBackground, radius = 4.dp.toPx(), center = offset)
 
-                    val arrowLength = 30.dp.toPx()
-                    val arrowEnd = Offset(
-                        x = offset.x + arrowLength * cos(wp.headingRad).toFloat(),
-                        y = offset.y - arrowLength * sin(wp.headingRad).toFloat()
-                    )
+                    val handleMeters = Waypoint(wp.x + wp.tangentMagnitude * kotlin.math.cos(wp.headingRad), wp.y + wp.tangentMagnitude * kotlin.math.sin(wp.headingRad))
+                    val arrowEnd = getCanvasOffsetBase(handleMeters, w, h, fieldWidthM, fieldHeightM, league)
                     drawLine(color = color.copy(alpha = 0.8f), start = offset, end = arrowEnd, strokeWidth = 2.dp.toPx())
 
                     // Draw heading handle dot
@@ -1314,6 +1746,69 @@ fun FieldCanvas(
                 }
 
                 drawContext.canvas.restore()
+            }
+
+            DropdownMenu(
+                expanded = contextMenuExpanded,
+                onDismissRequest = { contextMenuExpanded = false },
+                offset = contextMenuOffset
+            ) {
+                if (contextTargetType == "Waypoint" && contextTargetIndex >= 0 && contextTargetIndex < waypoints.size) {
+                    androidx.compose.material.DropdownMenuItem(onClick = {
+                        val wp = waypoints[contextTargetIndex]
+                        // We could open a dialog to edit it manually
+                        contextMenuExpanded = false
+                    }) { androidx.compose.material.Text("Edit Waypoint...") }
+                    
+                    androidx.compose.material.DropdownMenuItem(onClick = {
+                        val updated = waypoints.toMutableList().apply { removeAt(contextTargetIndex) }
+                        onWaypointsChanged?.invoke(updated)
+                        contextMenuExpanded = false
+                        selectedWaypointIndex = -1
+                    }) { androidx.compose.material.Text("Delete Waypoint") }
+                } else if (contextTargetType == "Obstacle" && contextTargetId != null) {
+                    androidx.compose.material.DropdownMenuItem(onClick = {
+                        val updated = currentActiveObstacles.filter { it.id != contextTargetId }
+                        currentUpdateObstacles(updated)
+                        contextMenuExpanded = false
+                        selectedObstacleId = null
+                    }) { androidx.compose.material.Text("Delete Obstacle") }
+                } else if (contextTargetType == "AprilTag" && contextTargetId != null) {
+                    androidx.compose.material.DropdownMenuItem(onClick = {
+                        val updated = currentActiveAprilTags.filter { it.id != contextTargetId }
+                        currentUpdateAprilTags(updated)
+                        contextMenuExpanded = false
+                        selectedAprilTagId = null
+                    }) { androidx.compose.material.Text("Delete AprilTag") }
+                } else if (contextTargetType == "GamePiece" && contextTargetId != null) {
+                    val gp = currentActiveGamePieces.find { it.id == contextTargetId }
+                    if (gp != null) {
+                        androidx.compose.material.DropdownMenuItem(onClick = {
+                            val nextType = if (gp.type == "Sample") "Specimen" else "Sample"
+                            val updated = currentActiveGamePieces.map { if (it.id == contextTargetId) it.copy(type = nextType) else it }
+                            currentUpdateGamePieces(updated)
+                            contextMenuExpanded = false
+                        }) { androidx.compose.material.Text("Toggle Type: ${if (gp.type == "Sample") "Specimen" else "Sample"}") }
+                    }
+                    
+                    androidx.compose.material.DropdownMenuItem(onClick = {
+                        val updated = currentActiveGamePieces.filter { it.id != contextTargetId }
+                        currentUpdateGamePieces(updated)
+                        contextMenuExpanded = false
+                        selectedGamePieceId = null
+                    }) { androidx.compose.material.Text("Delete Game Piece") }
+                } else if (contextTargetType == "EventMarker" && contextTargetIndex >= 0 && contextTargetIndex < currentEventMarkers.size) {
+                    androidx.compose.material.DropdownMenuItem(onClick = {
+                        val updated = currentEventMarkers.toMutableList().apply { removeAt(contextTargetIndex) }
+                        onEventMarkersChanged?.invoke(updated)
+                        contextMenuExpanded = false
+                        selectedEventMarkerIndex = -1
+                    }) { androidx.compose.material.Text("Delete Event Marker") }
+                } else {
+                    androidx.compose.material.DropdownMenuItem(onClick = {
+                        contextMenuExpanded = false
+                    }) { androidx.compose.material.Text("Cancel") }
+                }
             }
 
             // Floating Export Panel (Bottom Right)
@@ -1414,13 +1909,14 @@ private fun getRobotCoordBase(
     }
 }
 
-private fun catmullRom(p0: Double, p1: Double, p2: Double, p3: Double, t: Double): Double {
-    return 0.5 * (
-        (2.0 * p1) +
-        (-p0 + p2) * t +
-        (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t * t +
-        (-p0 + 3.0 * p1 - 3.0 * p2 + p3) * t * t * t
-    )
+private fun cubicHermite(p0: Double, v0: Double, p1: Double, v1: Double, t: Double): Double {
+    val t2 = t * t
+    val t3 = t2 * t
+    val h00 = 2 * t3 - 3 * t2 + 1
+    val h10 = t3 - 2 * t2 + t
+    val h01 = -2 * t3 + 3 * t2
+    val h11 = t3 - t2
+    return h00 * p0 + h10 * v0 + h01 * p1 + h11 * v1
 }
 
 private fun getPositionOnSpline(pos: Double, waypoints: List<Waypoint>): Waypoint {
@@ -1429,12 +1925,17 @@ private fun getPositionOnSpline(pos: Double, waypoints: List<Waypoint>): Waypoin
     val maxIdx = waypoints.size - 1
     val i = pos.toInt().coerceIn(0, maxIdx - 1)
     val t = (pos - i).coerceIn(0.0, 1.0)
-    val p0 = waypoints[maxOf(0, i - 1)]
-    val p1 = waypoints[i]
-    val p2 = waypoints[i + 1]
-    val p3 = waypoints[minOf(maxIdx, i + 2)]
-    val px = catmullRom(p0.x, p1.x, p2.x, p3.x, t)
-    val py = catmullRom(p0.y, p1.y, p2.y, p3.y, t)
+    
+    val p0 = waypoints[i]
+    val p1 = waypoints[i + 1]
+    
+    val v0x = kotlin.math.cos(p0.headingRad) * p0.tangentMagnitude
+    val v0y = kotlin.math.sin(p0.headingRad) * p0.tangentMagnitude
+    val v1x = kotlin.math.cos(p1.headingRad) * p1.tangentMagnitude
+    val v1y = kotlin.math.sin(p1.headingRad) * p1.tangentMagnitude
+    
+    val px = cubicHermite(p0.x, v0x, p1.x, v1x, t)
+    val py = cubicHermite(p0.y, v0y, p1.y, v1y, t)
     return Waypoint(px, py)
 }
 
@@ -1465,4 +1966,85 @@ private fun getClosestSplinePosition(
         }
     }
     return bestPos
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCoordinateAxes(
+    canvasW: Float,
+    canvasH: Float,
+    fieldW: Double,
+    fieldH: Double,
+    league: League,
+    textMeasurer: androidx.compose.ui.text.TextMeasurer
+) {
+    val originOffset = getCanvasOffsetBase(Waypoint(0.0, 0.0), canvasW, canvasH, fieldW, fieldH, league)
+    val xAxisOffset = getCanvasOffsetBase(Waypoint(0.8, 0.0), canvasW, canvasH, fieldW, fieldH, league)
+    val yAxisOffset = getCanvasOffsetBase(Waypoint(0.0, 0.8), canvasW, canvasH, fieldW, fieldH, league)
+
+    val strokeW = 3.dp.toPx()
+    val arrowSize = 10.dp.toPx()
+
+    // X Axis (Red)
+    drawLine(color = AresRed, start = originOffset, end = xAxisOffset, strokeWidth = strokeW)
+    // X Axis Arrow Head
+    val xAngle = kotlin.math.atan2((xAxisOffset.y - originOffset.y).toDouble(), (xAxisOffset.x - originOffset.x).toDouble())
+    val xArrowPath = androidx.compose.ui.graphics.Path().apply {
+        moveTo(xAxisOffset.x, xAxisOffset.y)
+        lineTo(
+            xAxisOffset.x - arrowSize * kotlin.math.cos(xAngle - Math.PI / 6).toFloat(),
+            xAxisOffset.y - arrowSize * kotlin.math.sin(xAngle - Math.PI / 6).toFloat()
+        )
+        lineTo(
+            xAxisOffset.x - arrowSize * kotlin.math.cos(xAngle + Math.PI / 6).toFloat(),
+            xAxisOffset.y - arrowSize * kotlin.math.sin(xAngle + Math.PI / 6).toFloat()
+        )
+        close()
+    }
+    drawPath(path = xArrowPath, color = AresRed)
+
+    // Y Axis (Green)
+    drawLine(color = AresGreen, start = originOffset, end = yAxisOffset, strokeWidth = strokeW)
+    // Y Axis Arrow Head
+    val yAngle = kotlin.math.atan2((yAxisOffset.y - originOffset.y).toDouble(), (yAxisOffset.x - originOffset.x).toDouble())
+    val yArrowPath = androidx.compose.ui.graphics.Path().apply {
+        moveTo(yAxisOffset.x, yAxisOffset.y)
+        lineTo(
+            yAxisOffset.x - arrowSize * kotlin.math.cos(yAngle - Math.PI / 6).toFloat(),
+            yAxisOffset.y - arrowSize * kotlin.math.sin(yAngle - Math.PI / 6).toFloat()
+        )
+        lineTo(
+            yAxisOffset.x - arrowSize * kotlin.math.cos(yAngle + Math.PI / 6).toFloat(),
+            yAxisOffset.y - arrowSize * kotlin.math.sin(yAngle + Math.PI / 6).toFloat()
+        )
+        close()
+    }
+    drawPath(path = yArrowPath, color = AresGreen)
+
+    // Axis Labels
+    val textStyle = androidx.compose.ui.text.TextStyle(
+        color = androidx.compose.ui.graphics.Color.White,
+        fontSize = 12.sp,
+        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+    )
+    val textLayoutX = textMeasurer.measure("X", textStyle)
+    val textLayoutY = textMeasurer.measure("Y", textStyle)
+
+    drawText(
+        textMeasurer = textMeasurer,
+        text = "X",
+        style = textStyle,
+        topLeft = androidx.compose.ui.geometry.Offset(
+            xAxisOffset.x + arrowSize * kotlin.math.cos(xAngle).toFloat(),
+            xAxisOffset.y + arrowSize * kotlin.math.sin(xAngle).toFloat() - textLayoutX.size.height / 2f
+        )
+    )
+
+    drawText(
+        textMeasurer = textMeasurer,
+        text = "Y",
+        style = textStyle,
+        topLeft = androidx.compose.ui.geometry.Offset(
+            yAxisOffset.x + arrowSize * kotlin.math.cos(yAngle).toFloat() - textLayoutY.size.width / 2f,
+            yAxisOffset.y + arrowSize * kotlin.math.sin(yAngle).toFloat()
+        )
+    )
 }

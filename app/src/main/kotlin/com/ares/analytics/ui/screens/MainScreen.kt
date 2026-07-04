@@ -28,6 +28,8 @@ import com.ares.analytics.service.UpdateCheckerService
 import com.ares.analytics.shared.*
 import com.ares.analytics.ui.components.NavigationTarget
 import com.ares.analytics.ui.components.Sidebar
+import com.ares.analytics.ui.components.core.TargetSelection
+import com.ares.analytics.ui.components.core.ExecutionToolbar
 import com.ares.analytics.ui.components.terminal.TerminalDrawer
 import com.ares.analytics.ui.theme.*
 import com.ares.analytics.viewmodel.*
@@ -42,6 +44,7 @@ fun MainScreen(services: ServiceRegistry) {
         MainViewModel(
             environmentService = services.environmentService,
             eventApiService = services.eventApiService,
+            keybindingParserService = services.keybindingParserService,
             scope = scope
         )
     }
@@ -53,6 +56,8 @@ fun MainScreen(services: ServiceRegistry) {
     val runsIndexReloadTrigger = mainState.runsIndexReloadTrigger
     val diagnosticsResponse = mainState.diagnosticsResponse
     val isTerminalOpen = mainState.isTerminalOpen
+    val isKeybindingsOpen = mainState.isKeybindingsOpen
+    val parsedBindings = mainState.parsedBindings
     val showUpdateBanner = mainState.showUpdateBanner
 
     val updateState by services.updateCheckerService.updateState.collectAsState()
@@ -92,7 +97,7 @@ fun MainScreen(services: ServiceRegistry) {
 
     if (currentConfig == null) {
         val onboardingViewModel = remember {
-            OnboardingViewModel(services.environmentService, scope) { loaded ->
+            OnboardingViewModel(services.environmentService, services.teamApiService, scope) { loaded ->
                 mainViewModel.onIntent(MainIntent.SaveConfig(loaded))
             }
         }
@@ -163,6 +168,15 @@ fun MainScreen(services: ServiceRegistry) {
         )
     }
 
+    val cloudViewModel = remember {
+        com.ares.analytics.viewmodel.CloudViewModel(
+            databaseService = services.databaseService,
+            syncEngineService = services.syncEngineService,
+            firebaseClientService = services.firebaseClientService,
+            scope = scope
+        )
+    }
+
     val dashboardState by dashboardViewModel.state.collectAsState()
     val primarySessionId = dashboardState.primarySessionId
     val compareSessionId = dashboardState.compareSessionId
@@ -171,20 +185,43 @@ fun MainScreen(services: ServiceRegistry) {
     val adbConnected by services.processManagerService.adbConnected.collectAsState()
     val isSimRunning by services.processManagerService.isSimRunning.collectAsState()
 
-    // Start NT4 connection once config is resolved or simulator status changes
-    LaunchedEffect(currentConfig, isSimRunning) {
-        println("[MainScreen LaunchedEffect] RUNNING: config=$currentConfig (hash=${System.identityHashCode(currentConfig)}), isSimRunning=$isSimRunning")
+    val isBuildRunning by services.processManagerService.isBuildRunning.collectAsState()
+    var targetSelection by remember { mutableStateOf(TargetSelection.LIVE_ROBOT) }
+
+    val isLiveRobotOnline by services.targetScannerService.isLiveRobotOnline.collectAsState()
+    val isLocalSimOnline by services.targetScannerService.isLocalSimOnline.collectAsState()
+
+    LaunchedEffect(currentConfig.nt4Host) {
+        services.targetScannerService.startScanning(currentConfig.nt4Host ?: "192.168.43.1")
+    }
+
+    // Auto-switch based on Most Recently Booted
+    LaunchedEffect(isLiveRobotOnline) {
+        if (isLiveRobotOnline) {
+            targetSelection = TargetSelection.LIVE_ROBOT
+        }
+    }
+
+    LaunchedEffect(isLocalSimOnline) {
+        if (isLocalSimOnline) {
+            targetSelection = TargetSelection.LOCAL_SIM
+        }
+    }
+
+    LaunchedEffect(isSimRunning) {
+        if (isSimRunning) {
+            targetSelection = TargetSelection.LOCAL_SIM
+        }
+    }
+
+    // Start NT4 connection once config is resolved or target/simulator status changes
+    LaunchedEffect(currentConfig, targetSelection, isSimRunning) {
+        println("[MainScreen LaunchedEffect] RUNNING: config=$currentConfig (hash=${System.identityHashCode(currentConfig)}), targetSelection=$targetSelection, isSimRunning=$isSimRunning")
         focusRequester.requestFocus()
-        val host = withContext(Dispatchers.IO) {
-            val isLocalSimOpen = try {
-                java.net.Socket().use { socket ->
-                    socket.connect(java.net.InetSocketAddress("127.0.0.1", 5810), 300)
-                    true
-                }
-            } catch (e: Exception) {
-                false
-            }
-            if (isSimRunning || isLocalSimOpen) "127.0.0.1" else (currentConfig.nt4Host ?: "192.168.43.1")
+        val host = if (targetSelection == TargetSelection.LOCAL_SIM || isSimRunning) {
+            "127.0.0.1"
+        } else {
+            currentConfig.nt4Host ?: "192.168.43.1"
         }
         println("[MainScreen LaunchedEffect] Computed host=$host")
         services.nt4ClientService.start(
@@ -212,7 +249,7 @@ fun MainScreen(services: ServiceRegistry) {
                             true
                         } else false
                         Key.D -> if (isCtrl) {
-                            services.processManagerService.runSimulation(currentConfig.projectPath, currentConfig.league)
+                            services.processManagerService.runSimulation(currentConfig.projectPath, currentConfig.league, currentConfig.simulatorCommand)
                             mainViewModel.onIntent(MainIntent.SetTerminalOpen(true))
                             true
                         } else false
@@ -247,6 +284,7 @@ fun MainScreen(services: ServiceRegistry) {
                 onNavigate = { mainViewModel.onIntent(MainIntent.SetActiveNav(it)) },
                 onToggleTerminal = { mainViewModel.onIntent(MainIntent.SetTerminalOpen(!isTerminalOpen)) }
             )
+
 
             // ── Content Area ─────────────────────────────────────────────────
             Box(
@@ -376,38 +414,45 @@ fun MainScreen(services: ServiceRegistry) {
                             }
                         }
 
-                        // Active Simulation & Recording Controls
+                        ExecutionToolbar(
+                            targetSelection = targetSelection,
+                            isLiveRobotOnline = isLiveRobotOnline,
+                            isLocalSimOnline = isLocalSimOnline,
+                            isBuildRunning = isBuildRunning,
+                            isSimRunning = isSimRunning,
+                            onTargetChanged = { targetSelection = it },
+                            onRunBuild = {
+                                services.processManagerService.runBuild(currentConfig.projectPath, currentConfig.league)
+                                mainViewModel.onIntent(MainIntent.SetTerminalOpen(true))
+                            },
+                            onRunSim = {
+                                services.processManagerService.runSimulation(currentConfig.projectPath, currentConfig.league, currentConfig.simulatorCommand)
+                                mainViewModel.onIntent(MainIntent.SetTerminalOpen(true))
+                            },
+                            onStopAll = {
+                                services.processManagerService.killActiveBuild()
+                                services.processManagerService.killActiveSim()
+                            }
+                        )
+
+                        // Recording Controls
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Sim Controls
-                            if (!isSimRunning) {
-                                Button(
-                                    onClick = {
-                                        services.processManagerService.runSimulation(currentConfig.projectPath, currentConfig.league)
-                                        mainViewModel.onIntent(MainIntent.SetTerminalOpen(true))
-                                    },
-                                    colors = ButtonDefaults.buttonColors(containerColor = AresGreen),
-                                    shape = RoundedCornerShape(6.dp)
-                                ) {
-                                    Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, tint = AresBackground)
-                                    Spacer(Modifier.width(4.dp))
-                                    Text("Launch Sim", color = AresBackground, fontWeight = FontWeight.Bold)
-                                }
-                            } else {
-                                Button(
-                                    onClick = { services.processManagerService.killActiveSim() },
-                                    colors = ButtonDefaults.buttonColors(containerColor = AresAmber),
-                                    shape = RoundedCornerShape(6.dp)
-                                ) {
-                                    Icon(imageVector = Icons.Default.Cancel, contentDescription = null, tint = AresBackground)
-                                    Spacer(Modifier.width(4.dp))
-                                    Text("Stop Sim", color = AresBackground, fontWeight = FontWeight.Bold)
-                                }
+                            IconButton(
+                                onClick = { mainViewModel.onIntent(MainIntent.SetKeybindingsOpen(!isKeybindingsOpen)) },
+                                modifier = Modifier
+                                    .background(if (isKeybindingsOpen) AresCyan else AresSurface, RoundedCornerShape(6.dp))
+                                    .border(1.dp, AresBorder, RoundedCornerShape(6.dp))
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.SportsEsports,
+                                    contentDescription = "View Keybindings",
+                                    tint = if (isKeybindingsOpen) AresBackground else AresTextSecondary
+                                )
                             }
-
-                            // Recording Controls
+                            
                             val activeSession by services.nt4ClientService.currentSession.collectAsState()
                             if (activeSession == null) {
                                 Button(
@@ -472,6 +517,11 @@ fun MainScreen(services: ServiceRegistry) {
                                 league = currentConfig.league,
                                 projectPath = currentConfig.projectPath
                             )
+                            NavigationTarget.CLOUD -> CloudScreen(
+                                viewModel = cloudViewModel,
+                                teamId = currentConfig.teamId,
+                                seasonId = currentConfig.seasonId
+                            )
                             NavigationTarget.FIELD_EDITOR -> FieldEditorScreen(
                                 viewModel = fieldEditorViewModel,
                                 league = currentConfig.league,
@@ -516,6 +566,15 @@ fun MainScreen(services: ServiceRegistry) {
                     isOpen = isTerminalOpen,
                     onClose = { mainViewModel.onIntent(MainIntent.SetTerminalOpen(false)) },
                     modifier = Modifier.align(Alignment.BottomCenter)
+                )
+
+                // Keybindings Sidebar overlay
+                com.ares.analytics.ui.components.terminal.ControllerBindingsSidebar(
+                    isOpen = isKeybindingsOpen,
+                    league = currentConfig.league,
+                    bindings = parsedBindings,
+                    onClose = { mainViewModel.onIntent(MainIntent.SetKeybindingsOpen(false)) },
+                    modifier = Modifier.align(Alignment.CenterEnd)
                 )
             }
         }

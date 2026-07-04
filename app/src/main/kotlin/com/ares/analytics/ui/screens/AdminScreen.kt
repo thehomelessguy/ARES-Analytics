@@ -52,7 +52,22 @@ fun AdminScreen(
             isLoading = true
             errorMessage = null
             try {
-                robotProfiles = teamApiService.fetchTeamRobots(config.teamId, token)
+                var profiles = teamApiService.fetchTeamRobots(config.teamId, token)
+                
+                if (profiles.none { it.robotId == config.robotId }) {
+                    val localRobot = RobotProfile(
+                        robotId = config.robotId,
+                        league = config.league,
+                        seasonId = config.seasonId,
+                        name = "${config.robotId} (Team ${config.teamId})"
+                    )
+                    val success = teamApiService.addRobotProfile(config.teamId, localRobot, token)
+                    if (success) {
+                        profiles = teamApiService.fetchTeamRobots(config.teamId, token)
+                    }
+                }
+                
+                robotProfiles = profiles
             } catch (e: Exception) {
                 errorMessage = "Failed to load robots: ${e.message}"
             } finally {
@@ -148,11 +163,45 @@ fun AdminScreen(
             }
         } else if (robotProfiles.isEmpty()) {
             Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Text(
-                    "No robots registered for Team ${config.teamId} yet. Click 'Add Robot' to get started.",
-                    color = AresTextTertiary,
-                    fontSize = 12.sp
-                )
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        "No robots registered for Team ${config.teamId} yet.",
+                        color = AresTextTertiary,
+                        fontSize = 12.sp
+                    )
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                try {
+                                    val localRobot = RobotProfile(
+                                        robotId = config.robotId,
+                                        league = config.league,
+                                        seasonId = config.seasonId,
+                                        name = "${config.robotId} (Team ${config.teamId})"
+                                    )
+                                    val success = teamApiService.addRobotProfile(config.teamId, localRobot, token!!)
+                                    if (success) {
+                                        refreshRobots()
+                                    } else {
+                                        errorMessage = "Failed to sync local robot to cloud. Backend might be down."
+                                    }
+                                } catch (e: SecurityException) {
+                                    errorMessage = e.message
+                                } catch (e: Exception) {
+                                    errorMessage = "Error syncing local robot: ${e.message}"
+                                }
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = AresCyan)
+                    ) {
+                        Icon(imageVector = Icons.Default.Refresh, contentDescription = null, tint = AresBackground)
+                        Spacer(Modifier.width(4.dp))
+                        Text("Sync Local Robot to Cloud", color = AresBackground, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
         } else {
             LazyColumn(
@@ -290,13 +339,19 @@ fun AdminScreen(
                             return@Button
                         }
                         scope.launch {
-                            val newRobot = RobotProfile(robotId, league, seasonId, name)
-                            val success = teamApiService.addRobotProfile(config.teamId, newRobot, token)
-                            if (success) {
-                                showAddDialog = false
-                                refreshRobots()
-                            } else {
-                                dialogError = "Cloud operation failed. Check your network or credentials."
+                            try {
+                                val newRobot = RobotProfile(robotId, league, seasonId, name)
+                                val success = teamApiService.addRobotProfile(config.teamId, newRobot, token)
+                                if (success) {
+                                    showAddDialog = false
+                                    refreshRobots()
+                                } else {
+                                    dialogError = "Cloud operation failed. Check your network or credentials."
+                                }
+                            } catch (e: SecurityException) {
+                                dialogError = e.message
+                            } catch (e: Exception) {
+                                dialogError = "Error: ${e.message}"
                             }
                         }
                     },

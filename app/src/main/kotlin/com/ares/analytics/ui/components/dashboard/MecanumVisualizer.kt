@@ -41,15 +41,15 @@ fun MecanumVisualizer(
     val currents = remember { mutableStateListOf(0.0, 0.0, 0.0, 0.0) }
 
     if (currentFrame != null) {
-        velocities[0] = currentFrame.values["Drive/MotorVelocity_fl"] ?: currentFrame.values["Drive/MotorPower_fl"] ?: 0.0
-        velocities[1] = currentFrame.values["Drive/MotorVelocity_fr"] ?: currentFrame.values["Drive/MotorPower_fr"] ?: 0.0
-        velocities[2] = currentFrame.values["Drive/MotorVelocity_bl"] ?: currentFrame.values["Drive/MotorPower_bl"] ?: 0.0
-        velocities[3] = currentFrame.values["Drive/MotorVelocity_br"] ?: currentFrame.values["Drive/MotorPower_br"] ?: 0.0
+        velocities[0] = currentFrame.values["Drive/MotorVelocity_fl"] ?: currentFrame.values["Drive/MotorPower_fl"] ?: currentFrame.values["Hardware/Motors/fl/Velocity"] ?: currentFrame.values["Hardware/Motors/fl/Power"] ?: 0.0
+        velocities[1] = currentFrame.values["Drive/MotorVelocity_fr"] ?: currentFrame.values["Drive/MotorPower_fr"] ?: currentFrame.values["Hardware/Motors/fr/Velocity"] ?: currentFrame.values["Hardware/Motors/fr/Power"] ?: 0.0
+        velocities[2] = currentFrame.values["Drive/MotorVelocity_bl"] ?: currentFrame.values["Drive/MotorPower_bl"] ?: currentFrame.values["Hardware/Motors/bl/Velocity"] ?: currentFrame.values["Hardware/Motors/bl/Power"] ?: 0.0
+        velocities[3] = currentFrame.values["Drive/MotorVelocity_br"] ?: currentFrame.values["Drive/MotorPower_br"] ?: currentFrame.values["Hardware/Motors/br/Velocity"] ?: currentFrame.values["Hardware/Motors/br/Power"] ?: 0.0
 
-        currents[0] = currentFrame.values["Drive/MotorCurrent_fl"] ?: 0.0
-        currents[1] = currentFrame.values["Drive/MotorCurrent_fr"] ?: 0.0
-        currents[2] = currentFrame.values["Drive/MotorCurrent_bl"] ?: 0.0
-        currents[3] = currentFrame.values["Drive/MotorCurrent_br"] ?: 0.0
+        currents[0] = currentFrame.values["Drive/MotorCurrent_fl"] ?: currentFrame.values["Hardware/Motors/fl/CurrentAmps"] ?: 0.0
+        currents[1] = currentFrame.values["Drive/MotorCurrent_fr"] ?: currentFrame.values["Hardware/Motors/fr/CurrentAmps"] ?: 0.0
+        currents[2] = currentFrame.values["Drive/MotorCurrent_bl"] ?: currentFrame.values["Hardware/Motors/bl/CurrentAmps"] ?: 0.0
+        currents[3] = currentFrame.values["Drive/MotorCurrent_br"] ?: currentFrame.values["Hardware/Motors/br/CurrentAmps"] ?: 0.0
     } else if (nt4ClientService != null) {
         LaunchedEffect(Unit) {
             scope.launch {
@@ -57,15 +57,15 @@ fun MecanumVisualizer(
                     val key = frame.key
                     val value = frame.value
                     when (key) {
-                        "Drive/MotorVelocity_fl", "Drive/MotorPower_fl" -> velocities[0] = value
-                        "Drive/MotorVelocity_fr", "Drive/MotorPower_fr" -> velocities[1] = value
-                        "Drive/MotorVelocity_bl", "Drive/MotorPower_bl" -> velocities[2] = value
-                        "Drive/MotorVelocity_br", "Drive/MotorPower_br" -> velocities[3] = value
+                        "Drive/MotorVelocity_fl", "Drive/MotorPower_fl", "Hardware/Motors/fl/Velocity", "Hardware/Motors/fl/Power" -> velocities[0] = value
+                        "Drive/MotorVelocity_fr", "Drive/MotorPower_fr", "Hardware/Motors/fr/Velocity", "Hardware/Motors/fr/Power" -> velocities[1] = value
+                        "Drive/MotorVelocity_bl", "Drive/MotorPower_bl", "Hardware/Motors/bl/Velocity", "Hardware/Motors/bl/Power" -> velocities[2] = value
+                        "Drive/MotorVelocity_br", "Drive/MotorPower_br", "Hardware/Motors/br/Velocity", "Hardware/Motors/br/Power" -> velocities[3] = value
                         
-                        "Drive/MotorCurrent_fl" -> currents[0] = value
-                        "Drive/MotorCurrent_fr" -> currents[1] = value
-                        "Drive/MotorCurrent_bl" -> currents[2] = value
-                        "Drive/MotorCurrent_br" -> currents[3] = value
+                        "Drive/MotorCurrent_fl", "Hardware/Motors/fl/CurrentAmps" -> currents[0] = value
+                        "Drive/MotorCurrent_fr", "Hardware/Motors/fr/CurrentAmps" -> currents[1] = value
+                        "Drive/MotorCurrent_bl", "Hardware/Motors/bl/CurrentAmps" -> currents[2] = value
+                        "Drive/MotorCurrent_br", "Hardware/Motors/br/CurrentAmps" -> currents[3] = value
                     }
                 }
             }
@@ -198,8 +198,8 @@ fun MecanumVisualizer(
                         val forceAngle = when (w.name) {
                             "FL" -> if (w.speed >= 0) Math.toRadians(-45.0) else Math.toRadians(135.0)
                             "FR" -> if (w.speed >= 0) Math.toRadians(-135.0) else Math.toRadians(45.0)
-                            "BL" -> if (w.speed >= 0) Math.toRadians(45.0) else Math.toRadians(-135.0)
-                            "BR" -> if (w.speed >= 0) Math.toRadians(135.0) else Math.toRadians(-45.0)
+                            "BL" -> if (w.speed >= 0) Math.toRadians(-135.0) else Math.toRadians(45.0)
+                            "BR" -> if (w.speed >= 0) Math.toRadians(-45.0) else Math.toRadians(135.0)
                             else -> 0.0
                         }
 
@@ -230,6 +230,58 @@ fun MecanumVisualizer(
                         drawLine(color = AresCyan, start = forceEnd, end = leftWing, strokeWidth = 2.5f)
                         drawLine(color = AresCyan, start = forceEnd, end = rightWing, strokeWidth = 2.5f)
                     }
+                }
+
+                // Calculate and draw net force vector in the center
+                var netForceX = 0f
+                var netForceY = 0f
+                for (w in wheels) {
+                    if (Math.abs(w.speed) > 0.05) {
+                        val forceAngle = when (w.name) {
+                            "FL" -> if (w.speed >= 0) Math.toRadians(-45.0) else Math.toRadians(135.0)
+                            "FR" -> if (w.speed >= 0) Math.toRadians(-135.0) else Math.toRadians(45.0)
+                            "BL" -> if (w.speed >= 0) Math.toRadians(-135.0) else Math.toRadians(45.0)
+                            "BR" -> if (w.speed >= 0) Math.toRadians(-45.0) else Math.toRadians(135.0)
+                            else -> 0.0
+                        }
+                        val forceLen = Math.abs(w.speed).toFloat()
+                        netForceX += forceLen * cos(forceAngle).toFloat()
+                        netForceY += forceLen * sin(forceAngle).toFloat()
+                    }
+                }
+
+                val netMagnitude = Math.sqrt((netForceX * netForceX + netForceY * netForceY).toDouble()).toFloat()
+                if (netMagnitude > 0.1f) {
+                    val scaleFactor = 30f // scale for visualization
+                    val arrowLen = (netMagnitude * scaleFactor).coerceAtMost(100f) // max length for the net arrow
+                    val netAngle = Math.atan2(netForceY.toDouble(), netForceX.toDouble())
+                    
+                    val netStart = Offset(cx, cy)
+                    val netEnd = Offset(
+                        cx + arrowLen * cos(netAngle).toFloat(),
+                        cy + arrowLen * sin(netAngle).toFloat()
+                    )
+
+                    drawLine(
+                        color = AresAmber, // use Amber to stand out from Cyan wheel vectors
+                        start = netStart,
+                        end = netEnd,
+                        strokeWidth = 6f, // thicker line for net vector
+                        cap = StrokeCap.Round
+                    )
+
+                    // Draw net force arrowhead
+                    val headSize = 14f
+                    val leftWing = Offset(
+                        netEnd.x - headSize * cos(netAngle - Math.PI / 6).toFloat(),
+                        netEnd.y - headSize * sin(netAngle - Math.PI / 6).toFloat()
+                    )
+                    val rightWing = Offset(
+                        netEnd.x - headSize * cos(netAngle + Math.PI / 6).toFloat(),
+                        netEnd.y - headSize * sin(netAngle + Math.PI / 6).toFloat()
+                    )
+                    drawLine(color = AresAmber, start = netEnd, end = leftWing, strokeWidth = 4f, cap = StrokeCap.Round)
+                    drawLine(color = AresAmber, start = netEnd, end = rightWing, strokeWidth = 4f, cap = StrokeCap.Round)
                 }
             }
         }

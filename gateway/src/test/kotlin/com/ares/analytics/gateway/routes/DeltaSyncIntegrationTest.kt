@@ -1,6 +1,6 @@
 package com.ares.analytics.gateway.routes
 
-import com.ares.analytics.gateway.auth.firebase
+import com.ares.analytics.gateway.auth.*
 import com.ares.analytics.shared.*
 import com.google.api.core.ApiFuture
 import com.google.cloud.firestore.CollectionReference
@@ -91,9 +91,7 @@ class DeltaSyncIntegrationTest {
                     ignoreUnknownKeys = true
                 })
             }
-            install(Authentication) {
-                firebase("firebase")
-            }
+            installFirebaseAuthentication()
             routing {
                 archiveRoutes(customFirestore = mockFirestore)
             }

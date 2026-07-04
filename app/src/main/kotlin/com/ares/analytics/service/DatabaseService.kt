@@ -26,108 +26,10 @@ class DatabaseService(dbPath: String = System.getProperty("user.home") + "/.ares
         
         driver = JdbcSqliteDriver("jdbc:sqlite:${dbFile.absolutePath}", properties)
         
-        // Run schema creation statements one-by-one to self-heal legacy databases
-        val createStatements = listOf(
-            """
-            CREATE TABLE IF NOT EXISTS sessions (
-                session_id TEXT PRIMARY KEY NOT NULL,
-                team_id TEXT NOT NULL,
-                season_id TEXT NOT NULL,
-                robot_id TEXT NOT NULL,
-                created_at INTEGER NOT NULL,
-                duration_ms INTEGER NOT NULL DEFAULT 0,
-                tags TEXT NOT NULL DEFAULT '[]',
-                match_number INTEGER,
-                alliance_color TEXT,
-                log_file_path TEXT
-            );
-            """.trimIndent(),
-            """
-            CREATE TABLE IF NOT EXISTS session_summaries (
-                session_id TEXT PRIMARY KEY NOT NULL,
-                team_id TEXT NOT NULL,
-                season_id TEXT NOT NULL,
-                robot_id TEXT NOT NULL,
-                created_at INTEGER NOT NULL,
-                duration_ms INTEGER NOT NULL DEFAULT 0,
-                min_battery_voltage REAL NOT NULL DEFAULT 0.0,
-                max_ekf_drift REAL NOT NULL DEFAULT 0.0,
-                avg_loop_time_ms REAL NOT NULL DEFAULT 0.0,
-                p95_loop_time_ms REAL NOT NULL DEFAULT 0.0,
-                motor_current_averages TEXT NOT NULL DEFAULT '{}',
-                vision_acceptance_rate REAL NOT NULL DEFAULT 0.0,
-                tags TEXT NOT NULL DEFAULT '[]',
-                match_number INTEGER,
-                alliance_color TEXT
-            );
-            """.trimIndent(),
-            """
-            CREATE TABLE IF NOT EXISTS telemetry_frames (
-                timestamp_ms INTEGER NOT NULL,
-                session_id TEXT NOT NULL,
-                key TEXT NOT NULL,
-                value REAL NOT NULL,
-                PRIMARY KEY (session_id, key, timestamp_ms)
-            ) WITHOUT ROWID;
-            """.trimIndent(),
-            """
-            CREATE TABLE IF NOT EXISTS session_annotations (
-                annotation_id TEXT PRIMARY KEY NOT NULL,
-                session_id TEXT NOT NULL,
-                text TEXT NOT NULL,
-                created_at INTEGER NOT NULL,
-                author_id TEXT
-            );
-            """.trimIndent(),
-            "CREATE INDEX IF NOT EXISTS idx_annotations_session ON session_annotations(session_id);",
-            """
-            CREATE TABLE IF NOT EXISTS alerts (
-                alert_id TEXT PRIMARY KEY NOT NULL,
-                session_id TEXT NOT NULL,
-                rule_key TEXT NOT NULL,
-                trigger_timestamp_ms INTEGER NOT NULL,
-                resolve_timestamp_ms INTEGER,
-                duration_ms INTEGER NOT NULL DEFAULT 0,
-                peak_value REAL NOT NULL DEFAULT 0.0,
-                triaged INTEGER NOT NULL DEFAULT 0
-            );
-            """.trimIndent(),
-            "CREATE INDEX IF NOT EXISTS idx_alerts_session ON alerts(session_id);",
-            """
-            CREATE TABLE IF NOT EXISTS console_messages (
-                timestamp_ms INTEGER NOT NULL,
-                session_id TEXT NOT NULL,
-                text TEXT NOT NULL,
-                severity TEXT NOT NULL,
-                PRIMARY KEY (session_id, timestamp_ms, text)
-            ) WITHOUT ROWID;
-            """.trimIndent(),
-            """
-            CREATE TABLE IF NOT EXISTS cached_topologies (
-                robot_id TEXT PRIMARY KEY NOT NULL,
-                topology_json TEXT NOT NULL
-            );
-            """.trimIndent()
-        )
-
-        for (statement in createStatements) {
-            try {
-                driver.execute(null, statement, 0)
-            } catch (e: Exception) {
-                println("[DatabaseService] Failed to execute statement: $statement. Error: ${e.message}")
-            }
-        }
-
-        // Self-healing migrations for existing databases
-        val migrations = listOf(
-            "ALTER TABLE sessions ADD COLUMN log_file_path TEXT;"
-        )
-        for (migration in migrations) {
-            try {
-                driver.execute(null, migration, 0)
-            } catch (_: Exception) {
-                // Column already exists — safe to ignore
-            }
+        try {
+            AresDatabase.Schema.create(driver)
+        } catch (e: Exception) {
+            println("[DatabaseService] Schema.create error (safe to ignore if tables exist): ${e.message}")
         }
         
         database = AresDatabase(driver)
@@ -192,6 +94,10 @@ class DatabaseService(dbPath: String = System.getProperty("user.home") + "/.ares
             p95_loop_time_ms = summary.p95LoopTimeMs,
             motor_current_averages = Json.encodeToString(summary.motorCurrentAverages),
             vision_acceptance_rate = summary.visionAcceptanceRate,
+            avg_cross_track_error = summary.avgCrossTrackError,
+            avg_battery_resistance = summary.avgBatteryResistance,
+            max_motor_temps = Json.encodeToString(summary.maxMotorTemps),
+            avg_vision_latency_ms = summary.avgVisionLatencyMs,
             tags = Json.encodeToString(summary.tags),
             match_number = summary.matchNumber?.toLong(),
             alliance_color = summary.allianceColor
@@ -226,6 +132,14 @@ class DatabaseService(dbPath: String = System.getProperty("user.home") + "/.ares
 
     suspend fun getTelemetryRange(sessionId: String, startMs: Long, endMs: Long): List<TelemetryFrame> = withContext(Dispatchers.IO) {
         queries.getTelemetryRange(sessionId, startMs, endMs).executeAsList().map { it.toTelemetryFrame() }
+    }
+
+    suspend fun getTelemetryRangeBatched(sessionId: String, startMs: Long, endMs: Long, limit: Long, offset: Long): List<TelemetryFrame> = withContext(Dispatchers.IO) {
+        queries.getTelemetryRangeBatched(sessionId, startMs, endMs, limit, offset).executeAsList().map { it.toTelemetryFrame() }
+    }
+
+    suspend fun countTelemetryFrames(sessionId: String): Long = withContext(Dispatchers.IO) {
+        queries.countTelemetryFrames(sessionId).executeAsOne()
     }
 
     suspend fun getTelemetryForKey(sessionId: String, key: String): List<TelemetryFrame> = withContext(Dispatchers.IO) {
@@ -376,6 +290,10 @@ class DatabaseService(dbPath: String = System.getProperty("user.home") + "/.ares
             p95LoopTimeMs = p95_loop_time_ms,
             motorCurrentAverages = Json.decodeFromString<Map<String, Double>>(motor_current_averages),
             visionAcceptanceRate = vision_acceptance_rate,
+            avgCrossTrackError = avg_cross_track_error,
+            avgBatteryResistance = avg_battery_resistance,
+            maxMotorTemps = Json.decodeFromString<Map<String, Double>>(max_motor_temps),
+            avgVisionLatencyMs = avg_vision_latency_ms,
             tags = Json.decodeFromString<List<String>>(tags),
             matchNumber = match_number?.toInt(),
             allianceColor = alliance_color

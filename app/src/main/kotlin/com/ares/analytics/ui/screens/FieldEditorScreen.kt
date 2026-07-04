@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -40,8 +41,7 @@ fun FieldEditorScreen(
         viewModel.onIntent(FieldEditorIntent.LoadConfig(projectPath, league))
     }
 
-    var widthText by remember(state.widthText) { mutableStateOf(state.widthText) }
-    var heightText by remember(state.heightText) { mutableStateOf(state.heightText) }
+    var showCropBoundaries by remember { mutableStateOf(false) }
 
     val fieldWidthM = if (state.fieldImageConfig.widthMeters > 0.0) state.fieldImageConfig.widthMeters else (if (league == League.FTC) 3.65 else 16.5)
     val fieldHeightM = if (state.fieldImageConfig.heightMeters > 0.0) state.fieldImageConfig.heightMeters else (if (league == League.FTC) 3.65 else 8.2)
@@ -131,107 +131,123 @@ fun FieldEditorScreen(
 
                 HorizontalDivider(color = AresBorder)
 
-                Text("Dimensions (meters)", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = AresTextPrimary)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = widthText,
-                        onValueChange = {
-                            widthText = it
-                            it.toDoubleOrNull()?.let { d ->
-                                viewModel.onIntent(FieldEditorIntent.UpdateFieldImageConfig(state.fieldImageConfig.copy(widthMeters = d), projectPath, league))
-                            }
-                        },
-                        label = { Text("Width (m)", fontSize = 11.sp) },
-                        textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder),
-                        modifier = Modifier.weight(1f),
-                        singleLine = true
-                    )
-                    OutlinedTextField(
-                        value = heightText,
-                        onValueChange = {
-                            heightText = it
-                            it.toDoubleOrNull()?.let { d ->
-                                viewModel.onIntent(FieldEditorIntent.UpdateFieldImageConfig(state.fieldImageConfig.copy(heightMeters = d), projectPath, league))
-                            }
-                        },
-                        label = { Text("Height (m)", fontSize = 11.sp) },
-                        textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder),
-                        modifier = Modifier.weight(1f),
-                        singleLine = true
+                Row(
+                    modifier = Modifier.fillMaxWidth().clickable { showCropBoundaries = !showCropBoundaries }.padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Image Adjustments", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = AresTextPrimary)
+                    Icon(
+                        imageVector = if (showCropBoundaries) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight,
+                        contentDescription = "Expand/Collapse",
+                        tint = AresTextSecondary
                     )
                 }
 
-                HorizontalDivider(color = AresBorder)
+                AnimatedVisibility(visible = showCropBoundaries) {
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Orientation", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = AresTextPrimary)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                listOf(0.0, 90.0, 180.0, 270.0).forEach { angle ->
+                                    val isSelected = state.fieldImageConfig.rotationDegrees == angle
+                                    Button(
+                                        onClick = {
+                                            viewModel.onIntent(FieldEditorIntent.UpdateFieldImageConfig(state.fieldImageConfig.copy(rotationDegrees = angle), projectPath, league))
+                                        },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = if (isSelected) AresCyan else AresSurfaceElevated,
+                                            contentColor = if (isSelected) AresBackground else AresTextPrimary
+                                        ),
+                                        modifier = Modifier.weight(1f),
+                                        contentPadding = PaddingValues(horizontal = 2.dp)
+                                    ) {
+                                        Text("${angle.toInt()}°", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
 
-                Text("Orientation", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = AresTextPrimary)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    listOf(0.0, 90.0, 180.0, 270.0).forEach { angle ->
-                        val isSelected = state.fieldImageConfig.rotationDegrees == angle
-                        Button(
-                            onClick = {
-                                viewModel.onIntent(FieldEditorIntent.UpdateFieldImageConfig(state.fieldImageConfig.copy(rotationDegrees = angle), projectPath, league))
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isSelected) AresCyan else AresSurfaceElevated,
-                                contentColor = if (isSelected) AresBackground else AresTextPrimary
-                            ),
-                            modifier = Modifier.weight(1f),
-                            contentPadding = PaddingValues(horizontal = 2.dp)
-                        ) {
-                            Text("${angle.toInt()}°", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Crop Boundaries", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = AresTextPrimary)
+                            Text("Left Crop: ${String.format("%.2f", state.fieldImageConfig.cropLeft)}", fontSize = 11.sp, color = AresTextSecondary)
+                            Slider(
+                                value = state.fieldImageConfig.cropLeft.toFloat(),
+                                onValueChange = {
+                                    viewModel.onIntent(FieldEditorIntent.UpdateFieldImageConfig(state.fieldImageConfig.copy(cropLeft = it.toDouble().coerceIn(0.0, state.fieldImageConfig.cropRight)), projectPath, league))
+                                },
+                                valueRange = 0f..1f,
+                                colors = SliderDefaults.colors(thumbColor = AresCyan, activeTrackColor = AresCyan)
+                            )
+
+                            Text("Right Crop: ${String.format("%.2f", state.fieldImageConfig.cropRight)}", fontSize = 11.sp, color = AresTextSecondary)
+                            Slider(
+                                value = state.fieldImageConfig.cropRight.toFloat(),
+                                onValueChange = {
+                                    viewModel.onIntent(FieldEditorIntent.UpdateFieldImageConfig(state.fieldImageConfig.copy(cropRight = it.toDouble().coerceIn(state.fieldImageConfig.cropLeft, 1.0)), projectPath, league))
+                                },
+                                valueRange = 0f..1f,
+                                colors = SliderDefaults.colors(thumbColor = AresCyan, activeTrackColor = AresCyan)
+                            )
+
+                            Text("Top Crop: ${String.format("%.2f", state.fieldImageConfig.cropTop)}", fontSize = 11.sp, color = AresTextSecondary)
+                            Slider(
+                                value = state.fieldImageConfig.cropTop.toFloat(),
+                                onValueChange = {
+                                    viewModel.onIntent(FieldEditorIntent.UpdateFieldImageConfig(state.fieldImageConfig.copy(cropTop = it.toDouble().coerceIn(0.0, state.fieldImageConfig.cropBottom)), projectPath, league))
+                                },
+                                valueRange = 0f..1f,
+                                colors = SliderDefaults.colors(thumbColor = AresCyan, activeTrackColor = AresCyan)
+                            )
+
+                            Text("Bottom Crop: ${String.format("%.2f", state.fieldImageConfig.cropBottom)}", fontSize = 11.sp, color = AresTextSecondary)
+                            Slider(
+                                value = state.fieldImageConfig.cropBottom.toFloat(),
+                                onValueChange = {
+                                    viewModel.onIntent(FieldEditorIntent.UpdateFieldImageConfig(state.fieldImageConfig.copy(cropBottom = it.toDouble().coerceIn(state.fieldImageConfig.cropTop, 1.0)), projectPath, league))
+                                },
+                                valueRange = 0f..1f,
+                                colors = SliderDefaults.colors(thumbColor = AresCyan, activeTrackColor = AresCyan)
+                            )
                         }
                     }
                 }
 
-                HorizontalDivider(color = AresBorder)
-
-                Text("Crop Boundaries", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = AresTextPrimary)
-
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Left Crop: ${String.format("%.2f", state.fieldImageConfig.cropLeft)}", fontSize = 11.sp, color = AresTextSecondary)
-                    Slider(
-                        value = state.fieldImageConfig.cropLeft.toFloat(),
-                        onValueChange = {
-                            viewModel.onIntent(FieldEditorIntent.UpdateFieldImageConfig(state.fieldImageConfig.copy(cropLeft = it.toDouble().coerceIn(0.0, state.fieldImageConfig.cropRight)), projectPath, league))
-                        },
-                        valueRange = 0f..1f,
-                        colors = SliderDefaults.colors(thumbColor = AresCyan, activeTrackColor = AresCyan)
-                    )
-
-                    Text("Right Crop: ${String.format("%.2f", state.fieldImageConfig.cropRight)}", fontSize = 11.sp, color = AresTextSecondary)
-                    Slider(
-                        value = state.fieldImageConfig.cropRight.toFloat(),
-                        onValueChange = {
-                            viewModel.onIntent(FieldEditorIntent.UpdateFieldImageConfig(state.fieldImageConfig.copy(cropRight = it.toDouble().coerceIn(state.fieldImageConfig.cropLeft, 1.0)), projectPath, league))
-                        },
-                        valueRange = 0f..1f,
-                        colors = SliderDefaults.colors(thumbColor = AresCyan, activeTrackColor = AresCyan)
-                    )
-
-                    Text("Top Crop: ${String.format("%.2f", state.fieldImageConfig.cropTop)}", fontSize = 11.sp, color = AresTextSecondary)
-                    Slider(
-                        value = state.fieldImageConfig.cropTop.toFloat(),
-                        onValueChange = {
-                            viewModel.onIntent(FieldEditorIntent.UpdateFieldImageConfig(state.fieldImageConfig.copy(cropTop = it.toDouble().coerceIn(0.0, state.fieldImageConfig.cropBottom)), projectPath, league))
-                        },
-                        valueRange = 0f..1f,
-                        colors = SliderDefaults.colors(thumbColor = AresCyan, activeTrackColor = AresCyan)
-                    )
-
-                    Text("Bottom Crop: ${String.format("%.2f", state.fieldImageConfig.cropBottom)}", fontSize = 11.sp, color = AresTextSecondary)
-                    Slider(
-                        value = state.fieldImageConfig.cropBottom.toFloat(),
-                        onValueChange = {
-                            viewModel.onIntent(FieldEditorIntent.UpdateFieldImageConfig(state.fieldImageConfig.copy(cropBottom = it.toDouble().coerceIn(state.fieldImageConfig.cropTop, 1.0)), projectPath, league))
-                        },
-                        valueRange = 0f..1f,
-                        colors = SliderDefaults.colors(thumbColor = AresCyan, activeTrackColor = AresCyan)
-                    )
+                if (league == League.FTC) {
+                    HorizontalDivider(color = AresBorder)
+                    
+                    Text("FTC Coordinate System", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = AresTextPrimary)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        FTCCoordinateSystem.entries.forEach { coord ->
+                            val isSelected = state.fieldImageConfig.ftcCoordinateSystem == coord
+                            Button(
+                                onClick = {
+                                    viewModel.onIntent(FieldEditorIntent.UpdateFieldImageConfig(state.fieldImageConfig.copy(ftcCoordinateSystem = coord), projectPath, league))
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (isSelected) AresCyan else AresSurfaceElevated,
+                                    contentColor = if (isSelected) AresBackground else AresTextPrimary
+                                ),
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(horizontal = 2.dp)
+                            ) {
+                                Text(
+                                    text = when (coord) {
+                                        FTCCoordinateSystem.DIAMOND -> "Diamond"
+                                        FTCCoordinateSystem.SQUARE -> "Square"
+                                    },
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
                 }
 
                 HorizontalDivider(color = AresBorder)
@@ -268,237 +284,249 @@ fun FieldEditorScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Drawn Obstacles (${state.obstacles.size})",
+                            text = if (state.selectedElement != null) "Selected Item Properties" else "Drawn Obstacles (${state.obstacles.size})",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
                             color = AresTextPrimary
                         )
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                        if (state.selectedElement != null) {
                             TextButton(
-                                onClick = {
-                                    val copies = state.obstacles.map { obs ->
-                                        val mirrored = mirrorObstacleX(obs, fieldWidthM, league)
-                                        when (mirrored) {
-                                            is Obstacle.Circle -> mirrored.copy(id = "circle_${System.currentTimeMillis()}_${obs.id.hashCode()}", name = "${obs.name} Mirrored X")
-                                            is Obstacle.Rectangle -> mirrored.copy(id = "rect_${System.currentTimeMillis()}_${obs.id.hashCode()}", name = "${obs.name} Mirrored X")
-                                            is Obstacle.Polygon -> mirrored.copy(id = "poly_${System.currentTimeMillis()}_${obs.id.hashCode()}", name = "${obs.name} Mirrored X")
-                                        }
-                                    }
-                                    viewModel.onIntent(FieldEditorIntent.SetObstacles(state.obstacles + copies))
-                                    viewModel.onIntent(FieldEditorIntent.SaveObstacles(projectPath, league))
-                                },
+                                onClick = { viewModel.onIntent(FieldEditorIntent.SelectElement(null)) },
                                 contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
                             ) {
-                                Icon(Icons.Default.SwapHoriz, contentDescription = null, modifier = Modifier.size(12.dp), tint = AresCyan)
-                                Spacer(Modifier.width(2.dp))
-                                Text("Copy X", fontSize = 10.sp, color = AresCyan)
+                                Text("Clear Selection", fontSize = 10.sp, color = AresCyan)
                             }
-                            TextButton(
-                                onClick = {
-                                    val copies = state.obstacles.map { obs ->
-                                        val mirrored = mirrorObstacleY(obs, fieldHeightM, league)
-                                        when (mirrored) {
-                                            is Obstacle.Circle -> mirrored.copy(id = "circle_${System.currentTimeMillis()}_${obs.id.hashCode()}", name = "${obs.name} Mirrored Y")
-                                            is Obstacle.Rectangle -> mirrored.copy(id = "rect_${System.currentTimeMillis()}_${obs.id.hashCode()}", name = "${obs.name} Mirrored Y")
-                                            is Obstacle.Polygon -> mirrored.copy(id = "poly_${System.currentTimeMillis()}_${obs.id.hashCode()}", name = "${obs.name} Mirrored Y")
-                                        }
-                                    }
-                                    viewModel.onIntent(FieldEditorIntent.SetObstacles(state.obstacles + copies))
-                                    viewModel.onIntent(FieldEditorIntent.SaveObstacles(projectPath, league))
-                                },
-                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                        } else {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(Icons.Default.SwapVert, contentDescription = null, modifier = Modifier.size(12.dp), tint = AresCyan)
-                                Spacer(Modifier.width(2.dp))
-                                Text("Copy Y", fontSize = 10.sp, color = AresCyan)
+                                TextButton(
+                                    onClick = {
+                                        val copies = state.obstacles.map { obs ->
+                                            val mirrored = mirrorObstacleX(obs, fieldWidthM, league)
+                                            when (mirrored) {
+                                                is Obstacle.Circle -> mirrored.copy(id = "circle_${System.currentTimeMillis()}_${obs.id.hashCode()}", name = "${obs.name} Mirrored X")
+                                                is Obstacle.Rectangle -> mirrored.copy(id = "rect_${System.currentTimeMillis()}_${obs.id.hashCode()}", name = "${obs.name} Mirrored X")
+                                                is Obstacle.Polygon -> mirrored.copy(id = "poly_${System.currentTimeMillis()}_${obs.id.hashCode()}", name = "${obs.name} Mirrored X")
+                                            }
+                                        }
+                                        viewModel.onIntent(FieldEditorIntent.SetObstacles(state.obstacles + copies))
+                                        viewModel.onIntent(FieldEditorIntent.SaveObstacles(projectPath, league))
+                                    },
+                                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                                ) {
+                                    Icon(Icons.Default.SwapHoriz, contentDescription = null, modifier = Modifier.size(12.dp), tint = AresCyan)
+                                    Spacer(Modifier.width(2.dp))
+                                    Text("Copy X", fontSize = 10.sp, color = AresCyan)
+                                }
+                                TextButton(
+                                    onClick = {
+                                        val copies = state.obstacles.map { obs ->
+                                            val mirrored = mirrorObstacleY(obs, fieldHeightM, league)
+                                            when (mirrored) {
+                                                is Obstacle.Circle -> mirrored.copy(id = "circle_${System.currentTimeMillis()}_${obs.id.hashCode()}", name = "${obs.name} Mirrored Y")
+                                                is Obstacle.Rectangle -> mirrored.copy(id = "rect_${System.currentTimeMillis()}_${obs.id.hashCode()}", name = "${obs.name} Mirrored Y")
+                                                is Obstacle.Polygon -> mirrored.copy(id = "poly_${System.currentTimeMillis()}_${obs.id.hashCode()}", name = "${obs.name} Mirrored Y")
+                                            }
+                                        }
+                                        viewModel.onIntent(FieldEditorIntent.SetObstacles(state.obstacles + copies))
+                                        viewModel.onIntent(FieldEditorIntent.SaveObstacles(projectPath, league))
+                                    },
+                                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                                ) {
+                                    Icon(Icons.Default.SwapVert, contentDescription = null, modifier = Modifier.size(12.dp), tint = AresCyan)
+                                    Spacer(Modifier.width(2.dp))
+                                    Text("Copy Y", fontSize = 10.sp, color = AresCyan)
+                                }
                             }
                         }
                     }
+                    
                     state.obstacles.forEachIndexed { index, obs ->
-                        key(obs.id) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(AresSurfaceElevated)
-                                    .border(1.dp, AresBorder, RoundedCornerShape(8.dp))
-                                    .padding(8.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    OutlinedTextField(
-                                        value = obs.name,
-                                        onValueChange = { newName ->
-                                            val updated = when (obs) {
-                                                is Obstacle.Circle -> obs.copy(name = newName)
-                                                is Obstacle.Rectangle -> obs.copy(name = newName)
-                                                is Obstacle.Polygon -> obs.copy(name = newName)
+                        if (state.selectedElement == null || state.selectedElement == obs.id) {
+                            key(obs.id) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(AresSurfaceElevated)
+                                        .border(1.dp, AresBorder, RoundedCornerShape(8.dp))
+                                        .padding(8.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        OutlinedTextField(
+                                            value = obs.name,
+                                            onValueChange = { newName ->
+                                                val updated = when (obs) {
+                                                    is Obstacle.Circle -> obs.copy(name = newName)
+                                                    is Obstacle.Rectangle -> obs.copy(name = newName)
+                                                    is Obstacle.Polygon -> obs.copy(name = newName)
+                                                }
+                                                viewModel.onIntent(FieldEditorIntent.UpdateObstacle(index, updated))
+                                                viewModel.onIntent(FieldEditorIntent.SaveObstacles(projectPath, league))
+                                            },
+                                            label = { Text("Label", fontSize = 9.sp) },
+                                            singleLine = true,
+                                            textStyle = MaterialTheme.typography.bodySmall.copy(color = AresTextPrimary),
+                                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder)
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        val details = when (obs) {
+                                            is Obstacle.Circle -> "Circle | r=${String.format("%.2fm", obs.radius)}"
+                                            is Obstacle.Rectangle -> "Rect | ${String.format("%.2fm", obs.width)}x${String.format("%.2fm", obs.height)} @ ${String.format("%.0f°", obs.rotation)}"
+                                            is Obstacle.Polygon -> "Poly | ${obs.vertices.size} vertices"
+                                        }
+                                        Text(details, fontSize = 10.sp, color = AresTextSecondary)
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        when (obs) {
+                                            is Obstacle.Circle -> {
+                                                var radiusText by remember(obs.id, obs.radius) { mutableStateOf(obs.radius.toString()) }
+                                                OutlinedTextField(
+                                                    value = radiusText,
+                                                    onValueChange = { newVal ->
+                                                        radiusText = newVal
+                                                        newVal.toDoubleOrNull()?.let { parsed ->
+                                                            viewModel.onIntent(FieldEditorIntent.UpdateObstacle(index, obs.copy(radius = parsed)))
+                                                            viewModel.onIntent(FieldEditorIntent.SaveObstacles(projectPath, league))
+                                                        }
+                                                    },
+                                                    label = { Text("Radius (m)", fontSize = 9.sp) },
+                                                    singleLine = true,
+                                                    textStyle = MaterialTheme.typography.bodySmall.copy(color = AresTextPrimary),
+                                                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder)
+                                                )
                                             }
-                                            viewModel.onIntent(FieldEditorIntent.UpdateObstacle(index, updated))
-                                            viewModel.onIntent(FieldEditorIntent.SaveObstacles(projectPath, league))
-                                        },
-                                        label = { Text("Label", fontSize = 9.sp) },
-                                        singleLine = true,
-                                        textStyle = MaterialTheme.typography.bodySmall.copy(color = AresTextPrimary),
-                                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder)
-                                    )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    val details = when (obs) {
-                                        is Obstacle.Circle -> "Circle | r=${String.format("%.2fm", obs.radius)}"
-                                        is Obstacle.Rectangle -> "Rect | ${String.format("%.2fm", obs.width)}x${String.format("%.2fm", obs.height)} @ ${String.format("%.0f°", obs.rotation)}"
-                                        is Obstacle.Polygon -> "Poly | ${obs.vertices.size} vertices"
+                                            is Obstacle.Rectangle -> {
+                                                var rectWText by remember(obs.id, obs.width) { mutableStateOf(obs.width.toString()) }
+                                                var rectHText by remember(obs.id, obs.height) { mutableStateOf(obs.height.toString()) }
+                                                var rotationText by remember(obs.id, obs.rotation) { mutableStateOf(obs.rotation.toString()) }
+
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                                ) {
+                                                    OutlinedTextField(
+                                                        value = rectWText,
+                                                        onValueChange = { newVal ->
+                                                            rectWText = newVal
+                                                            newVal.toDoubleOrNull()?.let { parsed ->
+                                                                viewModel.onIntent(FieldEditorIntent.UpdateObstacle(index, obs.copy(width = parsed)))
+                                                                viewModel.onIntent(FieldEditorIntent.SaveObstacles(projectPath, league))
+                                                            }
+                                                        },
+                                                        label = { Text("W (m)", fontSize = 9.sp) },
+                                                        singleLine = true,
+                                                        modifier = Modifier.weight(1f),
+                                                        textStyle = MaterialTheme.typography.bodySmall.copy(color = AresTextPrimary),
+                                                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder)
+                                                    )
+                                                    OutlinedTextField(
+                                                        value = rectHText,
+                                                        onValueChange = { newVal ->
+                                                            rectHText = newVal
+                                                            newVal.toDoubleOrNull()?.let { parsed ->
+                                                                viewModel.onIntent(FieldEditorIntent.UpdateObstacle(index, obs.copy(height = parsed)))
+                                                                viewModel.onIntent(FieldEditorIntent.SaveObstacles(projectPath, league))
+                                                            }
+                                                        },
+                                                        label = { Text("H (m)", fontSize = 9.sp) },
+                                                        singleLine = true,
+                                                        modifier = Modifier.weight(1f),
+                                                        textStyle = MaterialTheme.typography.bodySmall.copy(color = AresTextPrimary),
+                                                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder)
+                                                    )
+                                                    OutlinedTextField(
+                                                        value = rotationText,
+                                                        onValueChange = { newVal ->
+                                                            rotationText = newVal
+                                                            newVal.toDoubleOrNull()?.let { parsed ->
+                                                                viewModel.onIntent(FieldEditorIntent.UpdateObstacle(index, obs.copy(rotation = parsed)))
+                                                                viewModel.onIntent(FieldEditorIntent.SaveObstacles(projectPath, league))
+                                                            }
+                                                        },
+                                                        label = { Text("Rot (deg)", fontSize = 9.sp) },
+                                                        singleLine = true,
+                                                        modifier = Modifier.weight(1f),
+                                                        textStyle = MaterialTheme.typography.bodySmall.copy(color = AresTextPrimary),
+                                                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder)
+                                                    )
+                                                }
+                                            }
+                                            else -> {}
+                                        }
                                     }
-                                    Text(details, fontSize = 10.sp, color = AresTextSecondary)
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    when (obs) {
-                                        is Obstacle.Circle -> {
-                                            var radiusText by remember(obs.id, obs.radius) { mutableStateOf(obs.radius.toString()) }
-                                            OutlinedTextField(
-                                                value = radiusText,
-                                                onValueChange = { newVal ->
-                                                    radiusText = newVal
-                                                    newVal.toDoubleOrNull()?.let { parsed ->
-                                                        viewModel.onIntent(FieldEditorIntent.UpdateObstacle(index, obs.copy(radius = parsed)))
-                                                        viewModel.onIntent(FieldEditorIntent.SaveObstacles(projectPath, league))
+                                    var flipMenuExpanded by remember { mutableStateOf(false) }
+                                    Box {
+                                        IconButton(
+                                            onClick = { flipMenuExpanded = true },
+                                            modifier = Modifier.size(24.dp)
+                                        ) {
+                                            Icon(Icons.Default.Flip, contentDescription = "Flip Menu", tint = AresCyan, modifier = Modifier.size(16.dp))
+                                        }
+                                        DropdownMenu(
+                                            expanded = flipMenuExpanded,
+                                            onDismissRequest = { flipMenuExpanded = false },
+                                            modifier = Modifier.background(AresSurfaceElevated)
+                                        ) {
+                                            DropdownMenuItem(
+                                                text = { Text("Mirror Horizontally", color = AresTextPrimary) },
+                                                onClick = {
+                                                    flipMenuExpanded = false
+                                                    val mirrored = mirrorObstacleX(obs, fieldWidthM, league)
+                                                    viewModel.onIntent(FieldEditorIntent.UpdateObstacle(index, mirrored))
+                                                    viewModel.onIntent(FieldEditorIntent.SaveObstacles(projectPath, league))
+                                                }
+                                            )
+                                            DropdownMenuItem(
+                                                text = { Text("Mirror Vertically", color = AresTextPrimary) },
+                                                onClick = {
+                                                    flipMenuExpanded = false
+                                                    val mirrored = mirrorObstacleY(obs, fieldHeightM, league)
+                                                    viewModel.onIntent(FieldEditorIntent.UpdateObstacle(index, mirrored))
+                                                    viewModel.onIntent(FieldEditorIntent.SaveObstacles(projectPath, league))
+                                                }
+                                            )
+                                            DropdownMenuItem(
+                                                text = { Text("Duplicate & Mirror X", color = AresTextPrimary) },
+                                                onClick = {
+                                                    flipMenuExpanded = false
+                                                    val mirrored = mirrorObstacleX(obs, fieldWidthM, league)
+                                                    val copy = when (mirrored) {
+                                                        is Obstacle.Circle -> mirrored.copy(id = "circle_${System.currentTimeMillis()}", name = "${obs.name} Mirrored X")
+                                                        is Obstacle.Rectangle -> mirrored.copy(id = "rect_${System.currentTimeMillis()}", name = "${obs.name} Mirrored X")
+                                                        is Obstacle.Polygon -> mirrored.copy(id = "poly_${System.currentTimeMillis()}", name = "${obs.name} Mirrored X")
                                                     }
-                                                },
-                                                label = { Text("Radius (m)", fontSize = 9.sp) },
-                                                singleLine = true,
-                                                textStyle = MaterialTheme.typography.bodySmall.copy(color = AresTextPrimary),
-                                                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder)
+                                                    viewModel.onIntent(FieldEditorIntent.AddObstacle(copy))
+                                                    viewModel.onIntent(FieldEditorIntent.SaveObstacles(projectPath, league))
+                                                }
+                                            )
+                                            DropdownMenuItem(
+                                                text = { Text("Duplicate & Mirror Y", color = AresTextPrimary) },
+                                                onClick = {
+                                                    flipMenuExpanded = false
+                                                    val mirrored = mirrorObstacleY(obs, fieldHeightM, league)
+                                                    val copy = when (mirrored) {
+                                                        is Obstacle.Circle -> mirrored.copy(id = "circle_${System.currentTimeMillis()}", name = "${obs.name} Mirrored Y")
+                                                        is Obstacle.Rectangle -> mirrored.copy(id = "rect_${System.currentTimeMillis()}", name = "${obs.name} Mirrored Y")
+                                                        is Obstacle.Polygon -> mirrored.copy(id = "poly_${System.currentTimeMillis()}", name = "${obs.name} Mirrored Y")
+                                                    }
+                                                    viewModel.onIntent(FieldEditorIntent.AddObstacle(copy))
+                                                    viewModel.onIntent(FieldEditorIntent.SaveObstacles(projectPath, league))
+                                                }
                                             )
                                         }
-                                        is Obstacle.Rectangle -> {
-                                            var rectWText by remember(obs.id, obs.width) { mutableStateOf(obs.width.toString()) }
-                                            var rectHText by remember(obs.id, obs.height) { mutableStateOf(obs.height.toString()) }
-                                            var rotationText by remember(obs.id, obs.rotation) { mutableStateOf(obs.rotation.toString()) }
-
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                            ) {
-                                                OutlinedTextField(
-                                                    value = rectWText,
-                                                    onValueChange = { newVal ->
-                                                        rectWText = newVal
-                                                        newVal.toDoubleOrNull()?.let { parsed ->
-                                                            viewModel.onIntent(FieldEditorIntent.UpdateObstacle(index, obs.copy(width = parsed)))
-                                                            viewModel.onIntent(FieldEditorIntent.SaveObstacles(projectPath, league))
-                                                        }
-                                                    },
-                                                    label = { Text("W (m)", fontSize = 9.sp) },
-                                                    singleLine = true,
-                                                    modifier = Modifier.weight(1f),
-                                                    textStyle = MaterialTheme.typography.bodySmall.copy(color = AresTextPrimary),
-                                                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder)
-                                                )
-                                                OutlinedTextField(
-                                                    value = rectHText,
-                                                    onValueChange = { newVal ->
-                                                        rectHText = newVal
-                                                        newVal.toDoubleOrNull()?.let { parsed ->
-                                                            viewModel.onIntent(FieldEditorIntent.UpdateObstacle(index, obs.copy(height = parsed)))
-                                                            viewModel.onIntent(FieldEditorIntent.SaveObstacles(projectPath, league))
-                                                        }
-                                                    },
-                                                    label = { Text("H (m)", fontSize = 9.sp) },
-                                                    singleLine = true,
-                                                    modifier = Modifier.weight(1f),
-                                                    textStyle = MaterialTheme.typography.bodySmall.copy(color = AresTextPrimary),
-                                                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder)
-                                                )
-                                                OutlinedTextField(
-                                                    value = rotationText,
-                                                    onValueChange = { newVal ->
-                                                        rotationText = newVal
-                                                        newVal.toDoubleOrNull()?.let { parsed ->
-                                                            viewModel.onIntent(FieldEditorIntent.UpdateObstacle(index, obs.copy(rotation = parsed)))
-                                                            viewModel.onIntent(FieldEditorIntent.SaveObstacles(projectPath, league))
-                                                        }
-                                                    },
-                                                    label = { Text("Rot (deg)", fontSize = 9.sp) },
-                                                    singleLine = true,
-                                                    modifier = Modifier.weight(1f),
-                                                    textStyle = MaterialTheme.typography.bodySmall.copy(color = AresTextPrimary),
-                                                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder)
-                                                )
-                                            }
-                                        }
-                                        else -> {}
                                     }
-                                }
-                                var flipMenuExpanded by remember { mutableStateOf(false) }
-                                Box {
                                     IconButton(
-                                        onClick = { flipMenuExpanded = true },
+                                        onClick = {
+                                            viewModel.onIntent(FieldEditorIntent.DeleteObstacle(index))
+                                            viewModel.onIntent(FieldEditorIntent.SaveObstacles(projectPath, league))
+                                        },
                                         modifier = Modifier.size(24.dp)
                                     ) {
-                                        Icon(Icons.Default.Flip, contentDescription = "Flip Menu", tint = AresCyan, modifier = Modifier.size(16.dp))
+                                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = AresError, modifier = Modifier.size(16.dp))
                                     }
-                                    DropdownMenu(
-                                        expanded = flipMenuExpanded,
-                                        onDismissRequest = { flipMenuExpanded = false },
-                                        modifier = Modifier.background(AresSurfaceElevated)
-                                    ) {
-                                        DropdownMenuItem(
-                                            text = { Text("Mirror Horizontally", color = AresTextPrimary) },
-                                            onClick = {
-                                                flipMenuExpanded = false
-                                                val mirrored = mirrorObstacleX(obs, fieldWidthM, league)
-                                                viewModel.onIntent(FieldEditorIntent.UpdateObstacle(index, mirrored))
-                                                viewModel.onIntent(FieldEditorIntent.SaveObstacles(projectPath, league))
-                                            }
-                                        )
-                                        DropdownMenuItem(
-                                            text = { Text("Mirror Vertically", color = AresTextPrimary) },
-                                            onClick = {
-                                                flipMenuExpanded = false
-                                                val mirrored = mirrorObstacleY(obs, fieldHeightM, league)
-                                                viewModel.onIntent(FieldEditorIntent.UpdateObstacle(index, mirrored))
-                                                viewModel.onIntent(FieldEditorIntent.SaveObstacles(projectPath, league))
-                                            }
-                                        )
-                                        DropdownMenuItem(
-                                            text = { Text("Duplicate & Mirror X", color = AresTextPrimary) },
-                                            onClick = {
-                                                flipMenuExpanded = false
-                                                val mirrored = mirrorObstacleX(obs, fieldWidthM, league)
-                                                val copy = when (mirrored) {
-                                                    is Obstacle.Circle -> mirrored.copy(id = "circle_${System.currentTimeMillis()}", name = "${obs.name} Mirrored X")
-                                                    is Obstacle.Rectangle -> mirrored.copy(id = "rect_${System.currentTimeMillis()}", name = "${obs.name} Mirrored X")
-                                                    is Obstacle.Polygon -> mirrored.copy(id = "poly_${System.currentTimeMillis()}", name = "${obs.name} Mirrored X")
-                                                }
-                                                viewModel.onIntent(FieldEditorIntent.AddObstacle(copy))
-                                                viewModel.onIntent(FieldEditorIntent.SaveObstacles(projectPath, league))
-                                            }
-                                        )
-                                        DropdownMenuItem(
-                                            text = { Text("Duplicate & Mirror Y", color = AresTextPrimary) },
-                                            onClick = {
-                                                flipMenuExpanded = false
-                                                val mirrored = mirrorObstacleY(obs, fieldHeightM, league)
-                                                val copy = when (mirrored) {
-                                                    is Obstacle.Circle -> mirrored.copy(id = "circle_${System.currentTimeMillis()}", name = "${obs.name} Mirrored Y")
-                                                    is Obstacle.Rectangle -> mirrored.copy(id = "rect_${System.currentTimeMillis()}", name = "${obs.name} Mirrored Y")
-                                                    is Obstacle.Polygon -> mirrored.copy(id = "poly_${System.currentTimeMillis()}", name = "${obs.name} Mirrored Y")
-                                                }
-                                                viewModel.onIntent(FieldEditorIntent.AddObstacle(copy))
-                                                viewModel.onIntent(FieldEditorIntent.SaveObstacles(projectPath, league))
-                                            }
-                                        )
-                                    }
-                                }
-                                IconButton(
-                                    onClick = {
-                                        viewModel.onIntent(FieldEditorIntent.DeleteObstacle(index))
-                                        viewModel.onIntent(FieldEditorIntent.SaveObstacles(projectPath, league))
-                                    },
-                                    modifier = Modifier.size(24.dp)
-                                ) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = AresError, modifier = Modifier.size(16.dp))
                                 }
                             }
                         }
@@ -579,6 +607,93 @@ fun FieldEditorScreen(
                         }
                     }
                 }
+
+                // Placed AprilTags Section
+                if (state.aprilTags.isNotEmpty()) {
+                    HorizontalDivider(color = AresBorder)
+                    Text("Placed AprilTags (${state.aprilTags.size})", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = AresTextPrimary)
+                    state.aprilTags.forEachIndexed { index, at ->
+                        key(at.id) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(AresSurfaceElevated)
+                                    .border(1.dp, AresBorder, RoundedCornerShape(8.dp))
+                                    .padding(8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        var tagIdText by remember(at.id, at.tagId) { mutableStateOf(at.tagId.toString()) }
+                                        OutlinedTextField(
+                                            value = tagIdText,
+                                            onValueChange = { newVal ->
+                                                tagIdText = newVal
+                                                newVal.toIntOrNull()?.let { parsed ->
+                                                    viewModel.onIntent(FieldEditorIntent.UpdateAprilTag(index, at.copy(tagId = parsed)))
+                                                    viewModel.onIntent(FieldEditorIntent.SaveAprilTags(projectPath, league))
+                                                }
+                                            },
+                                            label = { Text("Tag ID", fontSize = 9.sp) },
+                                            singleLine = true,
+                                            modifier = Modifier.weight(1f),
+                                            textStyle = MaterialTheme.typography.bodySmall.copy(color = AresTextPrimary),
+                                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder)
+                                        )
+
+                                        var tagZText by remember(at.id, at.z) { mutableStateOf(at.z.toString()) }
+                                        OutlinedTextField(
+                                            value = tagZText,
+                                            onValueChange = { newVal ->
+                                                tagZText = newVal
+                                                newVal.toDoubleOrNull()?.let { parsed ->
+                                                    viewModel.onIntent(FieldEditorIntent.UpdateAprilTag(index, at.copy(z = parsed)))
+                                                    viewModel.onIntent(FieldEditorIntent.SaveAprilTags(projectPath, league))
+                                                }
+                                            },
+                                            label = { Text("Z (m)", fontSize = 9.sp) },
+                                            singleLine = true,
+                                            modifier = Modifier.weight(1f),
+                                            textStyle = MaterialTheme.typography.bodySmall.copy(color = AresTextPrimary),
+                                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder)
+                                        )
+
+                                        var tagYawText by remember(at.id, at.yawDegrees) { mutableStateOf(at.yawDegrees.toString()) }
+                                        OutlinedTextField(
+                                            value = tagYawText,
+                                            onValueChange = { newVal ->
+                                                tagYawText = newVal
+                                                newVal.toDoubleOrNull()?.let { parsed ->
+                                                    viewModel.onIntent(FieldEditorIntent.UpdateAprilTag(index, at.copy(yawDegrees = parsed)))
+                                                    viewModel.onIntent(FieldEditorIntent.SaveAprilTags(projectPath, league))
+                                                }
+                                            },
+                                            label = { Text("Yaw (°)", fontSize = 9.sp) },
+                                            singleLine = true,
+                                            modifier = Modifier.weight(1f),
+                                            textStyle = MaterialTheme.typography.bodySmall.copy(color = AresTextPrimary),
+                                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text("Pos: (${String.format("%.2f", at.x)}, ${String.format("%.2f", at.y)})", fontSize = 10.sp, color = AresTextSecondary)
+                                }
+                                IconButton(
+                                    onClick = {
+                                        viewModel.onIntent(FieldEditorIntent.DeleteAprilTag(index))
+                                        viewModel.onIntent(FieldEditorIntent.SaveAprilTags(projectPath, league))
+                                    },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = AresError, modifier = Modifier.size(16.dp))
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -603,6 +718,10 @@ fun FieldEditorScreen(
                 gamePieces = state.gamePieces,
                 onGamePiecesChanged = {
                     viewModel.onIntent(FieldEditorIntent.SetGamePieces(it))
+                },
+                aprilTags = state.aprilTags,
+                onAprilTagsChanged = {
+                    viewModel.onIntent(FieldEditorIntent.SetAprilTags(it))
                 }
             )
         }

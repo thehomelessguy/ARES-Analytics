@@ -8,6 +8,8 @@ import com.ares.analytics.ui.components.NavigationTarget
 import com.ares.analytics.shared.WorkspaceConfig
 import com.ares.analytics.shared.League
 import com.ares.analytics.shared.AppWorkspaces
+import com.ares.analytics.shared.ControllerBinding
+import com.ares.analytics.service.KeybindingParserService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,6 +25,8 @@ data class MainState(
     val runsIndexReloadTrigger: Int = 0,
     val diagnosticsResponse: ForensicsResponse? = null,
     val isTerminalOpen: Boolean = false,
+    val isKeybindingsOpen: Boolean = false,
+    val parsedBindings: List<ControllerBinding> = emptyList(),
     val showUpdateBanner: Boolean = true
 )
 
@@ -33,6 +37,8 @@ sealed class MainIntent {
     object TriggerRunsIndexReload : MainIntent()
     data class SetDiagnosticsResponse(val response: ForensicsResponse?) : MainIntent()
     data class SetTerminalOpen(val isOpen: Boolean) : MainIntent()
+    data class SetKeybindingsOpen(val isOpen: Boolean) : MainIntent()
+    object RefreshKeybindings : MainIntent()
     data class SetShowUpdateBanner(val show: Boolean) : MainIntent()
     data class SaveConfig(val config: WorkspaceConfig) : MainIntent()
     data class SelectWorkspace(val id: String) : MainIntent()
@@ -44,6 +50,7 @@ sealed class MainIntent {
 class MainViewModel(
     private val environmentService: EnvironmentService,
     private val eventApiService: EventApiService,
+    private val keybindingParserService: KeybindingParserService,
     private val scope: CoroutineScope
 ) {
     private val _state = MutableStateFlow(MainState())
@@ -78,6 +85,19 @@ class MainViewModel(
                 }
                 is MainIntent.SetTerminalOpen -> {
                     _state.update { it.copy(isTerminalOpen = intent.isOpen) }
+                }
+                is MainIntent.SetKeybindingsOpen -> {
+                    _state.update { it.copy(isKeybindingsOpen = intent.isOpen) }
+                    if (intent.isOpen && _state.value.parsedBindings.isEmpty()) {
+                        onIntent(MainIntent.RefreshKeybindings)
+                    }
+                }
+                is MainIntent.RefreshKeybindings -> {
+                    val path = _state.value.config?.projectPath
+                    if (path != null && path.isNotEmpty()) {
+                        val bindings = keybindingParserService.parseBindings(path)
+                        _state.update { it.copy(parsedBindings = bindings) }
+                    }
                 }
                 is MainIntent.SetShowUpdateBanner -> {
                     _state.update { it.copy(showUpdateBanner = intent.show) }

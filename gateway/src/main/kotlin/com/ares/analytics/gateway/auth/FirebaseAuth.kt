@@ -61,3 +61,9 @@ fun AuthenticationConfig.firebase(
     register(provider)
 }
 
+fun Application.installFirebaseAuthentication() {
+    install(Authentication) {
+        firebase("firebase")
+    }
+}
+

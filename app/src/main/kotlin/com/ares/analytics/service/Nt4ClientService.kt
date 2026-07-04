@@ -22,10 +22,18 @@ open class Nt4ClientService(
 
     val isReplayActive = MutableStateFlow(false)
 
-    private val _telemetryFlow = MutableSharedFlow<TelemetryFrame>(replay = 100)
+    private val _telemetryFlow = MutableSharedFlow<TelemetryFrame>(
+        replay = 100,
+        extraBufferCapacity = 65536,
+        onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST
+    )
     open val telemetryFlow: SharedFlow<TelemetryFrame> = _telemetryFlow.asSharedFlow()
 
-    private val _consoleFlow = MutableSharedFlow<ConsoleMessage>(replay = 100)
+    private val _consoleFlow = MutableSharedFlow<ConsoleMessage>(
+        replay = 100,
+        extraBufferCapacity = 1024,
+        onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST
+    )
     val consoleFlow: SharedFlow<ConsoleMessage> = _consoleFlow.asSharedFlow()
 
     /**
@@ -77,7 +85,7 @@ open class Nt4ClientService(
         println("[Nt4ClientService] start() called with host=$host, teamId=$teamId, seasonId=$seasonId, robotId=$robotId")
         Thread.dumpStack()
         clientJob?.cancel()
-        clientJob = CoroutineScope(Dispatchers.IO).launch {
+        clientJob = CoroutineScope(Dispatchers.IO + SupervisorJob() + CoroutineExceptionHandler { _, e -> e.printStackTrace() }).launch {
             try {
                 databaseService.deleteTelemetryFrames("live-telemetry")
             } catch (e: Exception) {
@@ -139,7 +147,11 @@ open class Nt4ClientService(
                               {"method": "publish", "params": {"name": "ARES/Input/isTeleopMode", "pubuid": 1007, "type": "boolean"}},
                               {"method": "publish", "params": {"name": "ARES/Input/isFieldCentric", "pubuid": 1008, "type": "boolean"}},
                               {"method": "publish", "params": {"name": "ARES/Input/isRedAlliance", "pubuid": 1009, "type": "boolean"}},
-                              {"method": "publish", "params": {"name": "ARES/Input/heartbeat", "pubuid": 1010, "type": "int"}}
+                              {"method": "publish", "params": {"name": "ARES/Input/heartbeat", "pubuid": 1010, "type": "int"}},
+                              {"method": "publish", "params": {"name": "ARES/DriverStation/Command", "pubuid": 1011, "type": "string"}},
+                              {"method": "publish", "params": {"name": "ARES/DriverStation/SelectedOpMode", "pubuid": 1012, "type": "string"}},
+                              {"method": "publish", "params": {"name": "ARES/DriverStation/MatchTime", "pubuid": 1013, "type": "double"}},
+                              {"method": "publish", "params": {"name": "ARES/DriverStation/MatchState", "pubuid": 1014, "type": "string"}}
                             ]
                         """.trimIndent()
                         send(Frame.Text(announceInputsMsg))
@@ -248,6 +260,24 @@ open class Nt4ClientService(
         sendBinaryUpdate(pubuid, 1.toByte(), valueBytes)
     }
 
+    suspend fun publishInputString(pubuid: Int, value: String) {
+        val strBytes = value.toByteArray(Charsets.UTF_8)
+        val size = strBytes.size
+        
+        val headerBytes = when {
+            size <= 31 -> byteArrayOf((0xa0 or size).toByte())
+            size <= 255 -> byteArrayOf(0xd9.toByte(), size.toByte())
+            size <= 65535 -> byteArrayOf(0xda.toByte(), (size shr 8).toByte(), size.toByte())
+            else -> byteArrayOf(0xdb.toByte(), (size shr 24).toByte(), (size shr 16).toByte(), (size shr 8).toByte(), size.toByte())
+        }
+        
+        val valueBytes = ByteArray(headerBytes.size + strBytes.size)
+        System.arraycopy(headerBytes, 0, valueBytes, 0, headerBytes.size)
+        System.arraycopy(strBytes, 0, valueBytes, headerBytes.size, strBytes.size)
+        
+        sendBinaryUpdate(pubuid, 4.toByte(), valueBytes)
+    }
+
     suspend fun publishInputBoolean(pubuid: Int, value: Boolean) {
         val valueBytes = byteArrayOf(if (value) 0xc3.toByte() else 0xc2.toByte()) // MsgPack true/false markers
         sendBinaryUpdate(pubuid, 0.toByte(), valueBytes)
@@ -271,7 +301,7 @@ open class Nt4ClientService(
         clientJob?.cancel()
         _isConnected.value = false
         // Flush remaining frames asynchronously
-        CoroutineScope(Dispatchers.IO).launch {
+        CoroutineScope(Dispatchers.IO + SupervisorJob() + CoroutineExceptionHandler { _, e -> e.printStackTrace() }).launch {
             flushPendingFrames()
         }
         client.close()
@@ -378,11 +408,11 @@ open class Nt4ClientService(
             var offset = 0
             while (offset < bytes.size) {
                 val marker = bytes[offset].toInt() and 0xFF
-                val (arrayLen, arrayHeaderSize) = getArrayLengthAndHeader(marker, bytes, offset)
+                val (arrayLen, arrayHeaderSize) = Nt4Decoder.getArrayLengthAndHeader(marker, bytes, offset)
 
                 // Each NT4 message is an array of 4 elements: [topicId, timestampUs, typeId, value]
                 if (arrayLen != 4) {
-                    val size = getMsgPackValueLength(bytes, offset)
+                    val size = Nt4Decoder.getMsgPackValueLength(bytes, offset)
                     if (size == 0) break
                     offset += size
                     continue
@@ -391,28 +421,31 @@ open class Nt4ClientService(
                 var currentOffset = offset + arrayHeaderSize
 
                 // 1. Topic ID
-                val (topicIdJson, topicIdSize) = parseMsgPackValue(bytes, currentOffset, 2)
+                val (topicIdJson, topicIdSize) = Nt4Decoder.parseMsgPackValue(bytes, currentOffset, 2)
                 val topicId = topicIdJson.jsonPrimitive.intOrNull ?: -1
                 currentOffset += topicIdSize
 
                 // 2. Timestamp (us)
-                val (timestampJson, timestampSize) = parseMsgPackValue(bytes, currentOffset, 2)
+                val (timestampJson, timestampSize) = Nt4Decoder.parseMsgPackValue(bytes, currentOffset, 2)
                 val timestampUs = timestampJson.jsonPrimitive.longOrNull ?: 0L
                 currentOffset += timestampSize
 
                 // 3. Type ID
-                val (typeIdJson, typeIdSize) = parseMsgPackValue(bytes, currentOffset, 2)
+                val (typeIdJson, typeIdSize) = Nt4Decoder.parseMsgPackValue(bytes, currentOffset, 2)
                 val typeId = typeIdJson.jsonPrimitive.intOrNull ?: 0
                 currentOffset += typeIdSize
 
                 // 4. Value
-                val (valueElement, valueSize) = parseMsgPackValue(bytes, currentOffset, typeId)
+                val (valueElement, valueSize) = Nt4Decoder.parseMsgPackValue(bytes, currentOffset, typeId)
                 currentOffset += valueSize
 
                 val timestampMs = timestampUs / 1000
                 val ntTopic = topicMap[topicId]
 
                 if (ntTopic != null) {
+                    if (ntTopic.name.contains("TeleOpList")) {
+                        println("[Nt4ClientService] Received binary update for TeleOpList! Value size is $valueSize, String? = ${valueElement.jsonPrimitive.contentOrNull}")
+                    }
                     dispatchValue(ntTopic, valueElement, timestampMs, teamId, seasonId, robotId)
                 }
 
@@ -449,7 +482,7 @@ open class Nt4ClientService(
                 val logFilePath = (valueElement as? JsonPrimitive)?.content ?: return
                 val session = _currentSession.value
                 if (session != null) {
-                    CoroutineScope(Dispatchers.IO).launch {
+                    CoroutineScope(Dispatchers.IO + SupervisorJob() + CoroutineExceptionHandler { _, e -> e.printStackTrace() }).launch {
                         databaseService.updateSessionLogFilePath(session.sessionId, logFilePath)
                     }
                 }
@@ -487,7 +520,7 @@ open class Nt4ClientService(
                 
                 // Save in DB if session is active
                 if (session != null) {
-                    CoroutineScope(Dispatchers.IO).launch {
+                    CoroutineScope(Dispatchers.IO + SupervisorJob() + CoroutineExceptionHandler { _, e -> e.printStackTrace() }).launch {
                         databaseService.insertConsoleMessages(listOf(consoleMsg), sessionId)
                     }
                 }
@@ -504,11 +537,13 @@ open class Nt4ClientService(
             
             for (idx in 0 until valueElement.size) {
                 val doubleValue = valueElement[idx].jsonPrimitive.doubleOrNull ?: 0.0
+                val stringValue = if (valueElement[idx].jsonPrimitive.isString) valueElement[idx].jsonPrimitive.content else null
                 val frame = TelemetryFrame(
                     timestampMs = timestampMs,
                     sessionId = sessionId,
                     key = "$normalizedName/$idx",
-                    value = doubleValue
+                    value = doubleValue,
+                    stringValue = stringValue
                 )
                 frames.add(frame)
                 if (!isReplayActive.value) {
@@ -520,7 +555,7 @@ open class Nt4ClientService(
             return
         }
 
-        // Extract double value
+        // Extract double value and string value
         val doubleValue = when {
             valueElement is JsonPrimitive && valueElement.isString -> {
                 valueElement.content.toDoubleOrNull() ?: 0.0
@@ -530,6 +565,12 @@ open class Nt4ClientService(
             }
             else -> 0.0
         }
+        
+        val stringValue = if (valueElement is JsonPrimitive && valueElement.isString) {
+            valueElement.content
+        } else {
+            null
+        }
 
         val session = _currentSession.value
         val sessionId = session?.sessionId ?: "live-telemetry"
@@ -538,284 +579,13 @@ open class Nt4ClientService(
             timestampMs = timestampMs,
             sessionId = sessionId,
             key = normalizedName,
-            value = doubleValue
+            value = doubleValue,
+            stringValue = stringValue
         )
 
         pendingFrames.add(frame)
         if (!isReplayActive.value) {
             _telemetryFlow.emit(frame)
-        }
-    }
-
-    private fun parseMsgPackValue(bytes: ByteArray, offset: Int, typeId: Int): Pair<JsonElement, Int> {
-        if (offset >= bytes.size) return Pair(JsonNull, 0)
-        val marker = bytes[offset].toInt() and 0xFF
-
-        // Boolean Type
-        if (typeId == 0) {
-            return when (marker) {
-                0xc2 -> Pair(JsonPrimitive(false), 1)
-                0xc3 -> Pair(JsonPrimitive(true), 1)
-                else -> Pair(JsonPrimitive(false), 1)
-            }
-        }
-
-        // Double Type
-        if (typeId == 1) {
-            if (marker == 0xcb && offset + 8 < bytes.size) {
-                val bits = readInt64(bytes, offset + 1)
-                val value = java.lang.Double.longBitsToDouble(bits)
-                return Pair(JsonPrimitive(value), 9)
-            }
-            return Pair(JsonPrimitive(0.0), 1)
-        }
-
-        // Integer Type (NT4 Type = 2)
-        if (typeId == 2) {
-            return when (marker) {
-                0xcc -> { // uint8
-                    if (offset + 1 < bytes.size) {
-                        val value = bytes[offset + 1].toInt() and 0xFF
-                        Pair(JsonPrimitive(value), 2)
-                    } else Pair(JsonPrimitive(0), 1)
-                }
-                0xcd -> { // uint16
-                    if (offset + 2 < bytes.size) {
-                        val bits = readInt16(bytes, offset + 1)
-                        Pair(JsonPrimitive(bits), 3)
-                    } else Pair(JsonPrimitive(0), 1)
-                }
-                0xce -> { // uint32
-                    if (offset + 4 < bytes.size) {
-                        val bits = readInt32(bytes, offset + 1)
-                        Pair(JsonPrimitive(bits.toLong() and 0xFFFFFFFFL), 5)
-                    } else Pair(JsonPrimitive(0), 1)
-                }
-                0xcf -> { // uint64
-                    if (offset + 8 < bytes.size) {
-                        val bits = readInt64(bytes, offset + 1)
-                        Pair(JsonPrimitive(bits), 9)
-                    } else Pair(JsonPrimitive(0), 1)
-                }
-                0xd0 -> { // int8
-                    if (offset + 1 < bytes.size) {
-                        val value = bytes[offset + 1].toInt()
-                        Pair(JsonPrimitive(value), 2)
-                    } else Pair(JsonPrimitive(0), 1)
-                }
-                0xd1 -> { // int16
-                    if (offset + 2 < bytes.size) {
-                        val bits = readInt16(bytes, offset + 1).toShort()
-                        Pair(JsonPrimitive(bits), 3)
-                    } else Pair(JsonPrimitive(0), 1)
-                }
-                0xd2 -> { // int32
-                    if (offset + 4 < bytes.size) {
-                        val bits = readInt32(bytes, offset + 1)
-                        Pair(JsonPrimitive(bits), 5)
-                    } else Pair(JsonPrimitive(0), 1)
-                }
-                0xd3 -> { // int64
-                    if (offset + 8 < bytes.size) {
-                        val bits = readInt64(bytes, offset + 1)
-                        Pair(JsonPrimitive(bits), 9)
-                    } else Pair(JsonPrimitive(0), 1)
-                }
-                else -> {
-                    if (marker in 0x00..0x7f) {
-                        Pair(JsonPrimitive(marker), 1)
-                    } else if (marker in 0xe0..0xff) {
-                        val value = (marker - 256)
-                        Pair(JsonPrimitive(value), 1)
-                    } else {
-                        Pair(JsonPrimitive(0), 1)
-                    }
-                }
-            }
-        }
-        
-        // Float Type (NT4 Type = 3)
-        if (typeId == 3) {
-            if (marker == 0xca && offset + 4 < bytes.size) {
-                val bits = readInt32(bytes, offset + 1)
-                val value = java.lang.Float.intBitsToFloat(bits).toDouble()
-                return Pair(JsonPrimitive(value), 5)
-            }
-            return Pair(JsonPrimitive(0.0), 1)
-        }
-
-        // String Type (NT4 Type = 4)
-        if (typeId == 4) {
-            val (len, headerSize) = getStringLengthAndHeader(marker, bytes, offset)
-            if (offset + headerSize + len <= bytes.size) {
-                val strValue = String(bytes, offset + headerSize, len, Charsets.UTF_8)
-                return Pair(JsonPrimitive(strValue), headerSize + len)
-            }
-            return Pair(JsonPrimitive(""), headerSize)
-        }
-
-        // Arrays (Boolean Array = 16, Double Array = 17, Integer Array = 18, Float Array = 19, String Array = 20)
-        if (typeId in 16..20) {
-            val (arrayLen, headerSize) = getArrayLengthAndHeader(marker, bytes, offset)
-            var currentOffset = offset + headerSize
-            val jsonArray = buildJsonArray {
-                for (i in 0 until arrayLen) {
-                    val elemTypeId = when (typeId) {
-                        16 -> 0 // boolean
-                        17 -> 1 // double
-                        18 -> 2 // integer
-                        19 -> 3 // float
-                        20 -> 4 // string
-                        else -> 1
-                    }
-                    val (elem, size) = parseMsgPackValue(bytes, currentOffset, elemTypeId)
-                    add(elem)
-                    currentOffset += size
-                }
-            }
-            return Pair(jsonArray, currentOffset - offset)
-        }
-
-        val size = getMsgPackValueLength(bytes, offset)
-        return Pair(JsonNull, size)
-    }
-
-    private fun readInt16(bytes: ByteArray, offset: Int): Int {
-        return (((bytes[offset].toInt() and 0xFF) shl 8) or
-                (bytes[offset + 1].toInt() and 0xFF))
-    }
-
-    private fun readInt32(bytes: ByteArray, offset: Int): Int {
-        return (((bytes[offset].toInt() and 0xFF) shl 24) or
-                ((bytes[offset + 1].toInt() and 0xFF) shl 16) or
-                ((bytes[offset + 2].toInt() and 0xFF) shl 8) or
-                (bytes[offset + 3].toInt() and 0xFF))
-    }
-
-    private fun readInt64(bytes: ByteArray, offset: Int): Long {
-        return (((bytes[offset].toLong() and 0xFF) shl 56) or
-                ((bytes[offset + 1].toLong() and 0xFF) shl 48) or
-                ((bytes[offset + 2].toLong() and 0xFF) shl 40) or
-                ((bytes[offset + 3].toLong() and 0xFF) shl 32) or
-                ((bytes[offset + 4].toLong() and 0xFF) shl 24) or
-                ((bytes[offset + 5].toLong() and 0xFF) shl 16) or
-                ((bytes[offset + 6].toLong() and 0xFF) shl 8) or
-                (bytes[offset + 7].toLong() and 0xFF))
-    }
-
-    private fun getStringLengthAndHeader(marker: Int, bytes: ByteArray, offset: Int): Pair<Int, Int> {
-        return when {
-            marker in 0xa0..0xbf -> Pair(marker - 0xa0, 1)
-            marker == 0xd9 -> {
-                if (offset + 1 < bytes.size) Pair(bytes[offset + 1].toInt() and 0xFF, 2)
-                else Pair(0, 2)
-            }
-            marker == 0xda -> {
-                if (offset + 2 < bytes.size) Pair(readInt16(bytes, offset + 1), 3)
-                else Pair(0, 3)
-            }
-            marker == 0xdb -> {
-                if (offset + 4 < bytes.size) Pair(readInt32(bytes, offset + 1), 5)
-                else Pair(0, 5)
-            }
-            else -> Pair(0, 1)
-        }
-    }
-
-    private fun getArrayLengthAndHeader(marker: Int, bytes: ByteArray, offset: Int): Pair<Int, Int> {
-        return when {
-            marker in 0x90..0x9f -> Pair(marker - 0x90, 1)
-            marker == 0xdc -> {
-                if (offset + 2 < bytes.size) Pair(readInt16(bytes, offset + 1), 3)
-                else Pair(0, 3)
-            }
-            marker == 0xdd -> {
-                if (offset + 4 < bytes.size) Pair(readInt32(bytes, offset + 1), 5)
-                else Pair(0, 5)
-            }
-            else -> Pair(0, 1)
-        }
-    }
-
-    private fun getMsgPackValueLength(bytes: ByteArray, offset: Int): Int {
-        if (offset >= bytes.size) return 0
-        val marker = bytes[offset].toInt() and 0xFF
-        return when {
-            marker in 0x00..0x7f || marker in 0xe0..0xff -> 1
-            marker in 0x80..0x8f -> {
-                val size = marker - 0x80
-                var len = 1
-                for (i in 0 until size * 2) {
-                    len += getMsgPackValueLength(bytes, offset + len)
-                }
-                len
-            }
-            marker in 0x90..0x9f -> {
-                val size = marker - 0x90
-                var len = 1
-                for (i in 0 until size) {
-                    len += getMsgPackValueLength(bytes, offset + len)
-                }
-                len
-            }
-            marker in 0xa0..0xbf -> 1 + (marker - 0xa0)
-            marker == 0xc0 || marker == 0xc2 || marker == 0xc3 -> 1
-            marker == 0xc4 || marker == 0xd9 -> {
-                if (offset + 1 < bytes.size) 2 + (bytes[offset + 1].toInt() and 0xFF) else 2
-            }
-            marker == 0xc5 || marker == 0xda -> {
-                if (offset + 2 < bytes.size) 3 + readInt16(bytes, offset + 1) else 3
-            }
-            marker == 0xc6 || marker == 0xdb -> {
-                if (offset + 4 < bytes.size) 5 + readInt32(bytes, offset + 1) else 5
-            }
-            marker == 0xca -> 5
-            marker == 0xcb -> 9
-            marker == 0xcc || marker == 0xd0 -> 2
-            marker == 0xcd || marker == 0xd1 -> 3
-            marker == 0xce || marker == 0xd2 -> 5
-            marker == 0xcf || marker == 0xd3 -> 9
-            marker == 0xdc -> {
-                if (offset + 2 < bytes.size) {
-                    val size = readInt16(bytes, offset + 1)
-                    var len = 3
-                    for (i in 0 until size) {
-                        len += getMsgPackValueLength(bytes, offset + len)
-                    }
-                    len
-                } else 3
-            }
-            marker == 0xdd -> {
-                if (offset + 4 < bytes.size) {
-                    val size = readInt32(bytes, offset + 1)
-                    var len = 5
-                    for (i in 0 until size) {
-                        len += getMsgPackValueLength(bytes, offset + len)
-                    }
-                    len
-                } else 5
-            }
-            marker == 0xde -> {
-                if (offset + 2 < bytes.size) {
-                    val size = readInt16(bytes, offset + 1)
-                    var len = 3
-                    for (i in 0 until size * 2) {
-                        len += getMsgPackValueLength(bytes, offset + len)
-                    }
-                    len
-                } else 3
-            }
-            marker == 0xdf -> {
-                if (offset + 4 < bytes.size) {
-                    val size = readInt32(bytes, offset + 1)
-                    var len = 5
-                    for (i in 0 until size * 2) {
-                        len += getMsgPackValueLength(bytes, offset + len)
-                    }
-                    len
-                } else 5
-            }
-            else -> 1
         }
     }
 }

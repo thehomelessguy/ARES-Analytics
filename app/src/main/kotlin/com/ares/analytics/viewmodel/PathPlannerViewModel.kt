@@ -17,6 +17,7 @@ import java.io.File
 
 data class PathPlannerState(
     val pathName: String = "autonomous_route",
+    val availablePaths: List<String> = emptyList(),
     val saveStatus: String = "",
     val waypoints: List<Waypoint> = listOf(
         Waypoint(-1.2, -1.2, 0.0),
@@ -34,12 +35,15 @@ data class PathPlannerState(
     val useDefaultConstraints: Boolean = true,
     val estimatedDuration: Double = 0.0,
     val selectedWaypointIndex: Int? = null,
-    val toolMode: String = "Select"
+    val toolMode: String = "Select",
+    val viewRotation: Float = 0f
 )
 
 sealed class PathPlannerIntent {
     data class LoadPath(val projectPath: String?, val league: League) : PathPlannerIntent()
+    data class FetchAvailablePaths(val projectPath: String?, val league: League) : PathPlannerIntent()
     data class SavePath(val projectPath: String?, val league: League) : PathPlannerIntent()
+    data class CreateNewPath(val name: String = "new_path") : PathPlannerIntent()
     data class UpdatePathName(val name: String) : PathPlannerIntent()
     data class UpdateWaypoints(val newWaypoints: List<Waypoint>) : PathPlannerIntent()
     data class UpdateWaypoint(val index: Int, val waypoint: Waypoint) : PathPlannerIntent()
@@ -52,6 +56,7 @@ sealed class PathPlannerIntent {
     data class UpdateEndState(val state: GoalEndState) : PathPlannerIntent()
     data class UpdateReversed(val reversed: Boolean) : PathPlannerIntent()
     data class UpdateUseDefaultConstraints(val useDefault: Boolean) : PathPlannerIntent()
+    data class UpdateViewRotation(val viewRotation: Float) : PathPlannerIntent()
     
     // Event Markers
     data class AddEventMarker(val marker: PathPlannerEventMarker) : PathPlannerIntent()
@@ -103,7 +108,12 @@ class PathPlannerViewModel(
                     if (!projectPath.isNullOrEmpty()) {
                         withContext(Dispatchers.IO) {
                             try {
-                                val relativeDir = if (league == League.FTC) "src/main/assets/pathplanner/paths" else "src/main/deploy/pathplanner/paths"
+                                val relativeDir = if (league == League.FTC) {
+                                    if (File(projectPath, "TeamCode/src/main/assets").exists()) "TeamCode/src/main/assets/pathplanner/paths"
+                                    else "src/main/assets/pathplanner/paths"
+                                } else {
+                                    "src/main/deploy/pathplanner/paths"
+                                }
                                 val targetDir = File(projectPath, relativeDir)
                                 val file = File(targetDir, "$pathName.path")
                                 if (file.exists()) {
@@ -144,6 +154,40 @@ class PathPlannerViewModel(
                                 }
                             } catch (e: Exception) {
                                 _state.update { it.copy(saveStatus = "Load failed: ${e.message}") }
+                            }
+                        }
+                    }
+                }
+                is PathPlannerIntent.CreateNewPath -> {
+                    _state.update { 
+                        PathPlannerState(
+                            pathName = intent.name,
+                            availablePaths = it.availablePaths,
+                            saveStatus = "New path initialized"
+                        ) 
+                    }
+                    recalculateDuration()
+                }
+                is PathPlannerIntent.FetchAvailablePaths -> {
+                    val projectPath = intent.projectPath
+                    val league = intent.league
+                    if (!projectPath.isNullOrEmpty()) {
+                        withContext(Dispatchers.IO) {
+                            try {
+                                val relativeDir = if (league == League.FTC) {
+                                    if (File(projectPath, "TeamCode/src/main/assets").exists()) "TeamCode/src/main/assets/pathplanner/paths"
+                                    else "src/main/assets/pathplanner/paths"
+                                } else {
+                                    "src/main/deploy/pathplanner/paths"
+                                }
+                                val targetDir = File(projectPath, relativeDir)
+                                if (targetDir.exists() && targetDir.isDirectory) {
+                                    val files = targetDir.listFiles { _, name -> name.endsWith(".path") }
+                                    val paths = files?.map { it.nameWithoutExtension }?.sorted() ?: emptyList()
+                                    _state.update { it.copy(availablePaths = paths) }
+                                }
+                            } catch (e: Exception) {
+                                // Ignore failure to fetch paths
                             }
                         }
                     }
@@ -190,7 +234,12 @@ class PathPlannerViewModel(
                                 val json = Json { prettyPrint = true }
                                 val serialized = json.encodeToString(pathFile)
 
-                                val relativeDir = if (league == League.FTC) "src/main/assets/pathplanner/paths" else "src/main/deploy/pathplanner/paths"
+                                val relativeDir = if (league == League.FTC) {
+                                    if (File(projectPath, "TeamCode/src/main/assets").exists()) "TeamCode/src/main/assets/pathplanner/paths"
+                                    else "src/main/assets/pathplanner/paths"
+                                } else {
+                                    "src/main/deploy/pathplanner/paths"
+                                }
                                 val targetDir = File(projectPath, relativeDir)
                                 targetDir.mkdirs()
                                 val targetFile = File(targetDir, "${s.pathName}.path")
@@ -312,6 +361,9 @@ class PathPlannerViewModel(
                 }
                 is PathPlannerIntent.UpdateUseDefaultConstraints -> {
                     _state.update { it.copy(useDefaultConstraints = intent.useDefault) }
+                }
+                is PathPlannerIntent.UpdateViewRotation -> {
+                    _state.update { it.copy(viewRotation = intent.viewRotation) }
                 }
                 
                 // Event Markers

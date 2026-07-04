@@ -39,7 +39,11 @@ class ReplayEngineService(private val databaseService: DatabaseService) {
     val progress: StateFlow<Double> = _progress.asStateFlow()
 
     // Replay telemetry flow — emits individual TelemetryFrame objects for dashboard widget consumption
-    private val _replayTelemetryFlow = MutableSharedFlow<TelemetryFrame>(replay = 100, extraBufferCapacity = 500)
+    private val _replayTelemetryFlow = MutableSharedFlow<TelemetryFrame>(
+        replay = 100,
+        extraBufferCapacity = 65536,
+        onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST
+    )
     val replayTelemetryFlow: SharedFlow<TelemetryFrame> = _replayTelemetryFlow.asSharedFlow()
 
     private var replayJob: Job? = null
@@ -153,6 +157,8 @@ class ReplayEngineService(private val databaseService: DatabaseService) {
         updateFrameAtPlayhead()
     }
 
+    private var emitJob: Job? = null
+
     private fun updateFrameAtPlayhead() {
         if (timestamps.isEmpty()) return
 
@@ -183,15 +189,18 @@ class ReplayEngineService(private val databaseService: DatabaseService) {
 
         // 3. Emit individual TelemetryFrame objects for dashboard widget consumption
         val sessionId = "replay"
-        for ((key, value) in valuesMap) {
-            val normalizedKey = key.removePrefix("/")
-            val telemetryFrame = TelemetryFrame(
-                timestampMs = targetTimestamp,
-                sessionId = sessionId,
-                key = normalizedKey,
-                value = value
-            )
-            _replayTelemetryFlow.tryEmit(telemetryFrame)
+        emitJob?.cancel()
+        emitJob = CoroutineScope(Dispatchers.Default).launch {
+            for ((key, value) in valuesMap) {
+                val normalizedKey = key.removePrefix("/")
+                val telemetryFrame = TelemetryFrame(
+                    timestampMs = targetTimestamp,
+                    sessionId = sessionId,
+                    key = normalizedKey,
+                    value = value
+                )
+                _replayTelemetryFlow.emit(telemetryFrame)
+            }
         }
 
         // 4. Re-broadcast via UDP loopback for AdvantageScope / telemetry viewer compatibility

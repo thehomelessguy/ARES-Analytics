@@ -50,16 +50,21 @@ class TeamApiService(
 
     suspend fun addRobotProfile(teamId: String, robot: RobotProfile, authToken: String? = null): Boolean = withContext(Dispatchers.IO) {
         val token = getActiveToken(authToken)
-        try {
-            val response = httpClient.post("$gatewayUrl/api/team/robots/add") {
+        val response = try {
+            httpClient.post("$gatewayUrl/api/team/robots/add") {
                 contentType(ContentType.Application.Json)
                 header(HttpHeaders.Authorization, "Bearer $token")
                 setBody(AddRobotRequest(teamId, robot))
             }
-            response.status == HttpStatusCode.OK
         } catch (e: Exception) {
             e.printStackTrace()
-            false
+            throw Exception("Network error connecting to backend.", e)
+        }
+        
+        when (response.status) {
+            HttpStatusCode.OK -> return@withContext true
+            HttpStatusCode.Forbidden -> throw SecurityException(response.bodyAsText())
+            else -> throw Exception("Server returned ${response.status}: ${response.bodyAsText()}")
         }
     }
 

@@ -23,12 +23,16 @@ fun FieldViewerCard(
     nt4ClientService: Nt4ClientService,
     league: League,
     projectPath: String? = null,
+    properties: Map<String, String> = emptyMap(),
+    onPropertiesChanged: (Map<String, String>) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val scope = rememberCoroutineScope()
     var robotX by remember { mutableStateOf(0.0) }
     var robotY by remember { mutableStateOf(0.0) }
     var robotHeading by remember { mutableStateOf(0.0) }
+
+    val poseHistory = remember { mutableStateListOf<Waypoint>() }
 
     var ekfX by remember { mutableStateOf<Double?>(null) }
     var ekfY by remember { mutableStateOf<Double?>(null) }
@@ -74,8 +78,20 @@ fun FieldViewerCard(
         }
     }
 
-    val currentPose = listOf(Waypoint(robotX, robotY, robotHeading))
-    
+    LaunchedEffect(robotX, robotY, robotHeading) {
+        if (robotX != 0.0 || robotY != 0.0) {
+            val newWp = Waypoint(robotX, robotY, robotHeading)
+            val lastWp = poseHistory.lastOrNull()
+            if (lastWp == null || kotlin.math.abs(lastWp.x - newWp.x) > 0.01 || kotlin.math.abs(lastWp.y - newWp.y) > 0.01) {
+                poseHistory.add(newWp)
+                // Limit history to prevent excessive memory usage
+                if (poseHistory.size > 2000) {
+                    poseHistory.removeRange(0, 500)
+                }
+            }
+        }
+    }
+
     val estimatedPose = if (ekfX != null && ekfY != null && ekfHeading != null) {
         Waypoint(ekfX!!, ekfY!!, ekfHeading!!)
     } else null
@@ -139,13 +155,15 @@ fun FieldViewerCard(
                 FieldCanvas(
                     league = league,
                     waypoints = emptyList(),
-                    actualPath = currentPose,
+                    actualPath = poseHistory,
                     onWaypointsChanged = {},
                     projectPath = projectPath,
                     estimatedPose = estimatedPose,
                     visionPoses = activeVisionPoses,
                     showPathControls = false,
                     showObstacleControls = false,
+                    initialViewRotation = properties["rotation"]?.toFloatOrNull() ?: 0f,
+                    onViewRotationChanged = { newRot -> onPropertiesChanged(properties + ("rotation" to newRot.toString())) },
                     modifier = Modifier.fillMaxSize()
                 )
             }

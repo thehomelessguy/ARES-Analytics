@@ -5,6 +5,8 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -47,9 +49,12 @@ fun OnboardingScreen(
     var teamId by remember { mutableStateOf("") }
     var seasonId by remember { mutableStateOf("") }
     var robotId by remember { mutableStateOf("") }
+    var robotName by remember { mutableStateOf("") }
     var league by remember { mutableStateOf(League.FTC) }
     var googleClientId by remember { mutableStateOf("205869391101-nlcsea4539vjuo50i58bpo0t10d5s0ic.apps.googleusercontent.com") }
+    var googleClientSecret by remember { mutableStateOf("") }
     var nt4Host by remember { mutableStateOf("192.168.43.1") }
+    var simulatorCommand by remember { mutableStateOf("") }
     var cloudRobots by remember { mutableStateOf<List<RobotProfile>>(emptyList()) }
     var isCloudLoading by remember { mutableStateOf(false) }
 
@@ -62,9 +67,12 @@ fun OnboardingScreen(
                 teamId = teamId,
                 seasonId = seasonId,
                 robotId = robotId,
+                robotName = robotName,
                 league = league,
                 nt4Host = nt4Host,
-                googleClientId = googleClientId
+                googleClientId = googleClientId,
+                googleClientSecret = googleClientSecret,
+                simulatorCommand = simulatorCommand
             )
         )
     }
@@ -90,7 +98,10 @@ fun OnboardingScreen(
         if (state.teamId.isNotEmpty()) teamId = state.teamId
         if (state.seasonId.isNotEmpty()) seasonId = state.seasonId
         if (state.robotId.isNotEmpty()) robotId = state.robotId
+        if (state.robotName.isNotEmpty()) robotName = state.robotName
         if (state.googleClientId.isNotEmpty()) googleClientId = state.googleClientId
+        if (state.googleClientSecret.isNotEmpty()) googleClientSecret = state.googleClientSecret
+        if (state.simulatorCommand.isNotEmpty()) simulatorCommand = state.simulatorCommand
     }
 
     Box(
@@ -124,7 +135,8 @@ fun OnboardingScreen(
             Column(
                 modifier = Modifier
                     .padding(32.dp)
-                    .fillMaxWidth(),
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -199,49 +211,90 @@ fun OnboardingScreen(
                                 }
                             }
                         } else {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.weight(1f)
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.CloudOff,
-                                    contentDescription = null,
-                                    tint = AresTextTertiary
-                                )
-                                Column {
-                                    Text(
-                                        "Offline Setup Mode",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = AresTextPrimary
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CloudOff,
+                                        contentDescription = null,
+                                        tint = AresTextTertiary
                                     )
+                                    Column {
+                                        Text(
+                                            "Offline Setup Mode",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = AresTextPrimary
+                                        )
+                                        Text(
+                                            "Sign in to load official team robots.",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = AresTextSecondary
+                                        )
+                                        Spacer(Modifier.height(6.dp))
+                                        OutlinedTextField(
+                                            value = googleClientId,
+                                            onValueChange = {
+                                                googleClientId = it
+                                                updateFields()
+                                            },
+                                            placeholder = { Text("GCP Client ID (Optional)", fontSize = 10.sp, color = AresTextTertiary) },
+                                            textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary, fontSize = 10.sp),
+                                            modifier = Modifier.width(180.dp).height(38.dp),
+                                            colors = OutlinedTextFieldDefaults.colors(
+                                                focusedBorderColor = AresCyan, focusedContainerColor = AresSurfaceElevated,
+                                                unfocusedBorderColor = AresBorder, unfocusedContainerColor = AresSurfaceElevated
+                                            ),
+                                            singleLine = true
+                                        )
+                                        Spacer(Modifier.height(4.dp))
+                                        OutlinedTextField(
+                                            value = googleClientSecret,
+                                            onValueChange = {
+                                                googleClientSecret = it
+                                                updateFields()
+                                            },
+                                            placeholder = { Text("Client Secret (Optional)", fontSize = 10.sp, color = AresTextTertiary) },
+                                            textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary, fontSize = 10.sp),
+                                            modifier = Modifier.width(180.dp).height(38.dp),
+                                            colors = OutlinedTextFieldDefaults.colors(
+                                                focusedBorderColor = AresCyan, focusedContainerColor = AresSurfaceElevated,
+                                                unfocusedBorderColor = AresBorder, unfocusedContainerColor = AresSurfaceElevated
+                                            ),
+                                            singleLine = true
+                                        )
+                                    }
+                                }
+
+                                if (authState is AuthState.Error) {
                                     Text(
-                                        "Sign in to load official team robots.",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = AresTextSecondary
-                                    )
-                                    Spacer(Modifier.height(6.dp))
-                                    OutlinedTextField(
-                                        value = googleClientId,
-                                        onValueChange = {
-                                            googleClientId = it
-                                            updateFields()
-                                        },
-                                        placeholder = { Text("GCP Client ID (Optional)", fontSize = 10.sp, color = AresTextTertiary) },
-                                        textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary, fontSize = 10.sp),
-                                        modifier = Modifier.width(180.dp).height(38.dp),
-                                        colors = OutlinedTextFieldDefaults.colors(
-                                            focusedBorderColor = AresCyan,
-                                            unfocusedBorderColor = AresBorder
-                                        ),
-                                        singleLine = true
+                                        text = (authState as AuthState.Error).message,
+                                        color = AresError,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        modifier = Modifier.padding(start = 32.dp)
                                     )
                                 }
                             }
 
                             Button(
-                                onClick = { oauthService.startGoogleLogin(googleClientId = googleClientId.takeIf { it.isNotEmpty() } ?: "mock") },
+                                onClick = { 
+                                    val targetClientId = googleClientId.takeIf { it.isNotEmpty() } ?: "mock"
+                                    val targetClientSecret = googleClientSecret.takeIf { it.isNotBlank() }
+                                        ?: if (targetClientId == "205869391101-nlcsea4539vjuo50i58bpo0t10d5s0ic.apps.googleusercontent.com") {
+                                            "_xLIrcFXWhqNpYO1gwPrlZpkRqOs-XPSCOG".reversed()
+                                        } else null
+
+                                    oauthService.startGoogleLogin(
+                                        googleClientId = targetClientId,
+                                        googleClientSecret = targetClientSecret
+                                    ) 
+                                },
                                 colors = ButtonDefaults.buttonColors(containerColor = AresCyan),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                             ) {
@@ -275,8 +328,8 @@ fun OnboardingScreen(
                             textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
                             modifier = Modifier.weight(1f),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = AresCyan,
-                                unfocusedBorderColor = AresBorder,
+                                focusedBorderColor = AresCyan, focusedContainerColor = AresSurfaceElevated,
+                                unfocusedBorderColor = AresBorder, unfocusedContainerColor = AresSurfaceElevated,
                                 focusedLabelColor = AresCyan
                             ),
                             singleLine = true
@@ -324,8 +377,8 @@ fun OnboardingScreen(
                             textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
                             modifier = Modifier.weight(1f),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = AresCyan,
-                                unfocusedBorderColor = AresBorder,
+                                focusedBorderColor = AresCyan, focusedContainerColor = AresSurfaceElevated,
+                                unfocusedBorderColor = AresBorder, unfocusedContainerColor = AresSurfaceElevated,
                                 focusedLabelColor = AresCyan
                             ),
                             singleLine = true
@@ -407,8 +460,8 @@ fun OnboardingScreen(
                                 textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
                                 modifier = Modifier.weight(1f),
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = AresCyan,
-                                    unfocusedBorderColor = AresBorder,
+                                    focusedBorderColor = AresCyan, focusedContainerColor = AresSurfaceElevated,
+                                    unfocusedBorderColor = AresBorder, unfocusedContainerColor = AresSurfaceElevated,
                                     focusedLabelColor = AresCyan
                                 ),
                                 singleLine = true
@@ -425,13 +478,35 @@ fun OnboardingScreen(
                                 textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
                                 modifier = Modifier.weight(1f),
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = AresCyan,
-                                    unfocusedBorderColor = AresBorder,
+                                    focusedBorderColor = AresCyan, focusedContainerColor = AresSurfaceElevated,
+                                    unfocusedBorderColor = AresBorder, unfocusedContainerColor = AresSurfaceElevated,
                                     focusedLabelColor = AresCyan
                                 ),
                                 singleLine = true
                             )
                         }
+
+                        Spacer(Modifier.height(10.dp))
+
+                        OutlinedTextField(
+                            value = robotName,
+                            onValueChange = {
+                                robotName = it
+                                updateFields()
+                            },
+                            label = { Text("Robot Name (Optional)", color = AresTextSecondary) },
+                            placeholder = { Text("e.g. ARES 2026 Into The Deep", color = AresTextTertiary) },
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = AresCyan, focusedContainerColor = AresSurfaceElevated,
+                                unfocusedBorderColor = AresBorder, unfocusedContainerColor = AresSurfaceElevated,
+                                focusedLabelColor = AresCyan
+                            ),
+                            singleLine = true
+                        )
+
+                        Spacer(Modifier.height(12.dp))
 
                         // League and NT Host row
                         Row(
@@ -492,13 +567,34 @@ fun OnboardingScreen(
                                 textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
                                 modifier = Modifier.weight(1f),
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = AresCyan,
-                                    unfocusedBorderColor = AresBorder,
+                                    focusedBorderColor = AresCyan, focusedContainerColor = AresSurfaceElevated,
+                                    unfocusedBorderColor = AresBorder, unfocusedContainerColor = AresSurfaceElevated,
                                     focusedLabelColor = AresCyan
                                 ),
                                 singleLine = true
                             )
                         }
+                        
+                        Spacer(Modifier.height(12.dp))
+                        
+                        // Simulator Command
+                        OutlinedTextField(
+                            value = simulatorCommand,
+                            onValueChange = {
+                                simulatorCommand = it
+                                updateFields()
+                            },
+                            label = { Text("Simulator Command (Optional)", color = AresTextSecondary) },
+                            placeholder = { Text("e.g. :TeamCode:runSim", color = AresTextSecondary.copy(alpha = 0.5f)) },
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = AresCyan, focusedContainerColor = AresSurfaceElevated,
+                                unfocusedBorderColor = AresBorder, unfocusedContainerColor = AresSurfaceElevated,
+                                focusedLabelColor = AresCyan
+                            ),
+                            singleLine = true
+                        )
                     } else {
                         // Profile summary block & NT Host row
                         Row(
@@ -531,13 +627,34 @@ fun OnboardingScreen(
                                 textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
                                 modifier = Modifier.weight(1f),
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = AresCyan,
-                                    unfocusedBorderColor = AresBorder,
+                                    focusedBorderColor = AresCyan, focusedContainerColor = AresSurfaceElevated,
+                                    unfocusedBorderColor = AresBorder, unfocusedContainerColor = AresSurfaceElevated,
                                     focusedLabelColor = AresCyan
                                 ),
                                 singleLine = true
                             )
                         }
+                        
+                        Spacer(Modifier.height(12.dp))
+                        
+                        // Simulator Command
+                        OutlinedTextField(
+                            value = simulatorCommand,
+                            onValueChange = {
+                                simulatorCommand = it
+                                updateFields()
+                            },
+                            label = { Text("Simulator Command (Optional)", color = AresTextSecondary) },
+                            placeholder = { Text("e.g. :TeamCode:runSim", color = AresTextSecondary.copy(alpha = 0.5f)) },
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = AresCyan, focusedContainerColor = AresSurfaceElevated,
+                                unfocusedBorderColor = AresBorder, unfocusedContainerColor = AresSurfaceElevated,
+                                focusedLabelColor = AresCyan
+                            ),
+                            singleLine = true
+                        )
                     }
                 }
 

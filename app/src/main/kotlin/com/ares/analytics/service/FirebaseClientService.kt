@@ -11,7 +11,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import java.io.File
 
 @Serializable
 data class FirebaseSignInResponse(
@@ -21,6 +26,24 @@ data class FirebaseSignInResponse(
     val localId: String,
     val displayName: String? = null,
     val email: String? = null
+)
+
+@Serializable
+data class FirebaseTokenRefreshResponse(
+    val expires_in: String,
+    val token_type: String,
+    val refresh_token: String,
+    val id_token: String,
+    val user_id: String,
+    val project_id: String
+)
+
+@Serializable
+data class SavedAuth(
+    val refreshToken: String,
+    val uid: String,
+    val email: String,
+    val displayName: String
 )
 
 sealed class FirebaseAuthState {
@@ -53,6 +76,61 @@ class FirebaseClientService {
 
     fun isDevMode(): Boolean {
         return apiKey.isEmpty() || apiKey == "mock" || System.getenv("DEV_MODE") == "true"
+    }
+
+    private val authFile = File(System.getProperty("user.home"), ".ares-analytics/auth.json")
+
+    init {
+        CoroutineScope(Dispatchers.IO).launch {
+            loadPersistedAuth()
+        }
+    }
+
+    private suspend fun loadPersistedAuth() {
+        if (!authFile.exists()) return
+        try {
+            val jsonStr = authFile.readText()
+            val savedAuth = Json { ignoreUnknownKeys = true }.decodeFromString<SavedAuth>(jsonStr)
+            refreshFirebaseToken(savedAuth)
+        } catch (e: Exception) {
+            println("Failed to load persisted auth: ${e.message}")
+            authFile.delete()
+        }
+    }
+
+    private suspend fun refreshFirebaseToken(savedAuth: SavedAuth) {
+        _authState.value = FirebaseAuthState.Authenticating
+        try {
+            val url = "https://securetoken.googleapis.com/v1/token?key=$apiKey"
+            val response = httpClient.post(url) {
+                contentType(ContentType.Application.Json)
+                setBody(buildJsonObject {
+                    put("grant_type", "refresh_token")
+                    put("refresh_token", savedAuth.refreshToken)
+                })
+            }
+            if (response.status == HttpStatusCode.OK) {
+                val data = response.body<FirebaseTokenRefreshResponse>()
+                
+                // Update file with the potential new refresh token
+                val newSavedAuth = savedAuth.copy(refreshToken = data.refresh_token)
+                authFile.writeText(Json.encodeToString(newSavedAuth))
+                
+                _authState.value = FirebaseAuthState.Authenticated(
+                    firebaseToken = data.id_token,
+                    uid = newSavedAuth.uid,
+                    email = newSavedAuth.email,
+                    displayName = newSavedAuth.displayName
+                )
+            } else {
+                println("Failed to refresh token: ${response.bodyAsText()}")
+                _authState.value = FirebaseAuthState.Unauthenticated
+                authFile.delete()
+            }
+        } catch (e: Exception) {
+            println("Network error during token refresh: ${e.message}")
+            _authState.value = FirebaseAuthState.Unauthenticated
+        }
     }
 
     suspend fun signInWithGoogleToken(googleIdToken: String, email: String, name: String) {
@@ -93,6 +171,19 @@ class FirebaseClientService {
                     email = data.email ?: email,
                     displayName = data.displayName ?: name
                 )
+                
+                try {
+                    val savedAuth = SavedAuth(
+                        refreshToken = data.refreshToken,
+                        uid = data.localId,
+                        email = data.email ?: email,
+                        displayName = data.displayName ?: name
+                    )
+                    authFile.parentFile?.mkdirs()
+                    authFile.writeText(Json.encodeToString(savedAuth))
+                } catch (e: Exception) {
+                    println("Failed to persist auth data: ${e.message}")
+                }
             } else {
                 val body = response.bodyAsText()
                 _authState.value = FirebaseAuthState.Error("Firebase Sign-In failed (${response.status}): $body")
@@ -111,6 +202,9 @@ class FirebaseClientService {
 
     fun logout() {
         _authState.value = FirebaseAuthState.Unauthenticated
+        if (authFile.exists()) {
+            authFile.delete()
+        }
     }
 
     fun getFirebaseToken(): String? {

@@ -136,10 +136,10 @@ fun Route.archiveRoutes(
 }
 
 private suspend fun isUserAdmin(db: Firestore, uid: String): Boolean {
-    val userDoc = db.collection("users").document(uid).get().get()
+    val userDoc = db.collection("authorized_users").document(uid).get().get()
     if (!userDoc.exists()) return false
-    val role = userDoc.getString("role")
-    return role == "ADMIN"
+    val role = userDoc.getString("role")?.lowercase()
+    return role == "admin" || role == "coach"
 }
 
 // ────────────────────────────────────────────────────────────────────────────

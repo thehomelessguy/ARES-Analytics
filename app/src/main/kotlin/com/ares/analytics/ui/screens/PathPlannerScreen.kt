@@ -25,6 +25,7 @@ import com.ares.analytics.ui.theme.*
 import com.ares.analytics.viewmodel.PathPlannerIntent
 import com.ares.analytics.viewmodel.PathPlannerViewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PathPlannerScreen(
     viewModel: PathPlannerViewModel,
@@ -35,6 +36,10 @@ fun PathPlannerScreen(
 
     LaunchedEffect(state.pathName, projectPath) {
         viewModel.onIntent(PathPlannerIntent.LoadPath(projectPath, league))
+    }
+
+    LaunchedEffect(projectPath, state.saveStatus) {
+        viewModel.onIntent(PathPlannerIntent.FetchAvailablePaths(projectPath, league))
     }
 
     Row(
@@ -76,22 +81,52 @@ fun PathPlannerScreen(
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Path Name", fontSize = 11.sp, color = AresTextSecondary, fontWeight = FontWeight.Bold)
-                        OutlinedTextField(
-                            value = state.pathName,
-                            onValueChange = { viewModel.onIntent(PathPlannerIntent.UpdatePathName(it)) },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
-                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder)
-                        )
+                        var expanded by remember { mutableStateOf(false) }
+                        ExposedDropdownMenuBox(
+                            expanded = expanded,
+                            onExpandedChange = { expanded = !expanded }
+                        ) {
+                            OutlinedTextField(
+                                value = state.pathName,
+                                onValueChange = { viewModel.onIntent(PathPlannerIntent.UpdatePathName(it)) },
+                                modifier = Modifier.fillMaxWidth().menuAnchor(),
+                                singleLine = true,
+                                textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
+                                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder),
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) }
+                            )
+                            ExposedDropdownMenu(
+                                expanded = expanded,
+                                onDismissRequest = { expanded = false }
+                            ) {
+                                state.availablePaths.forEach { p ->
+                                    DropdownMenuItem(
+                                        text = { Text(p) },
+                                        onClick = {
+                                            viewModel.onIntent(PathPlannerIntent.UpdatePathName(p))
+                                            viewModel.onIntent(PathPlannerIntent.LoadPath(projectPath, league))
+                                            expanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Button(
+                                onClick = { viewModel.onIntent(PathPlannerIntent.CreateNewPath()) },
+                                colors = ButtonDefaults.buttonColors(containerColor = AresSurface, contentColor = AresTextPrimary),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, AresBorder),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("New Path", fontWeight = FontWeight.Bold)
+                            }
+                            Button(
                                 onClick = { viewModel.onIntent(PathPlannerIntent.SavePath(projectPath, league)) },
                                 colors = ButtonDefaults.buttonColors(containerColor = AresCyan),
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.weight(1f)
                             ) {
                                 Text("Save Path", color = AresBackground, fontWeight = FontWeight.Bold)
                             }
@@ -465,9 +500,15 @@ fun PathPlannerScreen(
                 projectPath = projectPath,
                 showPathControls = false,
                 showObstacleControls = false,
+                aprilTags = null,
+                onAprilTagsChanged = null,
                 eventMarkers = state.eventMarkers,
                 onEventMarkersChanged = {
                     viewModel.onIntent(PathPlannerIntent.UpdateEventMarkers(it))
+                },
+                initialViewRotation = state.viewRotation,
+                onViewRotationChanged = { newRot ->
+                    viewModel.onIntent(PathPlannerIntent.UpdateViewRotation(newRot))
                 },
                 rotationTargets = state.rotationTargets,
                 constraintZones = state.constraintZones,

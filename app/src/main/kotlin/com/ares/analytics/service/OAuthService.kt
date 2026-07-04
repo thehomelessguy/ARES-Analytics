@@ -23,6 +23,24 @@ import kotlinx.serialization.json.Json
 import java.awt.Desktop
 import java.net.URI
 import java.net.URLEncoder
+import java.security.MessageDigest
+import java.security.SecureRandom
+import java.util.Base64
+
+fun generateCodeVerifier(): String {
+    val secureRandom = SecureRandom()
+    val codeVerifier = ByteArray(32)
+    secureRandom.nextBytes(codeVerifier)
+    return Base64.getUrlEncoder().withoutPadding().encodeToString(codeVerifier)
+}
+
+fun generateCodeChallenge(codeVerifier: String): String {
+    val bytes = codeVerifier.toByteArray(Charsets.US_ASCII)
+    val messageDigest = MessageDigest.getInstance("SHA-256")
+    messageDigest.update(bytes, 0, bytes.size)
+    val digest = messageDigest.digest()
+    return Base64.getUrlEncoder().withoutPadding().encodeToString(digest)
+}
 
 sealed class AuthState {
     object Unauthenticated : AuthState()
@@ -108,13 +126,18 @@ class OAuthService(
             return
         }
 
+        val codeVerifier = generateCodeVerifier()
+        val codeChallenge = generateCodeChallenge(codeVerifier)
+
         val callbackPort = 5805
         val redirectUri = "http://localhost:$callbackPort/callback"
         val loginUrl = "https://accounts.google.com/o/oauth2/v2/auth?" +
                 "client_id=$googleClientId" +
                 "&redirect_uri=${URLEncoder.encode(redirectUri, "UTF-8")}" +
                 "&response_type=code" +
-                "&scope=${URLEncoder.encode("openid email profile", "UTF-8")}"
+                "&scope=${URLEncoder.encode("openid email profile", "UTF-8")}" +
+                "&code_challenge=$codeChallenge" +
+                "&code_challenge_method=S256"
 
         bootCallbackServer(callbackPort) { code ->
             try {
@@ -122,7 +145,8 @@ class OAuthService(
                     "code" to code,
                     "client_id" to (googleClientId ?: ""),
                     "redirect_uri" to redirectUri,
-                    "grant_type" to "authorization_code"
+                    "grant_type" to "authorization_code",
+                    "code_verifier" to codeVerifier
                 )
                 if (!googleClientSecret.isNullOrBlank()) {
                     bodyParams.add("client_secret" to googleClientSecret)

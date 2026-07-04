@@ -22,7 +22,9 @@ class ServiceRegistry {
     val environmentService by lazy { EnvironmentService() }
     val firebaseClientService by lazy { FirebaseClientService() }
     val processManagerService by lazy { ProcessManagerService() }
+    val targetScannerService by lazy { TargetScannerService() }
     val constantsParserService by lazy { ConstantsParserService() }
+    val keybindingParserService by lazy { KeybindingParserService() }
     val simulationService by lazy { SimulationService() }
     val eventApiService by lazy { EventApiService() }
     val layoutPreferenceService by lazy { LayoutPreferenceService() }
@@ -43,8 +45,8 @@ class ServiceRegistry {
     val alertEngineService by lazy { AlertEngineService(databaseService, nt4ClientService) }
     val hootDecoderService by lazy { HootDecoderService(databaseService, summaryEngineService, sysIdService) }
     val driverAnalysisService by lazy { DriverAnalysisService(databaseService, sysIdService) }
-    val syncEngineService by lazy { SyncEngineService(databaseService, parquetExporterService, firebaseClientService) }
     val teamApiService by lazy { TeamApiService(firebaseClientService) }
+    val syncEngineService by lazy { SyncEngineService(databaseService, parquetExporterService, firebaseClientService, environmentService, teamApiService) }
     val phoenixDiagnosticsService by lazy { PhoenixDiagnosticsService(nt4ClientService) }
     val ftcDashboardService by lazy { FtcDashboardService(nt4ClientService) }
 
@@ -55,6 +57,9 @@ class ServiceRegistry {
     fun dispose() {
         if (lazyFieldInitialized(::updateCheckerService)) {
             updateCheckerService.dispose()
+        }
+        if (lazyFieldInitialized(::targetScannerService)) {
+            targetScannerService.stopScanning()
         }
         // Nt4ClientService.stop() cancels the WebSocket client job
         if (lazyFieldInitialized(::nt4ClientService)) {

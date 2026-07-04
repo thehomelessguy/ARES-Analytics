@@ -57,11 +57,9 @@ fun DashboardScreen(
     }
 
     // Bridge replay telemetry flow into the same nt4ClientService.telemetryFlow
-    LaunchedEffect(state.primarySessionId) {
-        if (state.primarySessionId != null) {
-            replayEngine.replayTelemetryFlow.collect { frame ->
-                services.nt4ClientService.emitReplayFrame(frame)
-            }
+    LaunchedEffect(Unit) {
+        replayEngine.replayTelemetryFlow.collect { frame ->
+            services.nt4ClientService.emitReplayFrame(frame)
         }
     }
 
@@ -195,13 +193,14 @@ fun DashboardScreen(
             }
         }
 
-        // Row 1: Live telemetry bar
-        LiveTelemetryBar(services.nt4ClientService)
 
         // Configurable widgets area
         val layout = state.currentLayout
         if (layout != null) {
             val builders = mapOf<String, @Composable (WidgetConfig, Modifier) -> Unit>(
+                "driver_station" to { _, mod ->
+                    FtcDriverStationWidget(nt4Client = services.nt4ClientService, modifier = mod)
+                },
                 "runs_index" to { _, mod ->
                     RunsIndex(
                         databaseService = services.databaseService,
@@ -219,6 +218,17 @@ fun DashboardScreen(
                 "telemetry_chart" to { widget, mod ->
                     TelemetryChartPanel(
                         nt4ClientService = services.nt4ClientService,
+                        properties = widget.properties,
+                        onPropertiesChanged = { newProps ->
+                            viewModel.onIntent(DashboardIntent.UpdateLayout(layout.widgets.map {
+                                if (it.id == widget.id) it.copy(properties = newProps) else it
+                            }))
+                        },
+                        modifier = mod
+                    )
+                },
+                "camera_stream" to { widget, mod ->
+                    CameraStreamCard(
                         properties = widget.properties,
                         onPropertiesChanged = { newProps ->
                             viewModel.onIntent(DashboardIntent.UpdateLayout(layout.widgets.map {
@@ -255,8 +265,19 @@ fun DashboardScreen(
                 "mecanum_visualizer" to { _, mod ->
                     MecanumVisualizer(nt4ClientService = services.nt4ClientService, modifier = mod)
                 },
-                "field_viewer" to { _, mod ->
-                    FieldViewerCard(services.nt4ClientService, currentConfig.league, currentConfig.projectPath, mod)
+                "field_viewer" to { widget, mod ->
+                    FieldViewerCard(
+                        nt4ClientService = services.nt4ClientService,
+                        league = currentConfig.league,
+                        projectPath = currentConfig.projectPath,
+                        properties = widget.properties,
+                        onPropertiesChanged = { newProps ->
+                            viewModel.onIntent(DashboardIntent.UpdateLayout(layout.widgets.map {
+                                if (it.id == widget.id) it.copy(properties = newProps) else it
+                            }))
+                        },
+                        modifier = mod
+                    )
                 },
                 "pose_viewer" to { _, mod ->
                     PoseViewerCard(services.nt4ClientService, mod)
@@ -269,6 +290,21 @@ fun DashboardScreen(
                 },
                 "statistics_panel" to { _, mod ->
                     StatisticsPanel(services.databaseService, state.primarySessionId, mod)
+                },
+                "control_profiler" to { _, mod ->
+                    ControlLoopProfilerCard(services.nt4ClientService, mod)
+                },
+                "state_tracker" to { _, mod ->
+                    StateMachineTrackerCard(services.nt4ClientService, mod)
+                },
+                "system_health" to { _, mod ->
+                    SystemHealthCard(services.nt4ClientService, mod)
+                },
+                "imu_visualizer" to { _, mod ->
+                    IMUVisualizerCard(services.nt4ClientService, mod)
+                },
+                "power_distribution" to { _, mod ->
+                    PowerDistributionCard(services.nt4ClientService, mod)
                 }
             )
 
@@ -315,6 +351,7 @@ fun DashboardScreen(
                     scope.launch {
                         services.nt4ClientService.isReplayActive.value = true
                         replayEngine.loadSession("live-telemetry")
+                        replayEngine.scrubTo(1.0)
                         replayEngine.pause()
                     }
                 },

@@ -41,18 +41,18 @@ class PhoenixDiagnosticsService(
     private var pollJob: Job? = null
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-    fun start(host: String = "localhost", pollIntervalMs: Long = 100) {
+    fun start(host: String = "localhost", port: Int = 1250, pollIntervalMs: Long = 100) {
         pollJob?.cancel()
         pollJob = serviceScope.launch {
             while (isActive) {
                 try {
-                    val devicesResponse = httpClient.get("http://$host:1250/devices")
+                    val devicesResponse = httpClient.get("http://$host:$port/devices")
                     if (devicesResponse.status == HttpStatusCode.OK) {
                         _isConnected.value = true
                         val devices = devicesResponse.body<List<PhoenixDevice>>()
                         
                         for (device in devices) {
-                            val telResponse = httpClient.get("http://$host:1250/device/${device.id}/telemetry")
+                            val telResponse = httpClient.get("http://$host:$port/device/${device.id}/telemetry")
                             if (telResponse.status == HttpStatusCode.OK) {
                                 val telData = telResponse.body<PhoenixTelemetryResponse>()
                                 val now = System.currentTimeMillis()

@@ -15,6 +15,7 @@ data class WidgetConfig(
     val col: Int,
     val rowSpan: Int,
     val colSpan: Int,
+    val isLocked: Boolean = false,
     val properties: Map<String, String> = emptyMap()
 )
 

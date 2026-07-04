@@ -105,13 +105,14 @@ class DashboardViewModel(
                     val currentLayout = _state.value.currentLayout
                     val currentList = currentLayout?.widgets ?: emptyList()
                     val maxRow = currentList.maxOfOrNull { it.row + it.rowSpan } ?: 0
+                    val (defRowSpan, defColSpan) = getDefaultWidgetSize(intent.type)
                     val newWidget = WidgetConfig(
                         id = "${intent.type}_${System.currentTimeMillis()}",
                         type = intent.type,
                         row = maxRow,
                         col = 0,
-                        rowSpan = 1,
-                        colSpan = 1
+                        rowSpan = defRowSpan,
+                        colSpan = defColSpan
                     )
                     val newWidgets = currentList + newWidget
                     onIntent(DashboardIntent.UpdateLayout(newWidgets))
@@ -179,6 +180,20 @@ class DashboardViewModel(
                     }
                 }
             }
+        }
+    }
+
+    private fun getDefaultWidgetSize(type: String): Pair<Int, Int> {
+        return when (type) {
+            // Pair is (rowSpan, colSpan)
+            "field_viewer", "camera_stream", "telemetry_chart", "pose_viewer" -> Pair(6, 6)
+            "console_viewer" -> Pair(6, 9)
+            "runs_index", "match_schedule" -> Pair(4, 9)
+            "mecanum_visualizer", "swerve_animator", "joystick_visualizer", "mechanism_visualizer" -> Pair(4, 6)
+            "ai_coach" -> Pair(5, 6)
+            "alerts", "motor_health", "vision_quality", "battery_health", "system_health", "power_distribution" -> Pair(3, 4)
+            "statistics_panel", "trends_card", "control_profiler", "state_tracker", "imu_visualizer" -> Pair(4, 5)
+            else -> Pair(3, 3)
         }
     }
 

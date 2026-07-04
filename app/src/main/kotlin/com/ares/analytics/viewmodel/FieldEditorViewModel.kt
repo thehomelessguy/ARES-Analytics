@@ -20,9 +20,8 @@ data class FieldEditorState(
     val fieldImageConfig: FieldImageConfig = FieldImageConfig(),
     val obstacles: List<Obstacle> = emptyList(),
     val gamePieces: List<GamePiece> = emptyList(),
+    val aprilTags: List<AprilTagPlacement> = emptyList(),
     val saveStatus: String = "",
-    val widthText: String = "",
-    val heightText: String = "",
     val selectedElement: String? = null,
     val isLoading: Boolean = false,
     val errorMessage: String? = null
@@ -40,10 +39,15 @@ sealed class FieldEditorIntent {
     data class AddGamePiece(val piece: GamePiece) : FieldEditorIntent()
     data class UpdateGamePiece(val index: Int, val piece: GamePiece) : FieldEditorIntent()
     data class DeleteGamePiece(val index: Int) : FieldEditorIntent()
+    data class SaveAprilTags(val projectPath: String?, val league: League) : FieldEditorIntent()
+    data class AddAprilTag(val tag: AprilTagPlacement) : FieldEditorIntent()
+    data class UpdateAprilTag(val index: Int, val tag: AprilTagPlacement) : FieldEditorIntent()
+    data class DeleteAprilTag(val index: Int) : FieldEditorIntent()
     data class SelectElement(val elementId: String?) : FieldEditorIntent()
     object ClearSaveStatus : FieldEditorIntent()
     data class SetObstacles(val obstacles: List<Obstacle>) : FieldEditorIntent()
     data class SetGamePieces(val gamePieces: List<GamePiece>) : FieldEditorIntent()
+    data class SetAprilTags(val tags: List<AprilTagPlacement>) : FieldEditorIntent()
 }
 
 class FieldEditorViewModel(
@@ -62,7 +66,12 @@ class FieldEditorViewModel(
                     if (!projectPath.isNullOrEmpty()) {
                         try {
                             withContext(Dispatchers.IO) {
-                                val relativePathsDir = if (league == League.FTC) "src/main/assets/paths" else "src/main/deploy/paths"
+                                val relativePathsDir = if (league == League.FTC) {
+                                    if (File(projectPath, "TeamCode/src/main/assets").exists()) "TeamCode/src/main/assets/paths"
+                                    else "src/main/assets/paths"
+                                } else {
+                                    "src/main/deploy/paths"
+                                }
                                 val obsFile = File(File(projectPath, relativePathsDir), "obstacles.json")
                                 val loadedObstacles = if (obsFile.exists()) {
                                     Json.decodeFromString<List<Obstacle>>(obsFile.readText())
@@ -77,7 +86,19 @@ class FieldEditorViewModel(
                                     emptyList()
                                 }
 
-                                val relativeDir = if (league == League.FTC) "src/main/assets" else "src/main/deploy"
+                                val atFile = File(File(projectPath, relativePathsDir), "apriltags.json")
+                                val loadedAprilTags = if (atFile.exists()) {
+                                    Json.decodeFromString<List<AprilTagPlacement>>(atFile.readText())
+                                } else {
+                                    emptyList()
+                                }
+
+                                val relativeDir = if (league == League.FTC) {
+                                    if (File(projectPath, "TeamCode/src/main/assets").exists()) "TeamCode/src/main/assets"
+                                    else "src/main/assets"
+                                } else {
+                                    "src/main/deploy"
+                                }
                                 val targetDir = File(projectPath, relativeDir)
                                 val imgFile = File(targetDir, "field_image.png")
                                 val loadedBitmap = if (imgFile.exists()) {
@@ -99,10 +120,9 @@ class FieldEditorViewModel(
                                     it.copy(
                                         obstacles = loadedObstacles,
                                         gamePieces = loadedGamePieces,
+                                        aprilTags = loadedAprilTags,
                                         fieldImage = loadedBitmap,
                                         fieldImageConfig = loadedConfig,
-                                        widthText = loadedConfig.widthMeters.toString(),
-                                        heightText = loadedConfig.heightMeters.toString(),
                                         isLoading = false
                                     )
                                 }
@@ -121,7 +141,12 @@ class FieldEditorViewModel(
                     if (!projectPath.isNullOrEmpty()) {
                         try {
                             withContext(Dispatchers.IO) {
-                                val relativeDir = if (league == League.FTC) "src/main/assets/paths" else "src/main/deploy/paths"
+                                val relativeDir = if (league == League.FTC) {
+                                    if (File(projectPath, "TeamCode/src/main/assets").exists()) "TeamCode/src/main/assets/paths"
+                                    else "src/main/assets/paths"
+                                } else {
+                                    "src/main/deploy/paths"
+                                }
                                 val targetDir = File(projectPath, relativeDir)
                                 targetDir.mkdirs()
                                 val targetFile = File(targetDir, "obstacles.json")
@@ -141,7 +166,12 @@ class FieldEditorViewModel(
                     if (!projectPath.isNullOrEmpty()) {
                         try {
                             withContext(Dispatchers.IO) {
-                                val relativeDir = if (league == League.FTC) "src/main/assets/paths" else "src/main/deploy/paths"
+                                val relativeDir = if (league == League.FTC) {
+                                    if (File(projectPath, "TeamCode/src/main/assets").exists()) "TeamCode/src/main/assets/paths"
+                                    else "src/main/assets/paths"
+                                } else {
+                                    "src/main/deploy/paths"
+                                }
                                 val targetDir = File(projectPath, relativeDir)
                                 targetDir.mkdirs()
                                 val targetFile = File(targetDir, "game_pieces.json")
@@ -160,7 +190,12 @@ class FieldEditorViewModel(
                     if (!projectPath.isNullOrEmpty()) {
                         try {
                             withContext(Dispatchers.IO) {
-                                val relativeDir = if (league == League.FTC) "src/main/assets" else "src/main/deploy"
+                                val relativeDir = if (league == League.FTC) {
+                                    if (File(projectPath, "TeamCode/src/main/assets").exists()) "TeamCode/src/main/assets"
+                                    else "src/main/assets"
+                                } else {
+                                    "src/main/deploy"
+                                }
                                 val targetDir = File(projectPath, relativeDir)
                                 targetDir.mkdirs()
                                 val targetFile = File(targetDir, "field_image.png")
@@ -178,11 +213,16 @@ class FieldEditorViewModel(
                     val projectPath = intent.projectPath
                     val league = intent.league
                     val newConfig = intent.config
-                    _state.update { it.copy(fieldImageConfig = newConfig, widthText = newConfig.widthMeters.toString(), heightText = newConfig.heightMeters.toString()) }
+                    _state.update { it.copy(fieldImageConfig = newConfig) }
                     if (!projectPath.isNullOrEmpty()) {
                         try {
                             withContext(Dispatchers.IO) {
-                                val relativeDir = if (league == League.FTC) "src/main/assets" else "src/main/deploy"
+                                val relativeDir = if (league == League.FTC) {
+                                    if (File(projectPath, "TeamCode/src/main/assets").exists()) "TeamCode/src/main/assets"
+                                    else "src/main/assets"
+                                } else {
+                                    "src/main/deploy"
+                                }
                                 val targetDir = File(projectPath, relativeDir)
                                 targetDir.mkdirs()
                                 val configFile = File(targetDir, "field_image_config.json")
@@ -227,6 +267,47 @@ class FieldEditorViewModel(
                     }
                     _state.update { it.copy(gamePieces = updated) }
                 }
+                is FieldEditorIntent.SaveAprilTags -> {
+                    val projectPath = intent.projectPath
+                    val league = intent.league
+                    val s = _state.value
+                    if (!projectPath.isNullOrEmpty()) {
+                        try {
+                            withContext(Dispatchers.IO) {
+                                val relativeDir = if (league == League.FTC) {
+                                    if (File(projectPath, "TeamCode/src/main/assets").exists()) "TeamCode/src/main/assets/paths"
+                                    else "src/main/assets/paths"
+                                } else {
+                                    "src/main/deploy/paths"
+                                }
+                                val targetDir = File(projectPath, relativeDir)
+                                targetDir.mkdirs()
+                                val targetFile = File(targetDir, "apriltags.json")
+                                val jsonFormat = Json { prettyPrint = true }
+                                targetFile.writeText(jsonFormat.encodeToString(s.aprilTags))
+                            }
+                            _state.update { it.copy(saveStatus = "Saved AprilTags successfully!") }
+                        } catch (e: Exception) {
+                            _state.update { it.copy(saveStatus = "Failed to save AprilTags: ${e.message}") }
+                        }
+                    }
+                }
+                is FieldEditorIntent.AddAprilTag -> {
+                    val updated = _state.value.aprilTags + intent.tag
+                    _state.update { it.copy(aprilTags = updated) }
+                }
+                is FieldEditorIntent.UpdateAprilTag -> {
+                    val updated = _state.value.aprilTags.toMutableList().apply {
+                        set(intent.index, intent.tag)
+                    }
+                    _state.update { it.copy(aprilTags = updated) }
+                }
+                is FieldEditorIntent.DeleteAprilTag -> {
+                    val updated = _state.value.aprilTags.toMutableList().apply {
+                        removeAt(intent.index)
+                    }
+                    _state.update { it.copy(aprilTags = updated) }
+                }
                 is FieldEditorIntent.SelectElement -> {
                     _state.update { it.copy(selectedElement = intent.elementId) }
                 }
@@ -238,6 +319,9 @@ class FieldEditorViewModel(
                 }
                 is FieldEditorIntent.SetGamePieces -> {
                     _state.update { it.copy(gamePieces = intent.gamePieces) }
+                }
+                is FieldEditorIntent.SetAprilTags -> {
+                    _state.update { it.copy(aprilTags = intent.tags) }
                 }
             }
         }

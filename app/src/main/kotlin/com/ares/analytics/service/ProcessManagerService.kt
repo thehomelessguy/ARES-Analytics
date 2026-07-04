@@ -18,6 +18,9 @@ class ProcessManagerService {
     private val _isSimRunning = MutableStateFlow(false)
     val isSimRunning: StateFlow<Boolean> = _isSimRunning.asStateFlow()
 
+    private val _isBuildRunning = MutableStateFlow(false)
+    val isBuildRunning: StateFlow<Boolean> = _isBuildRunning.asStateFlow()
+
     private val _adbConnected = MutableStateFlow(false)
     val adbConnected: StateFlow<Boolean> = _adbConnected.asStateFlow()
 
@@ -58,6 +61,7 @@ class ProcessManagerService {
         killActiveBuild()
 
         activeBuildJob = CoroutineScope(Dispatchers.IO).launch {
+            _isBuildRunning.value = true
             try {
                 val isWindows = System.getProperty("os.name").contains("win", ignoreCase = true)
                 val cmd = if (isWindows) {
@@ -97,6 +101,8 @@ class ProcessManagerService {
                 }
             } catch (e: Exception) {
                 _buildOutput.emit("[SYSTEM] Error running build: ${e.message}")
+            } finally {
+                _isBuildRunning.value = false
             }
         }
     }
@@ -173,7 +179,7 @@ class ProcessManagerService {
         }
     }
 
-    fun runSimulation(projectPath: String, league: League) {
+    fun runSimulation(projectPath: String, league: League, simulatorCommand: String? = null) {
         killActiveSim()
 
         activeSimJob = CoroutineScope(Dispatchers.IO).launch {
@@ -183,15 +189,22 @@ class ProcessManagerService {
                 killOrphanedSimulators()
                 
                 val isWindows = System.getProperty("os.name").contains("win", ignoreCase = true)
-                val cmd = if (isWindows) {
-                    when (league) {
-                        League.FTC -> listOf("cmd.exe", "/c", "gradlew.bat", ":simulator:run", "-PappArgs=--headless") // Run FTC Desktop Simulator
-                        League.FRC -> listOf("cmd.exe", "/c", "gradlew.bat", "simulateJava") // FRC desktop simulator
-                    }
+                val userCmd = simulatorCommand?.takeIf { it.isNotBlank() }
+                
+                val cmd = if (userCmd != null) {
+                    if (isWindows) listOf("cmd.exe", "/c") + userCmd.trim().split("\\s+".toRegex())
+                    else userCmd.trim().split("\\s+".toRegex())
                 } else {
-                    when (league) {
-                        League.FTC -> listOf("./gradlew", ":simulator:run", "-PappArgs=--headless") // Run FTC Desktop Simulator
-                        League.FRC -> listOf("./gradlew", "simulateJava") // FRC desktop simulator
+                    if (isWindows) {
+                        when (league) {
+                            League.FTC -> listOf("cmd.exe", "/c", "gradlew.bat", ":TeamCode:runSim")
+                            League.FRC -> listOf("cmd.exe", "/c", "gradlew.bat", "simulateJava")
+                        }
+                    } else {
+                        when (league) {
+                            League.FTC -> listOf("./gradlew", ":TeamCode:runSim")
+                            League.FRC -> listOf("./gradlew", "simulateJava")
+                        }
                     }
                 }
 
@@ -285,6 +298,7 @@ class ProcessManagerService {
         buildProcess = null
         activeBuildJob?.cancel()
         activeBuildJob = null
+        _isBuildRunning.value = false
     }
 
     fun killActiveLogcat() {
