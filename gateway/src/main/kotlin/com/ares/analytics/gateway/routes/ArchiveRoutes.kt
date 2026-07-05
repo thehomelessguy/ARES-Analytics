@@ -166,6 +166,32 @@ fun Route.archiveRoutes(
                 call.respond(HttpStatusCode.InternalServerError, "Failed to delete robot: ${e.message}")
             }
         }
+
+        post("/api/archive/upload-raw-urls") {
+            val principal = call.principal<FirebasePrincipal>() ?: return@post call.respond(HttpStatusCode.Unauthorized)
+            val req = call.receive<RawUploadUrlsRequest>()
+
+            try {
+                val uploadUrls = mutableMapOf<String, String>()
+                for (fileName in req.fileNames) {
+                    val blobPath = "raw/${req.teamId}/${req.runTimestamp}/$fileName"
+                    val blobInfo = BlobInfo.newBuilder(bucketName, blobPath).build()
+                    val signedUrl = storage.signUrl(
+                        blobInfo,
+                        15,
+                        TimeUnit.MINUTES,
+                        Storage.SignUrlOption.httpMethod(HttpMethod.PUT),
+                        Storage.SignUrlOption.withV4Signature()
+                    )
+                    uploadUrls[fileName] = signedUrl.toString()
+                }
+
+                val expiresAt = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(15)
+                call.respond(RawUploadUrlsResponse(uploadUrls, expiresAt))
+            } catch (e: Exception) {
+                call.respond(HttpStatusCode.InternalServerError, "Failed to generate raw upload URLs: ${e.message}")
+            }
+        }
     }
 }
 
@@ -200,7 +226,8 @@ private fun SessionSummary.toMap(): Map<String, Any?> {
         "visionAcceptanceRate" to visionAcceptanceRate,
         "tags" to tags,
         "matchNumber" to matchNumber,
-        "allianceColor" to allianceColor
+        "allianceColor" to allianceColor,
+        "rawGcsPath" to rawGcsPath
     )
 }
 
@@ -225,6 +252,7 @@ private fun Map<String, Any?>.toSessionSummary(): SessionSummary {
         visionAcceptanceRate = (get("visionAcceptanceRate") as Number).toDouble(),
         tags = (get("tags") as? List<*>)?.map { it.toString() } ?: emptyList(),
         matchNumber = (get("matchNumber") as? Number)?.toInt(),
-        allianceColor = get("allianceColor") as? String
+        allianceColor = get("allianceColor") as? String,
+        rawGcsPath = get("rawGcsPath") as? String
     )
 }

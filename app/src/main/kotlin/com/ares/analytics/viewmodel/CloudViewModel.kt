@@ -139,11 +139,15 @@ class CloudViewModel(
                             val errors = mutableListOf<String>()
                             val downloadedFiles = mutableListOf<File>()
                             
+                            // 1. Download all raw files from robot
                             for (file in run.files) {
                                 try {
                                     val tempFile = withContext(Dispatchers.IO) {
                                         val fileBytes = httpClient.get("http://${getRobotIp()}:5002/api/download?file=${file.name}").readBytes()
-                                        val f = File.createTempFile("robot_log_", "_${file.name}")
+                                        // Preserve original filename for GCS path
+                                        val tempDir = File(System.getProperty("java.io.tmpdir"), "ares-raw-upload")
+                                        tempDir.mkdirs()
+                                        val f = File(tempDir, file.name)
                                         f.writeBytes(fileBytes)
                                         f
                                     }
@@ -154,14 +158,34 @@ class CloudViewModel(
                             }
                             
                             if (errors.isEmpty() && downloadedFiles.isNotEmpty()) {
-                                // Import the downloaded files into the local SQLite database as a new session
+                                // 2. Upload raw files to GCS (archival — preserves originals)
+                                val runTimestamp = run.runId.let { id ->
+                                    // Convert "20260704_201500" to "2026-07-04_20-15-00"
+                                    if (id.length == 15 && id[8] == '_') {
+                                        "${id.substring(0, 4)}-${id.substring(4, 6)}-${id.substring(6, 8)}_${id.substring(9, 11)}-${id.substring(11, 13)}-${id.substring(13, 15)}"
+                                    } else id
+                                }
+                                
+                                var rawGcsPath: String? = null
+                                try {
+                                    rawGcsPath = syncEngineService.uploadRawFiles(
+                                        teamId = intent.teamId,
+                                        runTimestamp = runTimestamp,
+                                        files = downloadedFiles
+                                    )
+                                } catch (rawEx: Exception) {
+                                    errors.add("Raw file archival failed: ${rawEx.message}")
+                                }
+
+                                // 3. Parse into local SQLite
                                 val session = logParserService.parseLogFiles(
                                     files = downloadedFiles,
                                     teamId = intent.teamId,
                                     seasonId = intent.seasonId,
                                     robotId = intent.robotId
                                 )
-                                // Now that it's imported, trigger the delta sync to upload it to GCS
+
+                                // 4. Upload Parquet to GCS + delta sync
                                 try {
                                     syncEngineService.uploadSession(session.sessionId)
                                     syncEngineService.performDeltaSync(intent.teamId, intent.seasonId)
@@ -169,8 +193,24 @@ class CloudViewModel(
                                     errors.add("Imported locally but cloud sync failed: ${syncEx.message}")
                                 }
                                 
-                                // Delete temp files
+                                // 5. Delete temp files on desktop
                                 downloadedFiles.forEach { it.delete() }
+                                
+                                // 6. Delete files from robot after confirmed GCS upload
+                                if (rawGcsPath != null && errors.isEmpty()) {
+                                    try {
+                                        withContext(Dispatchers.IO) {
+                                            for (file in run.files) {
+                                                httpClient.post("http://${getRobotIp()}:5002/api/delete") {
+                                                    parameter("file", file.name)
+                                                }
+                                            }
+                                        }
+                                    } catch (deleteEx: Exception) {
+                                        // Non-fatal: files uploaded but robot cleanup failed
+                                        errors.add("Uploaded successfully but robot cleanup failed: ${deleteEx.message}")
+                                    }
+                                }
                                 
                                 // Refresh UI
                                 fetchRobotLogs()
@@ -179,7 +219,7 @@ class CloudViewModel(
                             }
                             
                             if (errors.isNotEmpty()) {
-                                _state.update { it.copy(errorMessage = "Failed to upload:\n" + errors.joinToString("\n")) }
+                                _state.update { it.copy(errorMessage = "Upload issues:\n" + errors.joinToString("\n")) }
                             }
                         }
                     } catch (e: Exception) {

@@ -98,7 +98,8 @@ data class SessionSummary(
     val avgVisionLatencyMs: Double = 0.0,
     val tags: List<String> = emptyList(),
     val matchNumber: Int? = null,
-    val allianceColor: String? = null
+    val allianceColor: String? = null,
+    val rawGcsPath: String? = null
 )
 
 @Serializable
@@ -214,6 +215,19 @@ data class SyncResponse(
 data class DeleteSessionRequest(
     val sessionId: String,
     val teamId: String
+)
+
+@Serializable
+data class RawUploadUrlsRequest(
+    val teamId: String,
+    val runTimestamp: String,
+    val fileNames: List<String>
+)
+
+@Serializable
+data class RawUploadUrlsResponse(
+    val uploadUrls: Map<String, String>,
+    val expiresAt: Long
 )
 
 // ────────────────────────────────────────────────────────────────────────────

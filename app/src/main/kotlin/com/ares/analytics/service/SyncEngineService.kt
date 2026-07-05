@@ -98,8 +98,55 @@ class SyncEngineService(
     }
 
     /**
-     * Performs a delta sync: downloads missing cloud summaries and writes them to SQLite.
+     * Uploads raw log files to GCS via pre-signed URLs.
+     * Returns the GCS path prefix (e.g. "raw/23247/2026-07-04_20-15-00") for storage in Firestore.
      */
+    suspend fun uploadRawFiles(
+        teamId: String,
+        runTimestamp: String,
+        files: List<File>,
+        authToken: String? = null
+    ): String = withContext(Dispatchers.IO) {
+        val token = getActiveToken(authToken)
+        val fileNames = files.map { it.name }
+
+        // 1. Request signed URLs for all raw files
+        val urlResponse = httpClient.post("$gatewayUrl/api/archive/upload-raw-urls") {
+            contentType(ContentType.Application.Json)
+            header(HttpHeaders.Authorization, "Bearer $token")
+            setBody(RawUploadUrlsRequest(
+                teamId = teamId,
+                runTimestamp = runTimestamp,
+                fileNames = fileNames
+            ))
+        }
+
+        if (urlResponse.status != HttpStatusCode.OK) {
+            throw Exception("Failed to request raw upload URLs: ${urlResponse.bodyAsText()}")
+        }
+
+        val rawResponse = urlResponse.body<RawUploadUrlsResponse>()
+
+        // 2. Upload each file to its signed URL
+        for (file in files) {
+            val signedUrl = rawResponse.uploadUrls[file.name]
+                ?: throw Exception("No signed URL returned for ${file.name}")
+
+            val fileBytes = file.readBytes()
+            val putResponse = httpClient.put(signedUrl) {
+                setBody(fileBytes)
+            }
+
+            if (putResponse.status != HttpStatusCode.OK) {
+                throw Exception("GCS raw upload failed for ${file.name}: ${putResponse.bodyAsText()}")
+            }
+        }
+
+        // Return the GCS path prefix
+        "raw/$teamId/$runTimestamp"
+    }
+
+
     suspend fun performDeltaSync(teamId: String, seasonId: String, authToken: String? = null) = withContext(Dispatchers.IO) {
         val token = getActiveToken(authToken)
         
