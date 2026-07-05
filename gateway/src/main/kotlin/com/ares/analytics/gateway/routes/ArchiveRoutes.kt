@@ -14,6 +14,7 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import com.ares.analytics.gateway.auth.FirebasePrincipal
+import io.ktor.server.plugins.ratelimit.*
 import java.util.concurrent.TimeUnit
 
 fun Route.archiveRoutes(
@@ -24,8 +25,9 @@ fun Route.archiveRoutes(
     val bucketName = System.getenv("GCS_BUCKET_NAME") ?: "ares-analytics-telemetry"
 
     authenticate("firebase") {
-        post("/api/archive/upload-url") {
-            val principal = call.principal<FirebasePrincipal>() ?: return@post call.respond(HttpStatusCode.Unauthorized)
+        rateLimit(RateLimitName("archive")) {
+            post("/api/archive/upload-url") {
+                val principal = call.principal<FirebasePrincipal>() ?: return@post call.respond(HttpStatusCode.Unauthorized)
             val req = call.receive<UploadUrlRequest>()
 
             try {
@@ -213,6 +215,7 @@ fun Route.archiveRoutes(
             } catch (e: Exception) {
                 call.respond(HttpStatusCode.InternalServerError, "Failed to generate raw upload URLs: ${e.message}")
             }
+        }
         }
     }
 }

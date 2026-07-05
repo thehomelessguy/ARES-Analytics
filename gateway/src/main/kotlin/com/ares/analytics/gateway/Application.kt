@@ -70,8 +70,9 @@ fun main() {
                 call.respondText(text = "400: Bad Request: ${cause.reasons.joinToString()}", status = HttpStatusCode.BadRequest)
             }
             exception<Throwable> { call, cause ->
+                call.application.environment.log.error("Internal Server Error", cause)
                 call.respondText(
-                    text = "500: Internal Server Error: ${cause.message}",
+                    text = "500: Internal Server Error: An internal error occurred.",
                     status = HttpStatusCode.InternalServerError
                 )
             }
@@ -84,6 +85,9 @@ fun main() {
         install(RateLimit) {
             register(RateLimitName("forensics")) {
                 rateLimiter(limit = 5, refillPeriod = 60.seconds)
+            }
+            register(RateLimitName("archive")) {
+                rateLimiter(limit = 30, refillPeriod = 60.seconds)
             }
         }
 

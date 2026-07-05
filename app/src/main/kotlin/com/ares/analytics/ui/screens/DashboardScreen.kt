@@ -224,15 +224,19 @@ fun DashboardScreen(
                 speed = replaySpeed,
                 isLiveConnection = state.primarySessionId == null,
                 isReplayActive = isReplayActive,
+                sessionMode = state.sessionMode,
+                sessionId = state.primarySessionId,
                 onSnapToRealtime = {
                     scope.launch {
                         services.nt4ClientService.isReplayActive.value = false
+                        viewModel.onIntent(DashboardIntent.SetSessionMode(SessionMode.LIVE_STREAMING))
                         replayEngine.stop()
                     }
                 },
                 onScrubLive = { pct ->
                     scope.launch {
                         services.nt4ClientService.isReplayActive.value = true
+                        viewModel.onIntent(DashboardIntent.SetSessionMode(SessionMode.LIVE_REWIND))
                         replayEngine.loadSession("live-telemetry")
                         replayEngine.scrubTo(pct)
                     }
@@ -240,6 +244,7 @@ fun DashboardScreen(
                 onPauseLive = {
                     scope.launch {
                         services.nt4ClientService.isReplayActive.value = true
+                        viewModel.onIntent(DashboardIntent.SetSessionMode(SessionMode.LIVE_REWIND))
                         replayEngine.loadSession("live-telemetry")
                         replayEngine.scrubTo(1.0)
                         replayEngine.pause()
@@ -248,6 +253,7 @@ fun DashboardScreen(
                 onPlayLive = {
                     scope.launch {
                         services.nt4ClientService.isReplayActive.value = true
+                        viewModel.onIntent(DashboardIntent.SetSessionMode(SessionMode.LIVE_REWIND))
                         replayEngine.loadSession("live-telemetry")
                         replayEngine.play()
                     }
@@ -275,6 +281,8 @@ private fun ReplayTimelineScrubber(
     speed: Double,
     isLiveConnection: Boolean,
     isReplayActive: Boolean,
+    sessionMode: SessionMode,
+    sessionId: String?,
     onSnapToRealtime: () -> Unit,
     onScrubLive: (Double) -> Unit,
     onPauseLive: () -> Unit,
@@ -283,17 +291,53 @@ private fun ReplayTimelineScrubber(
 ) {
     val scope = rememberCoroutineScope()
 
+    val modeColor = when (sessionMode) {
+        SessionMode.LIVE_STREAMING -> ModeLive
+        SessionMode.LIVE_REWIND -> ModeRewind
+        SessionMode.HISTORICAL_REPLAY -> ModeReplay
+    }
+    val modeGlow = when (sessionMode) {
+        SessionMode.LIVE_STREAMING -> ModeLiveGlow
+        SessionMode.LIVE_REWIND -> ModeRewindGlow
+        SessionMode.HISTORICAL_REPLAY -> ModeReplayGlow
+    }
+
     Surface(
         modifier = modifier,
         color = AresSurfaceElevated,
         shape = RoundedCornerShape(8.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, AresBorder)
+        border = androidx.compose.foundation.BorderStroke(1.dp, modeColor.copy(alpha = 0.5f))
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            // Mode Pill
+            Surface(
+                color = modeGlow,
+                shape = RoundedCornerShape(12.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, modeColor)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Box(modifier = Modifier.size(6.dp).background(modeColor, RoundedCornerShape(3.dp)))
+                    Text(
+                        text = when (sessionMode) {
+                            SessionMode.LIVE_STREAMING -> "LIVE"
+                            SessionMode.LIVE_REWIND -> "LIVE REWIND"
+                            SessionMode.HISTORICAL_REPLAY -> "REPLAY: ${sessionId?.take(8)}"
+                        },
+                        color = modeColor,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(4.dp))
             // Play / Pause
             IconButton(
                 onClick = {
@@ -318,7 +362,7 @@ private fun ReplayTimelineScrubber(
                     contentDescription = if (isLiveConnection && !isReplayActive) "Pause"
                                          else if (replayState == ReplayState.PLAYING) "Pause"
                                          else "Play",
-                    tint = AresCyan,
+                    tint = modeColor,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -337,7 +381,7 @@ private fun ReplayTimelineScrubber(
                 Icon(
                     imageVector = if (isLiveConnection) Icons.Default.LiveTv else Icons.Default.Stop,
                     contentDescription = if (isLiveConnection) "Realtime" else "Stop",
-                    tint = if (isLiveConnection && !isReplayActive) AresCyan else AresTextSecondary,
+                    tint = if (isLiveConnection && !isReplayActive) modeColor else AresTextSecondary,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -378,66 +422,66 @@ private fun ReplayTimelineScrubber(
                 )
             }
 
-            // Progress slider
             var sliderDragging by remember { mutableStateOf(false) }
             var localSliderValue by remember { mutableStateOf(0f) }
+            val density by replayEngine.telemetryDensity.collectAsState()
 
-            Slider(
-                value = if (sliderDragging) localSliderValue else progress.toFloat(),
-                onValueChange = { newVal ->
-                    sliderDragging = true
-                    localSliderValue = newVal
-                },
-                onValueChangeFinished = {
-                    sliderDragging = false
-                    scope.launch {
-                        if (isLiveConnection && !isReplayActive) {
-                            onScrubLive(localSliderValue.toDouble())
-                        } else {
-                            replayEngine.scrubTo(localSliderValue.toDouble())
+            Box(modifier = Modifier.weight(1f).height(32.dp)) {
+                // Histogram Canvas
+                if (density.isNotEmpty()) {
+                    androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 4.dp)) {
+                        val barWidth = size.width / density.size
+                        density.forEachIndexed { i, value ->
+                            val barHeight = size.height * value
+                            val x = i * barWidth
+                            val y = size.height - barHeight
+                            drawRect(
+                                color = modeColor.copy(alpha = 0.3f),
+                                topLeft = androidx.compose.ui.geometry.Offset(x, y),
+                                size = androidx.compose.ui.geometry.Size(barWidth * 0.8f, barHeight)
+                            )
                         }
                     }
-                },
-                modifier = Modifier.weight(1f),
-                colors = SliderDefaults.colors(
-                    thumbColor = AresCyan,
-                    activeTrackColor = AresCyan,
-                    inactiveTrackColor = AresBorder
-                )
-            )
-
-            // Time / Live Status display
-            if (isLiveConnection && !isReplayActive) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(6.dp)
-                            .background(AresGreen, RoundedCornerShape(3.dp))
-                    )
-                    Text(
-                        text = "LIVE",
-                        color = AresGreen,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
                 }
-            } else {
-                Text(
-                    text = "${formatTime((progress * 100).toLong())}%",
-                    color = AresTextSecondary,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
+
+                Slider(
+                    value = if (sliderDragging) localSliderValue else progress.toFloat(),
+                    onValueChange = { newVal ->
+                        sliderDragging = true
+                        localSliderValue = newVal
+                    },
+                    onValueChangeFinished = {
+                        sliderDragging = false
+                        scope.launch {
+                            if (isLiveConnection && !isReplayActive) {
+                                onScrubLive(localSliderValue.toDouble())
+                            } else {
+                                replayEngine.scrubTo(localSliderValue.toDouble())
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                    colors = SliderDefaults.colors(
+                        thumbColor = modeColor,
+                        activeTrackColor = modeColor,
+                        inactiveTrackColor = androidx.compose.ui.graphics.Color.Transparent
+                    )
                 )
             }
+
+            // Time / Live Status display
+            Text(
+                text = "${formatTime((progress * 100).toLong())}%",
+                color = AresTextSecondary,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold
+            )
 
             // Snap to Realtime button (shown only in Live Rewind mode)
             if (isLiveConnection && isReplayActive) {
                 Button(
                     onClick = onSnapToRealtime,
-                    colors = ButtonDefaults.buttonColors(containerColor = AresCyan),
+                    colors = ButtonDefaults.buttonColors(containerColor = modeColor),
                     shape = RoundedCornerShape(4.dp),
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
                     modifier = Modifier.height(28.dp)

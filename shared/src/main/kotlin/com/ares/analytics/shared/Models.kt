@@ -66,6 +66,13 @@ data class DeleteRobotRequest(
 // ────────────────────────────────────────────────────────────────────────────
 
 @Serializable
+enum class SessionMode {
+    LIVE_STREAMING,
+    LIVE_REWIND,
+    HISTORICAL_REPLAY
+}
+
+@Serializable
 data class Session(
     val sessionId: String,
     val teamId: String,
@@ -119,6 +126,18 @@ data class TelemetryFrame(
     val key: String,
     val value: Double,
     val stringValue: String? = null
+)
+
+@Serializable
+data class RobotActionRecord(
+    val timestampMs: Long,
+    val sessionId: String,
+    val runId: String,
+    val robotId: String,
+    val matchNumber: Int = 0,
+    val alliance: String = "UNKNOWN",
+    val actionType: String,
+    val payloadJson: String
 )
 
 // ────────────────────────────────────────────────────────────────────────────

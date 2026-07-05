@@ -63,6 +63,13 @@ val AresAlertActive = AresError
 val AresAlertLatched = AresAmber
 /** Triaged alert — dimmed (acknowledged by pit crew) */
 val AresAlertTriaged = Color(0xFF5A6174)
+// ── Session Mode Colors ──────────────────────────────────────────────────────
+val ModeLive = AresRed
+val ModeLiveGlow = AresRedGlow
+val ModeRewind = AresAmber
+val ModeRewindGlow = Color(0x40FFA726)
+val ModeReplay = AresCyan
+val ModeReplayGlow = AresCyanGlow
 
 // ── Trajectory Overlay Colors ────────────────────────────────────────────────
 /** Planned path — cyan dashed line */

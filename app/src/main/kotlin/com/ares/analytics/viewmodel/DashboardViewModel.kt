@@ -19,13 +19,15 @@ data class DashboardState(
     val isPickerOpen: Boolean = false,
     val profileExpanded: Boolean = false,
     val primarySessionId: String? = null,
+    val sessionMode: SessionMode = SessionMode.LIVE_STREAMING,
     val compareSessionId: String? = null,
     val alerts: List<AlertRecord> = emptyList(),
     val isConnected: Boolean = false,
     val isImporting: Boolean = false,
     val importSuccess: Boolean = false,
     val errorMessage: String? = null,
-    val availableProfiles: List<String> = emptyList()
+    val availableProfiles: List<String> = emptyList(),
+    val savedLiveProfile: String? = null
 )
 
 sealed class DashboardIntent {
@@ -33,6 +35,7 @@ sealed class DashboardIntent {
     data class SetPickerOpen(val isOpen: Boolean) : DashboardIntent()
     data class SetProfileExpanded(val isExpanded: Boolean) : DashboardIntent()
     data class SelectPrimarySession(val sessionId: String?) : DashboardIntent()
+    data class SetSessionMode(val mode: SessionMode) : DashboardIntent()
     data class SelectCompareSession(val sessionId: String?) : DashboardIntent()
     data class UpdateLayout(val newWidgets: List<WidgetConfig>) : DashboardIntent()
     data class AddWidget(val type: String) : DashboardIntent()
@@ -88,7 +91,35 @@ class DashboardViewModel(
                     _state.update { it.copy(profileExpanded = intent.isExpanded) }
                 }
                 is DashboardIntent.SelectPrimarySession -> {
-                    _state.update { it.copy(primarySessionId = intent.sessionId) }
+                    val newMode = if (intent.sessionId == null) SessionMode.LIVE_STREAMING else SessionMode.HISTORICAL_REPLAY
+                    
+                    if (newMode == SessionMode.HISTORICAL_REPLAY && _state.value.sessionMode == SessionMode.LIVE_STREAMING) {
+                        // Going into replay, save the current live layout profile
+                        val currentLiveProfile = _state.value.currentRoleProfile
+                        _state.update { it.copy(
+                            primarySessionId = intent.sessionId,
+                            sessionMode = newMode,
+                            savedLiveProfile = currentLiveProfile,
+                            currentRoleProfile = "Replay"
+                        ) }
+                        loadLayoutForProfile("Replay")
+                    } else if (newMode == SessionMode.LIVE_STREAMING && _state.value.sessionMode == SessionMode.HISTORICAL_REPLAY) {
+                        // Returning to live, restore live layout profile
+                        val restoreProfile = _state.value.savedLiveProfile ?: "Standard"
+                        _state.update { it.copy(
+                            primarySessionId = intent.sessionId,
+                            sessionMode = newMode,
+                            savedLiveProfile = null,
+                            currentRoleProfile = restoreProfile
+                        ) }
+                        loadLayoutForProfile(restoreProfile)
+                    } else {
+                        // Standard update
+                        _state.update { it.copy(primarySessionId = intent.sessionId, sessionMode = newMode) }
+                    }
+                }
+                is DashboardIntent.SetSessionMode -> {
+                    _state.update { it.copy(sessionMode = intent.mode) }
                 }
                 is DashboardIntent.SelectCompareSession -> {
                     _state.update { it.copy(compareSessionId = intent.sessionId) }

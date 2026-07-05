@@ -1,6 +1,7 @@
 package com.ares.analytics.service
 
 import com.ares.analytics.shared.Session
+import com.ares.analytics.shared.RobotActionRecord
 import com.ares.analytics.shared.TelemetryFrame
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -63,7 +64,11 @@ class LogParserService(
                 }
             }
             lowerName.endsWith(".jsonl") -> {
-                parseJsonlLog(file, sessionId, batcher)
+                if (lowerName.startsWith("action_log_")) {
+                    parseActionLogJsonl(file, sessionId)
+                } else {
+                    parseJsonlLog(file, sessionId, batcher)
+                }
             }
             lowerName.endsWith(".csv") -> {
                 // Save session first so DuckDB CSV import can reference it
@@ -445,6 +450,61 @@ class LogParserService(
                 }
                 line = reader.readLine()
             }
+        }
+    }
+
+    /**
+     * Parses action_log JSONL files produced by ARESLib's ActionLogger.
+     * Each line is a JSON envelope containing:
+     *   - run_id, robot_id, match_number, alliance (top-level metadata)
+     *   - type (action class name, e.g. "PoseUpdate", "SetAlliance")
+     *   - payload (nested JSON object with action-specific fields + timestampMs)
+     *
+     * Actions are batched and bulk-inserted into the robot_actions table.
+     */
+    private suspend fun parseActionLogJsonl(file: File, sessionId: String) {
+        val actions = mutableListOf<RobotActionRecord>()
+
+        BufferedReader(FileReader(file)).use { reader ->
+            var line: String? = reader.readLine()
+            while (line != null) {
+                val trimmed = line.trim()
+                if (trimmed.isNotEmpty()) {
+                    try {
+                        val obj = Json.parseToJsonElement(trimmed).jsonObject
+
+                        val runId = obj["run_id"]?.jsonPrimitive?.contentOrNull ?: ""
+                        val robotId = obj["robot_id"]?.jsonPrimitive?.contentOrNull ?: ""
+                        val matchNumber = obj["match_number"]?.jsonPrimitive?.intOrNull ?: 0
+                        val alliance = obj["alliance"]?.jsonPrimitive?.contentOrNull ?: "UNKNOWN"
+                        val actionType = obj["type"]?.jsonPrimitive?.contentOrNull ?: "Unknown"
+
+                        val payload = obj["payload"]?.jsonObject
+                        val timestampMs = payload?.get("timestampMs")?.jsonPrimitive?.longOrNull ?: 0L
+                        val payloadJson = payload?.toString() ?: "{}"
+
+                        if (timestampMs > 0L) {
+                            actions.add(RobotActionRecord(
+                                timestampMs = timestampMs,
+                                sessionId = sessionId,
+                                runId = runId,
+                                robotId = robotId,
+                                matchNumber = matchNumber,
+                                alliance = alliance,
+                                actionType = actionType,
+                                payloadJson = payloadJson
+                            ))
+                        }
+                    } catch (e: Exception) {
+                        // Skip malformed lines
+                    }
+                }
+                line = reader.readLine()
+            }
+        }
+
+        if (actions.isNotEmpty()) {
+            databaseService.insertRobotActionsBulk(actions)
         }
     }
 

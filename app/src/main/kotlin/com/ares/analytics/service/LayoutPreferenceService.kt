@@ -84,6 +84,14 @@ class LayoutPreferenceService(
                     WidgetConfig("vision_quality", "vision_quality", 6, 5, 3, 4)
                 )
             )
+            "replay" -> DashboardLayoutConfig(
+                listOf(
+                    WidgetConfig("runs_index", "runs_index", 0, 0, 9, 2),
+                    WidgetConfig("telemetry_chart", "telemetry_chart", 0, 2, 6, 7),
+                    WidgetConfig("mecanum_visualizer", "mecanum_visualizer", 6, 2, 3, 4),
+                    WidgetConfig("alerts", "alerts", 6, 6, 3, 3)
+                )
+            )
             else -> DashboardLayoutConfig( // Default standard layout
                 listOf(
                     WidgetConfig("runs_index", "runs_index", 0, 0, 6, 3),

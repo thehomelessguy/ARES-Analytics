@@ -38,6 +38,9 @@ class ReplayEngineService(private val databaseService: DatabaseService) {
     private val _progress = MutableStateFlow(0.0) // 0.0 to 1.0 percentage
     val progress: StateFlow<Double> = _progress.asStateFlow()
 
+    private val _telemetryDensity = MutableStateFlow<List<Float>>(emptyList())
+    val telemetryDensity: StateFlow<List<Float>> = _telemetryDensity.asStateFlow()
+
     // Replay telemetry flow — emits individual TelemetryFrame objects for dashboard widget consumption
     private val _replayTelemetryFlow = MutableSharedFlow<TelemetryFrame>(
         replay = 100,
@@ -67,6 +70,7 @@ class ReplayEngineService(private val databaseService: DatabaseService) {
             endTimestampMs = 0
             currentPlayheadMs = 0
             _currentFrame.value = null
+            _telemetryDensity.value = emptyList()
             return@withContext
         }
 
@@ -75,6 +79,8 @@ class ReplayEngineService(private val databaseService: DatabaseService) {
         endTimestampMs = timestamps.last()
         currentPlayheadMs = startTimestampMs
         _progress.value = 0.0
+
+        _telemetryDensity.value = databaseService.getTelemetryDensity(sessionId, buckets = 100)
 
         updateFrameAtPlayhead()
     }

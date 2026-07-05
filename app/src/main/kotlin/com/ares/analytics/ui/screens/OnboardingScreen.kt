@@ -42,33 +42,6 @@ fun OnboardingScreen(
 
     val token = (authState as? AuthState.Authenticated)?.firebaseToken
 
-    fun updateField(
-        projectPath: String = state.projectPath,
-        teamId: String = state.teamId,
-        seasonId: String = state.seasonId,
-        robotId: String = state.robotId,
-        robotName: String = state.robotName,
-        league: League = state.league,
-        nt4Host: String = state.nt4Host,
-        googleClientId: String = state.googleClientId,
-        googleClientSecret: String = state.googleClientSecret,
-        simulatorCommand: String = state.simulatorCommand
-    ) {
-        viewModel.handleIntent(
-            OnboardingIntent.UpdateFields(
-                projectPath = projectPath,
-                teamId = teamId,
-                seasonId = seasonId,
-                robotId = robotId,
-                robotName = robotName,
-                league = league,
-                nt4Host = nt4Host,
-                googleClientId = googleClientId,
-                googleClientSecret = googleClientSecret,
-                simulatorCommand = simulatorCommand
-            )
-        )
-    }
 
     LaunchedEffect(state.teamId, token) {
         if (token != null) {
@@ -118,8 +91,8 @@ fun OnboardingScreen(
                     authState = authState,
                     googleClientId = state.googleClientId,
                     googleClientSecret = state.googleClientSecret,
-                    onClientIdChange = { updateField(googleClientId = it) },
-                    onClientSecretChange = { updateField(googleClientSecret = it) },
+                    onClientIdChange = { viewModel.handleIntent(OnboardingIntent.UpdateGoogleClientId(it)) },
+                    onClientSecretChange = { viewModel.handleIntent(OnboardingIntent.UpdateGoogleClientSecret(it)) },
                     onSignInClick = {
                         val targetClientId = state.googleClientId.takeIf { it.isNotEmpty() } ?: "mock"
                         val targetClientSecret = state.googleClientSecret.takeIf { it.isNotBlank() }
@@ -138,7 +111,7 @@ fun OnboardingScreen(
 
                 SyncStep(
                     projectPath = state.projectPath,
-                    onProjectPathChange = { updateField(projectPath = it) },
+                    onProjectPathChange = { viewModel.handleIntent(OnboardingIntent.UpdateProjectPath(it)) },
                     onBrowseProject = {
                         val chooser = JFileChooser().apply {
                             fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
@@ -146,27 +119,27 @@ fun OnboardingScreen(
                         }
                         val result = chooser.showOpenDialog(null)
                         if (result == JFileChooser.APPROVE_OPTION) {
-                            updateField(projectPath = chooser.selectedFile.absolutePath)
+                            viewModel.handleIntent(OnboardingIntent.UpdateProjectPath(chooser.selectedFile.absolutePath))
                             viewModel.handleIntent(OnboardingIntent.DetectLeague)
                         }
                     },
                     teamId = state.teamId,
-                    onTeamIdChange = { updateField(teamId = it) },
+                    onTeamIdChange = { viewModel.handleIntent(OnboardingIntent.UpdateTeamId(it)) },
                     cloudRobots = state.cloudRobots,
                     selectedOptionText = state.selectedOptionText,
                     onSelectedOptionTextChange = { viewModel.handleIntent(OnboardingIntent.UpdateSelectedOptionText(it)) },
                     robotId = state.robotId,
-                    onRobotIdChange = { updateField(robotId = it) },
+                    onRobotIdChange = { viewModel.handleIntent(OnboardingIntent.UpdateRobotId(it)) },
                     seasonId = state.seasonId,
-                    onSeasonIdChange = { updateField(seasonId = it) },
+                    onSeasonIdChange = { viewModel.handleIntent(OnboardingIntent.UpdateSeasonId(it)) },
                     robotName = state.robotName,
-                    onRobotNameChange = { updateField(robotName = it) },
+                    onRobotNameChange = { viewModel.handleIntent(OnboardingIntent.UpdateRobotName(it)) },
                     league = state.league,
-                    onLeagueChange = { updateField(league = it) },
+                    onLeagueChange = { viewModel.handleIntent(OnboardingIntent.UpdateLeague(it)) },
                     nt4Host = state.nt4Host,
-                    onNt4HostChange = { updateField(nt4Host = it) },
+                    onNt4HostChange = { viewModel.handleIntent(OnboardingIntent.UpdateNt4Host(it)) },
                     simulatorCommand = state.simulatorCommand,
-                    onSimulatorCommandChange = { updateField(simulatorCommand = it) }
+                    onSimulatorCommandChange = { viewModel.handleIntent(OnboardingIntent.UpdateSimulatorCommand(it)) }
                 )
 
                 JavaVerificationStep(

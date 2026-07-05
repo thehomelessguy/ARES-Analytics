@@ -34,18 +34,16 @@ data class OnboardingState(
 )
 
 sealed class OnboardingIntent {
-    data class UpdateFields(
-        val projectPath: String,
-        val teamId: String,
-        val seasonId: String,
-        val robotId: String,
-        val robotName: String,
-        val league: League,
-        val nt4Host: String,
-        val googleClientId: String,
-        val googleClientSecret: String,
-        val simulatorCommand: String
-    ) : OnboardingIntent()
+    data class UpdateProjectPath(val projectPath: String) : OnboardingIntent()
+    data class UpdateTeamId(val teamId: String) : OnboardingIntent()
+    data class UpdateSeasonId(val seasonId: String) : OnboardingIntent()
+    data class UpdateRobotId(val robotId: String) : OnboardingIntent()
+    data class UpdateRobotName(val robotName: String) : OnboardingIntent()
+    data class UpdateLeague(val league: League) : OnboardingIntent()
+    data class UpdateNt4Host(val nt4Host: String) : OnboardingIntent()
+    data class UpdateGoogleClientId(val googleClientId: String) : OnboardingIntent()
+    data class UpdateGoogleClientSecret(val googleClientSecret: String) : OnboardingIntent()
+    data class UpdateSimulatorCommand(val simulatorCommand: String) : OnboardingIntent()
     data class UpdateSelectedOptionText(val text: String) : OnboardingIntent()
     data class FetchCloudRobots(val token: String) : OnboardingIntent()
     object DetectLeague : OnboardingIntent()
@@ -69,22 +67,16 @@ class OnboardingViewModel(
     fun handleIntent(intent: OnboardingIntent) {
         scope.launch {
             when (intent) {
-                is OnboardingIntent.UpdateFields -> {
-                    _state.update {
-                        it.copy(
-                            projectPath = intent.projectPath,
-                            teamId = intent.teamId,
-                            seasonId = intent.seasonId,
-                            robotId = intent.robotId,
-                            robotName = intent.robotName,
-                            league = intent.league,
-                            nt4Host = intent.nt4Host,
-                            googleClientId = intent.googleClientId,
-                            googleClientSecret = intent.googleClientSecret,
-                            simulatorCommand = intent.simulatorCommand
-                        )
-                    }
-                }
+                is OnboardingIntent.UpdateProjectPath -> _state.update { it.copy(projectPath = intent.projectPath) }
+                is OnboardingIntent.UpdateTeamId -> _state.update { it.copy(teamId = intent.teamId) }
+                is OnboardingIntent.UpdateSeasonId -> _state.update { it.copy(seasonId = intent.seasonId) }
+                is OnboardingIntent.UpdateRobotId -> _state.update { it.copy(robotId = intent.robotId) }
+                is OnboardingIntent.UpdateRobotName -> _state.update { it.copy(robotName = intent.robotName) }
+                is OnboardingIntent.UpdateLeague -> _state.update { it.copy(league = intent.league) }
+                is OnboardingIntent.UpdateNt4Host -> _state.update { it.copy(nt4Host = intent.nt4Host) }
+                is OnboardingIntent.UpdateGoogleClientId -> _state.update { it.copy(googleClientId = intent.googleClientId) }
+                is OnboardingIntent.UpdateGoogleClientSecret -> _state.update { it.copy(googleClientSecret = intent.googleClientSecret) }
+                is OnboardingIntent.UpdateSimulatorCommand -> _state.update { it.copy(simulatorCommand = intent.simulatorCommand) }
                 is OnboardingIntent.UpdateSelectedOptionText -> {
                     _state.update { it.copy(selectedOptionText = intent.text) }
                 }

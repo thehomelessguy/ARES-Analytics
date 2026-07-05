@@ -147,6 +147,17 @@ class DatabaseService(dbPath: String = System.getProperty("user.home") + "/.ares
                     robot_id VARCHAR PRIMARY KEY,
                     topology_json VARCHAR NOT NULL
                 );
+                
+                CREATE TABLE IF NOT EXISTS robot_actions (
+                    timestamp_ms BIGINT NOT NULL,
+                    session_id VARCHAR NOT NULL,
+                    run_id VARCHAR NOT NULL,
+                    robot_id VARCHAR NOT NULL,
+                    match_number INTEGER NOT NULL DEFAULT 0,
+                    alliance VARCHAR NOT NULL DEFAULT 'UNKNOWN',
+                    action_type VARCHAR NOT NULL,
+                    payload_json VARCHAR NOT NULL
+                );
             """.trimIndent())
             
             try {
@@ -300,6 +311,60 @@ class DatabaseService(dbPath: String = System.getProperty("user.home") + "/.ares
         } finally {
             appender.close()
         }
+    }
+
+    /**
+     * High-performance bulk insert for RobotAction records using DuckDB's native Appender API.
+     * Stores Redux-style action log entries from the robot's ActionLogger JSONL output.
+     */
+    suspend fun insertRobotActionsBulk(actions: List<com.ares.analytics.shared.RobotActionRecord>) = withDbLock {
+        if (actions.isEmpty()) return@withDbLock
+        val duckConn = conn.unwrap(DuckDBConnection::class.java)
+        val appender = duckConn.createAppender(DuckDBConnection.DEFAULT_SCHEMA, "robot_actions")
+        try {
+            for (action in actions) {
+                appender.beginRow()
+                appender.append(action.timestampMs)
+                appender.append(action.sessionId)
+                appender.append(action.runId)
+                appender.append(action.robotId)
+                appender.append(action.matchNumber)
+                appender.append(action.alliance)
+                appender.append(action.actionType)
+                appender.append(action.payloadJson)
+                appender.endRow()
+            }
+            appender.flush()
+        } finally {
+            appender.close()
+        }
+    }
+
+    /**
+     * Retrieves all robot actions for a given session, ordered chronologically.
+     */
+    suspend fun getActionsForSession(sessionId: String): List<com.ares.analytics.shared.RobotActionRecord> = withDbLock {
+        val list = mutableListOf<com.ares.analytics.shared.RobotActionRecord>()
+        conn.prepareStatement(
+            "SELECT timestamp_ms, session_id, run_id, robot_id, match_number, alliance, action_type, payload_json FROM robot_actions WHERE session_id = ? ORDER BY timestamp_ms"
+        ).use { ps ->
+            ps.setString(1, sessionId)
+            ps.executeQuery().use { rs ->
+                while (rs.next()) {
+                    list.add(com.ares.analytics.shared.RobotActionRecord(
+                        timestampMs = rs.getLong("timestamp_ms"),
+                        sessionId = rs.getString("session_id"),
+                        runId = rs.getString("run_id"),
+                        robotId = rs.getString("robot_id"),
+                        matchNumber = rs.getInt("match_number"),
+                        alliance = rs.getString("alliance"),
+                        actionType = rs.getString("action_type"),
+                        payloadJson = rs.getString("payload_json")
+                    ))
+                }
+            }
+        }
+        list
     }
 
     /**

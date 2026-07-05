@@ -38,6 +38,7 @@ class ReplayEngineServiceTest {
         assertEquals(ReplayState.STOPPED, replayEngine.state.value)
         assertEquals(0.0, replayEngine.progress.value)
         assertEquals(1.0, replayEngine.currentFrame.value?.values?.get("/Test/Val"))
+        assertTrue(replayEngine.telemetryDensity.value.isNotEmpty())
 
         // Play
         replayEngine.play()

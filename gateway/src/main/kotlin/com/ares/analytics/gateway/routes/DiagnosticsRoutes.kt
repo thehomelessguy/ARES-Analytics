@@ -59,7 +59,17 @@ fun Route.diagnosticsRoutes() {
                     val sanitizedJson = jsonResponse.replace(Regex("```(?:json)?\\n?(.*?)\\n?```", RegexOption.DOT_MATCHES_ALL), "$1").trim()
 
                     // Parse to verify compliance and return to client
-                    val parsed = Json.decodeFromString<ForensicsResponse>(sanitizedJson)
+                    val parsed = try {
+                        Json.decodeFromString<ForensicsResponse>(sanitizedJson)
+                    } catch (e: Exception) {
+                        ForensicsResponse(
+                            probableRootCause = "AI produced unparseable diagnostics.",
+                            confidenceScore = 0.0,
+                            cascadingNodesAffected = emptyList(),
+                            hardwareFaultLocus = null,
+                            recommendedActions = listOf("Retry diagnostics", "Check logs manually")
+                        )
+                    }
                     call.respond(parsed)
                 }
             } catch (e: Exception) {
