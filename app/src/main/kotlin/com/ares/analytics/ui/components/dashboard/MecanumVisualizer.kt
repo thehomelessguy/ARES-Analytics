@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -115,178 +116,182 @@ fun MecanumVisualizer(
                 val cx = size.width / 2f
                 val cy = size.height / 2f
 
-                // Draw robot outline (dashed)
-                val robotW = 160f
-                val robotH = 220f
-                val dashEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f), 0f)
-                drawRect(
-                    color = AresBorder,
-                    topLeft = Offset(cx - robotW / 2f, cy - robotH / 2f),
-                    size = Size(robotW, robotH),
-                    style = Stroke(width = 2f, pathEffect = dashEffect)
-                )
-
-                // Wheel definitions: Name, CenterOffset, RollerAngleRad, Speed
-                val wheels = listOf(
-                    // FL: rollers at 45 deg (points top-left to bottom-right)
-                    WheelData("FL", Offset(cx - robotW / 2f, cy - robotH / 2f), Math.toRadians(45.0), velocities[0], currents[0]),
-                    // FR: rollers at -45 deg (points bottom-left to top-right)
-                    WheelData("FR", Offset(cx + robotW / 2f, cy - robotH / 2f), Math.toRadians(-45.0), velocities[1], currents[1]),
-                    // BL: rollers at -45 deg
-                    WheelData("BL", Offset(cx - robotW / 2f, cy + robotH / 2f), Math.toRadians(-45.0), velocities[2], currents[2]),
-                    // BR: rollers at 45 deg
-                    WheelData("BR", Offset(cx + robotW / 2f, cy + robotH / 2f), Math.toRadians(45.0), velocities[3], currents[3])
-                )
-
-                val maxAbsSpeed = wheels.maxOfOrNull { Math.abs(it.speed) }?.toFloat() ?: 0f
-                val speedScale = if (maxAbsSpeed > 2.0f) Math.max(maxAbsSpeed, 100f) else 1.0f
-
-                for (w in wheels) {
-                    val center = w.center
-                    val wWidth = 32f
-                    val wHeight = 64f
-
-                    // Draw wheel body
-                    drawRoundRect(
-                        color = AresSurfaceElevated,
-                        topLeft = Offset(center.x - wWidth / 2f, center.y - wHeight / 2f),
-                        size = Size(wWidth, wHeight),
-                        cornerRadius = CornerRadius(8f, 8f)
-                    )
-                    drawRoundRect(
+                withTransform({
+                    rotate(90f, Offset(cx, cy))
+                }) {
+                    // Draw robot outline (dashed)
+                    val robotW = 160f
+                    val robotH = 220f
+                    val dashEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f), 0f)
+                    drawRect(
                         color = AresBorder,
-                        topLeft = Offset(center.x - wWidth / 2f, center.y - wHeight / 2f),
-                        size = Size(wWidth, wHeight),
-                        cornerRadius = CornerRadius(8f, 8f),
-                        style = Stroke(width = 1.5f)
+                        topLeft = Offset(cx - robotW / 2f, cy - robotH / 2f),
+                        size = Size(robotW, robotH),
+                        style = Stroke(width = 2f, pathEffect = dashEffect)
                     )
 
-                    // Draw wheel rollers (diagonal lines)
-                    val spacing = 12f
-                    var offset = -wHeight / 2f + 4f
-                    while (offset < wHeight / 2f) {
-                        val rx1 = center.x - wWidth / 2f + 2f
-                        val ry1 = center.y + offset
-                        val rx2 = center.x + wWidth / 2f - 2f
-                        val ry2 = ry1 + wWidth * tan(w.rollerAngle).toFloat()
+                    // Wheel definitions: Name, CenterOffset, RollerAngleRad, Speed
+                    val wheels = listOf(
+                        // FL: rollers at 45 deg (points top-left to bottom-right)
+                        WheelData("FL", Offset(cx - robotW / 2f, cy - robotH / 2f), Math.toRadians(45.0), velocities[0], currents[0]),
+                        // FR: rollers at -45 deg (points bottom-left to top-right)
+                        WheelData("FR", Offset(cx + robotW / 2f, cy - robotH / 2f), Math.toRadians(-45.0), velocities[1], currents[1]),
+                        // BL: rollers at -45 deg
+                        WheelData("BL", Offset(cx - robotW / 2f, cy + robotH / 2f), Math.toRadians(-45.0), velocities[2], currents[2]),
+                        // BR: rollers at 45 deg
+                        WheelData("BR", Offset(cx + robotW / 2f, cy + robotH / 2f), Math.toRadians(45.0), velocities[3], currents[3])
+                    )
 
-                        if (ry2 >= center.y - wHeight / 2f && ry2 <= center.y + wHeight / 2f) {
+                    val maxAbsSpeed = wheels.maxOfOrNull { Math.abs(it.speed) }?.toFloat() ?: 0f
+                    val speedScale = if (maxAbsSpeed > 2.0f) Math.max(maxAbsSpeed, 100f) else 1.0f
+
+                    for (w in wheels) {
+                        val center = w.center
+                        val wWidth = 32f
+                        val wHeight = 64f
+
+                        // Draw wheel body
+                        drawRoundRect(
+                            color = AresSurfaceElevated,
+                            topLeft = Offset(center.x - wWidth / 2f, center.y - wHeight / 2f),
+                            size = Size(wWidth, wHeight),
+                            cornerRadius = CornerRadius(8f, 8f)
+                        )
+                        drawRoundRect(
+                            color = AresBorder,
+                            topLeft = Offset(center.x - wWidth / 2f, center.y - wHeight / 2f),
+                            size = Size(wWidth, wHeight),
+                            cornerRadius = CornerRadius(8f, 8f),
+                            style = Stroke(width = 1.5f)
+                        )
+
+                        // Draw wheel rollers (diagonal lines)
+                        val spacing = 12f
+                        var offset = -wHeight / 2f + 4f
+                        while (offset < wHeight / 2f) {
+                            val rx1 = center.x - wWidth / 2f + 2f
+                            val ry1 = center.y + offset
+                            val rx2 = center.x + wWidth / 2f - 2f
+                            val ry2 = ry1 + wWidth * tan(w.rollerAngle).toFloat()
+
+                            if (ry2 >= center.y - wHeight / 2f && ry2 <= center.y + wHeight / 2f) {
+                                drawLine(
+                                    color = AresBorder.copy(alpha = 0.6f),
+                                    start = Offset(rx1, ry1),
+                                    end = Offset(rx2, ry2),
+                                    strokeWidth = 2.5f,
+                                    cap = StrokeCap.Round
+                                )
+                            }
+                            offset += spacing
+                        }
+
+                        // Draw spin vector arrow (along wheel axis, vertically)
+                        val normalizedSpeed = (w.speed / speedScale).toFloat()
+                        if (Math.abs(normalizedSpeed) > 0.05f) {
+                            val maxArrowLen = 40f
+                            val arrowLen = normalizedSpeed * maxArrowLen
+                            val spinEnd = Offset(center.x, center.y - arrowLen)
+
                             drawLine(
-                                color = AresBorder.copy(alpha = 0.6f),
-                                start = Offset(rx1, ry1),
-                                end = Offset(rx2, ry2),
-                                strokeWidth = 2.5f,
+                                color = AresGreen,
+                                start = center,
+                                end = spinEnd,
+                                strokeWidth = 3.5f,
                                 cap = StrokeCap.Round
                             )
+
+                            // Draw traction force vector arrow (at 45 degrees, matching roller slide reaction)
+                            // The traction force vector points along the roller's perpendicular axis (direction of push)
+                            val forceAngle = when (w.name) {
+                                "FL" -> if (w.speed >= 0) Math.toRadians(-45.0) else Math.toRadians(135.0)
+                                "FR" -> if (w.speed >= 0) Math.toRadians(-135.0) else Math.toRadians(45.0)
+                                "BL" -> if (w.speed >= 0) Math.toRadians(-135.0) else Math.toRadians(45.0)
+                                "BR" -> if (w.speed >= 0) Math.toRadians(-45.0) else Math.toRadians(135.0)
+                                else -> 0.0
+                            }
+
+                            val forceLen = Math.abs(normalizedSpeed * maxArrowLen)
+                            val forceEnd = Offset(
+                                center.x + forceLen * cos(forceAngle).toFloat(),
+                                center.y + forceLen * sin(forceAngle).toFloat()
+                            )
+
+                            drawLine(
+                                color = AresCyan,
+                                start = center,
+                                end = forceEnd,
+                                strokeWidth = 3.5f,
+                                cap = StrokeCap.Round
+                            )
+
+                            // Draw force arrowhead
+                            val headSize = 8f
+                            val leftWing = Offset(
+                                forceEnd.x - headSize * cos(forceAngle - Math.PI / 6).toFloat(),
+                                forceEnd.y - headSize * sin(forceAngle - Math.PI / 6).toFloat()
+                            )
+                            val rightWing = Offset(
+                                forceEnd.x - headSize * cos(forceAngle + Math.PI / 6).toFloat(),
+                                forceEnd.y - headSize * sin(forceAngle + Math.PI / 6).toFloat()
+                            )
+                            drawLine(color = AresCyan, start = forceEnd, end = leftWing, strokeWidth = 2.5f)
+                            drawLine(color = AresCyan, start = forceEnd, end = rightWing, strokeWidth = 2.5f)
                         }
-                        offset += spacing
                     }
 
-                    // Draw spin vector arrow (along wheel axis, vertically)
-                    val normalizedSpeed = (w.speed / speedScale).toFloat()
-                    if (Math.abs(normalizedSpeed) > 0.05f) {
-                        val maxArrowLen = 40f
-                        val arrowLen = normalizedSpeed * maxArrowLen
-                        val spinEnd = Offset(center.x, center.y - arrowLen)
-
-                        drawLine(
-                            color = AresGreen,
-                            start = center,
-                            end = spinEnd,
-                            strokeWidth = 3.5f,
-                            cap = StrokeCap.Round
-                        )
-
-                        // Draw traction force vector arrow (at 45 degrees, matching roller slide reaction)
-                        // The traction force vector points along the roller's perpendicular axis (direction of push)
-                        val forceAngle = when (w.name) {
-                            "FL" -> if (w.speed >= 0) Math.toRadians(-45.0) else Math.toRadians(135.0)
-                            "FR" -> if (w.speed >= 0) Math.toRadians(-135.0) else Math.toRadians(45.0)
-                            "BL" -> if (w.speed >= 0) Math.toRadians(-135.0) else Math.toRadians(45.0)
-                            "BR" -> if (w.speed >= 0) Math.toRadians(-45.0) else Math.toRadians(135.0)
-                            else -> 0.0
+                    // Calculate and draw net force vector in the center
+                    var netForceX = 0f
+                    var netForceY = 0f
+                    for (w in wheels) {
+                        val normalizedSpeed = (w.speed / speedScale).toFloat()
+                        if (Math.abs(normalizedSpeed) > 0.05f) {
+                            val forceAngle = when (w.name) {
+                                "FL" -> if (w.speed >= 0) Math.toRadians(-45.0) else Math.toRadians(135.0)
+                                "FR" -> if (w.speed >= 0) Math.toRadians(-135.0) else Math.toRadians(45.0)
+                                "BL" -> if (w.speed >= 0) Math.toRadians(-135.0) else Math.toRadians(45.0)
+                                "BR" -> if (w.speed >= 0) Math.toRadians(-45.0) else Math.toRadians(135.0)
+                                else -> 0.0
+                            }
+                            val forceLen = Math.abs(normalizedSpeed)
+                            netForceX += forceLen * cos(forceAngle).toFloat()
+                            netForceY += forceLen * sin(forceAngle).toFloat()
                         }
+                    }
 
-                        val forceLen = Math.abs(normalizedSpeed * maxArrowLen)
-                        val forceEnd = Offset(
-                            center.x + forceLen * cos(forceAngle).toFloat(),
-                            center.y + forceLen * sin(forceAngle).toFloat()
+                    val netMagnitude = Math.sqrt((netForceX * netForceX + netForceY * netForceY).toDouble()).toFloat()
+                    if (netMagnitude > 0.05f) {
+                        val maxNetArrowLen = 100f
+                        val arrowLen = (netMagnitude * maxNetArrowLen).coerceAtMost(maxNetArrowLen)
+                        val netAngle = Math.atan2(netForceY.toDouble(), netForceX.toDouble())
+                        
+                        val netStart = Offset(cx, cy)
+                        val netEnd = Offset(
+                            cx + arrowLen * cos(netAngle).toFloat(),
+                            cy + arrowLen * sin(netAngle).toFloat()
                         )
 
                         drawLine(
-                            color = AresCyan,
-                            start = center,
-                            end = forceEnd,
-                            strokeWidth = 3.5f,
+                            color = AresAmber, // use Amber to stand out from Cyan wheel vectors
+                            start = netStart,
+                            end = netEnd,
+                            strokeWidth = 6f, // thicker line for net vector
                             cap = StrokeCap.Round
                         )
 
-                        // Draw force arrowhead
-                        val headSize = 8f
+                        // Draw net force arrowhead
+                        val headSize = 14f
                         val leftWing = Offset(
-                            forceEnd.x - headSize * cos(forceAngle - Math.PI / 6).toFloat(),
-                            forceEnd.y - headSize * sin(forceAngle - Math.PI / 6).toFloat()
+                            netEnd.x - headSize * cos(netAngle - Math.PI / 6).toFloat(),
+                            netEnd.y - headSize * sin(netAngle - Math.PI / 6).toFloat()
                         )
                         val rightWing = Offset(
-                            forceEnd.x - headSize * cos(forceAngle + Math.PI / 6).toFloat(),
-                            forceEnd.y - headSize * sin(forceAngle + Math.PI / 6).toFloat()
+                            netEnd.x - headSize * cos(netAngle + Math.PI / 6).toFloat(),
+                            netEnd.y - headSize * sin(netAngle + Math.PI / 6).toFloat()
                         )
-                        drawLine(color = AresCyan, start = forceEnd, end = leftWing, strokeWidth = 2.5f)
-                        drawLine(color = AresCyan, start = forceEnd, end = rightWing, strokeWidth = 2.5f)
+                        drawLine(color = AresAmber, start = netEnd, end = leftWing, strokeWidth = 4f, cap = StrokeCap.Round)
+                        drawLine(color = AresAmber, start = netEnd, end = rightWing, strokeWidth = 4f, cap = StrokeCap.Round)
                     }
-                }
-
-                // Calculate and draw net force vector in the center
-                var netForceX = 0f
-                var netForceY = 0f
-                for (w in wheels) {
-                    val normalizedSpeed = (w.speed / speedScale).toFloat()
-                    if (Math.abs(normalizedSpeed) > 0.05f) {
-                        val forceAngle = when (w.name) {
-                            "FL" -> if (w.speed >= 0) Math.toRadians(-45.0) else Math.toRadians(135.0)
-                            "FR" -> if (w.speed >= 0) Math.toRadians(-135.0) else Math.toRadians(45.0)
-                            "BL" -> if (w.speed >= 0) Math.toRadians(-135.0) else Math.toRadians(45.0)
-                            "BR" -> if (w.speed >= 0) Math.toRadians(-45.0) else Math.toRadians(135.0)
-                            else -> 0.0
-                        }
-                        val forceLen = Math.abs(normalizedSpeed)
-                        netForceX += forceLen * cos(forceAngle).toFloat()
-                        netForceY += forceLen * sin(forceAngle).toFloat()
-                    }
-                }
-
-                val netMagnitude = Math.sqrt((netForceX * netForceX + netForceY * netForceY).toDouble()).toFloat()
-                if (netMagnitude > 0.05f) {
-                    val maxNetArrowLen = 100f
-                    val arrowLen = (netMagnitude * maxNetArrowLen).coerceAtMost(maxNetArrowLen)
-                    val netAngle = Math.atan2(netForceY.toDouble(), netForceX.toDouble())
-                    
-                    val netStart = Offset(cx, cy)
-                    val netEnd = Offset(
-                        cx + arrowLen * cos(netAngle).toFloat(),
-                        cy + arrowLen * sin(netAngle).toFloat()
-                    )
-
-                    drawLine(
-                        color = AresAmber, // use Amber to stand out from Cyan wheel vectors
-                        start = netStart,
-                        end = netEnd,
-                        strokeWidth = 6f, // thicker line for net vector
-                        cap = StrokeCap.Round
-                    )
-
-                    // Draw net force arrowhead
-                    val headSize = 14f
-                    val leftWing = Offset(
-                        netEnd.x - headSize * cos(netAngle - Math.PI / 6).toFloat(),
-                        netEnd.y - headSize * sin(netAngle - Math.PI / 6).toFloat()
-                    )
-                    val rightWing = Offset(
-                        netEnd.x - headSize * cos(netAngle + Math.PI / 6).toFloat(),
-                        netEnd.y - headSize * sin(netAngle + Math.PI / 6).toFloat()
-                    )
-                    drawLine(color = AresAmber, start = netEnd, end = leftWing, strokeWidth = 4f, cap = StrokeCap.Round)
-                    drawLine(color = AresAmber, start = netEnd, end = rightWing, strokeWidth = 4f, cap = StrokeCap.Round)
                 }
             }
         }

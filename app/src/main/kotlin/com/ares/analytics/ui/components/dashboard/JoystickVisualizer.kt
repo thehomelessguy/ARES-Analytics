@@ -41,7 +41,7 @@ fun JoystickVisualizer(
             while (true) {
                 val g1 = gamepad1StateFlow?.value
 
-                val (vx, vy, omega) = if (g1 != null && g1.connected) {
+                val (vx, vy, omega) = if (keyboardState.useGamepad && g1 != null && g1.connected) {
                     val activeVx = g1.leftStickY.toDouble() * 4.0
                     val activeVy = g1.leftStickX.toDouble() * -4.0
                     val activeOmega = g1.rightStickX.toDouble() * -4.0
@@ -53,9 +53,9 @@ fun JoystickVisualizer(
                     Triple(activeVx, activeVy, activeOmega)
                 }
 
-                val qPressed = if (g1 != null && g1.connected) g1.leftBumper else keyboardState.isQPressed
-                val ePressed = if (g1 != null && g1.connected) g1.rightBumper else keyboardState.isEPressed
-                val shiftPressed = if (g1 != null && g1.connected) g1.rightTrigger > 0.5f else keyboardState.isShiftPressed
+                val qPressed = if (keyboardState.useGamepad && g1 != null && g1.connected) g1.leftBumper else keyboardState.isQPressed
+                val ePressed = if (keyboardState.useGamepad && g1 != null && g1.connected) g1.rightBumper else keyboardState.isEPressed
+                val shiftPressed = if (keyboardState.useGamepad && g1 != null && g1.connected) g1.rightTrigger > 0.5f else keyboardState.isShiftPressed
 
                 nt4ClientService.publishInputDouble(1001, vx)
                 nt4ClientService.publishInputDouble(1002, vy)
@@ -110,7 +110,16 @@ fun JoystickVisualizer(
 
                 if (nt4ClientService != null) {
                     Button(
-                        onClick = { keyboardState.enabled = !keyboardState.enabled },
+                        onClick = { 
+                            if (!keyboardControlEnabled) {
+                                keyboardState.enabled = true
+                                keyboardState.useGamepad = true
+                            } else if (keyboardState.useGamepad) {
+                                keyboardState.useGamepad = false
+                            } else {
+                                keyboardState.enabled = false
+                            }
+                        },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (keyboardControlEnabled) AresGreen else AresCyan
                         ),
@@ -118,7 +127,9 @@ fun JoystickVisualizer(
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                     ) {
                         Text(
-                            if (keyboardControlEnabled) "⌨️ Keyboard Active" else "🔌 Enable Keyboard Drive",
+                            if (!keyboardControlEnabled) "🔌 Live Telemetry" 
+                            else if (keyboardState.useGamepad) "🎮 Local Gamepad" 
+                            else "⌨️ Local Keyboard",
                             color = AresBackground,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold
@@ -250,11 +261,11 @@ fun SingleGamepadVisualizer(
         LaunchedEffect(Unit) {
             while (true) {
                 val g = gamepadStateFlow?.value
-                if (g != null && g.connected) {
+                if (keyboardState?.useGamepad != false && g != null && g.connected) {
                     lx = g.leftStickX.toDouble()
-                    ly = g.leftStickY.toDouble()
+                    ly = -g.leftStickY.toDouble()
                     rx = g.rightStickX.toDouble()
-                    ry = g.rightStickY.toDouble()
+                    ry = -g.rightStickY.toDouble()
                     lb = g.leftBumper
                     rb = g.rightBumper
                     lt = g.leftTrigger.toDouble()
