@@ -116,31 +116,28 @@ fun MecanumVisualizer(
                 val cx = size.width / 2f
                 val cy = size.height / 2f
 
-                withTransform({
-                    rotate(90f, Offset(cx, cy))
-                }) {
-                    // Draw robot outline (dashed)
-                    val robotW = 160f
-                    val robotH = 220f
-                    val dashEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f), 0f)
-                    drawRect(
-                        color = AresBorder,
-                        topLeft = Offset(cx - robotW / 2f, cy - robotH / 2f),
-                        size = Size(robotW, robotH),
-                        style = Stroke(width = 2f, pathEffect = dashEffect)
-                    )
+                // Draw robot outline (dashed)
+                val robotW = 160f
+                val robotH = 220f
+                val dashEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f), 0f)
+                drawRect(
+                    color = AresBorder,
+                    topLeft = Offset(cx - robotW / 2f, cy - robotH / 2f),
+                    size = Size(robotW, robotH),
+                    style = Stroke(width = 2f, pathEffect = dashEffect)
+                )
 
-                    // Wheel definitions: Name, CenterOffset, RollerAngleRad, Speed
-                    val wheels = listOf(
-                        // FL: rollers at 45 deg (points top-left to bottom-right)
-                        WheelData("FL", Offset(cx - robotW / 2f, cy - robotH / 2f), Math.toRadians(45.0), velocities[0], currents[0]),
-                        // FR: rollers at -45 deg (points bottom-left to top-right)
-                        WheelData("FR", Offset(cx + robotW / 2f, cy - robotH / 2f), Math.toRadians(-45.0), velocities[1], currents[1]),
-                        // BL: rollers at -45 deg
-                        WheelData("BL", Offset(cx - robotW / 2f, cy + robotH / 2f), Math.toRadians(-45.0), velocities[2], currents[2]),
-                        // BR: rollers at 45 deg
-                        WheelData("BR", Offset(cx + robotW / 2f, cy + robotH / 2f), Math.toRadians(45.0), velocities[3], currents[3])
-                    )
+                // Wheel definitions: Name, CenterOffset, RollerAngleRad, Speed
+                val wheels = listOf(
+                    // FL: rollers at 45 deg (points top-left to bottom-right)
+                    WheelData("FL", Offset(cx - robotW / 2f, cy - robotH / 2f), Math.toRadians(45.0), velocities[0], currents[0]),
+                    // FR: rollers at -45 deg (points bottom-left to top-right)
+                    WheelData("FR", Offset(cx + robotW / 2f, cy - robotH / 2f), Math.toRadians(-45.0), velocities[1], currents[1]),
+                    // BL: rollers at -45 deg
+                    WheelData("BL", Offset(cx - robotW / 2f, cy + robotH / 2f), Math.toRadians(-45.0), velocities[2], currents[2]),
+                    // BR: rollers at 45 deg
+                    WheelData("BR", Offset(cx + robotW / 2f, cy + robotH / 2f), Math.toRadians(45.0), velocities[3], currents[3])
+                )
 
                     val maxAbsSpeed = wheels.maxOfOrNull { Math.abs(it.speed) }?.toFloat() ?: 0f
                     val speedScale = if (maxAbsSpeed > 2.0f) Math.max(maxAbsSpeed, 100f) else 1.0f
@@ -294,7 +291,6 @@ fun MecanumVisualizer(
                     }
                 }
             }
-        }
 
         // Details Panel
         Row(
