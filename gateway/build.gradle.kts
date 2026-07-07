@@ -30,6 +30,9 @@ dependencies {
     // Serialization
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 
+    // Coroutines Extensions
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-guava:1.8.1")
+
     // Firebase Admin SDK
     implementation("com.google.firebase:firebase-admin:9.4.2")
 

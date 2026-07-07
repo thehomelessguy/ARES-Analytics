@@ -11,6 +11,8 @@ import io.ktor.server.auth.*
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.routing.*
 import io.ktor.server.testing.*
+import io.ktor.server.plugins.ratelimit.*
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -59,6 +61,11 @@ class GatewayLoadTest {
             }
             install(Authentication) {
                 firebase("firebase")
+            }
+            install(RateLimit) {
+                register(RateLimitName("archive")) {
+                    rateLimiter(limit = 30, refillPeriod = 60.seconds)
+                }
             }
             routing {
                 archiveRoutes(customFirestore = mockFirestore)

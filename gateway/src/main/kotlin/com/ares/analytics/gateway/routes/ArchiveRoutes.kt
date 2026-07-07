@@ -16,6 +16,8 @@ import io.ktor.server.routing.*
 import com.ares.analytics.gateway.auth.FirebasePrincipal
 import io.ktor.server.plugins.ratelimit.*
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 fun Route.archiveRoutes(
     customStorage: Storage? = null,
@@ -30,12 +32,18 @@ fun Route.archiveRoutes(
                 val principal = call.principal<FirebasePrincipal>() ?: return@post call.respond(HttpStatusCode.Unauthorized)
             val req = call.receive<UploadUrlRequest>()
 
+            if (principal.teamId != null && principal.teamId != req.summary.teamId) {
+                return@post call.respond(HttpStatusCode.Forbidden, "Team ID mismatch")
+            }
+
             try {
                 val db = customFirestore ?: FirestoreOptions.getDefaultInstance().service
 
                 // 1. Save summary metadata to Firestore
-                val docRef = db.collection("summaries").document(req.sessionId)
-                docRef.set(req.summary.toMap()).get()
+                withContext(Dispatchers.IO) {
+                    val docRef = db.collection("summaries").document(req.sessionId)
+                    docRef.set(req.summary.toMap()).get()
+                }
 
                 // 2. Generate pre-signed GCS URL
                 val blobInfo = BlobInfo.newBuilder(bucketName, "${req.summary.teamId}/telemetry/${req.sessionId}.parquet").build()
@@ -58,15 +66,21 @@ fun Route.archiveRoutes(
             val principal = call.principal<FirebasePrincipal>() ?: return@post call.respond(HttpStatusCode.Unauthorized)
             val req = call.receive<SyncRequest>()
 
+            if (principal.teamId != null && principal.teamId != req.teamId) {
+                return@post call.respond(HttpStatusCode.Forbidden, "Team ID mismatch")
+            }
+
             try {
                 val db = customFirestore ?: FirestoreOptions.getDefaultInstance().service
 
                 // Query all summaries matching teamId and seasonId
-                val querySnapshot = db.collection("summaries")
-                    .whereEqualTo("teamId", req.teamId)
-                    .whereEqualTo("seasonId", req.seasonId)
-                    .get()
-                    .get()
+                val querySnapshot = withContext(Dispatchers.IO) {
+                    db.collection("summaries")
+                        .whereEqualTo("teamId", req.teamId)
+                        .whereEqualTo("seasonId", req.seasonId)
+                        .get()
+                        .get()
+                }
 
                 val cloudSummaries = querySnapshot.documents.map { doc ->
                     doc.data.toSessionSummary()
@@ -96,7 +110,9 @@ fun Route.archiveRoutes(
                 }
 
                 // 1. Delete Firestore summary document
-                db.collection("summaries").document(req.sessionId).delete().get()
+                withContext(Dispatchers.IO) {
+                    db.collection("summaries").document(req.sessionId).delete().get()
+                }
 
                 // 2. Delete GCS parquet blob (best-effort, may not exist)
                 try {
@@ -116,6 +132,10 @@ fun Route.archiveRoutes(
             val principal = call.principal<FirebasePrincipal>() ?: return@get call.respond(HttpStatusCode.Unauthorized)
             val sessionId = call.request.queryParameters["sessionId"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing sessionId")
             val teamId = call.request.queryParameters["teamId"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing teamId")
+
+            if (principal.teamId != null && principal.teamId != teamId) {
+                return@get call.respond(HttpStatusCode.Forbidden, "Team ID mismatch")
+            }
 
             try {
                 val blobInfo = BlobInfo.newBuilder(bucketName, "${teamId}/telemetry/${sessionId}.parquet").build()
@@ -138,7 +158,9 @@ fun Route.archiveRoutes(
             val teamId = call.parameters["teamId"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing teamId")
             try {
                 val db = customFirestore ?: FirestoreOptions.getDefaultInstance().service
-                val querySnapshot = db.collection("teams").document(teamId).collection("robots").get().get()
+                val querySnapshot = withContext(Dispatchers.IO) {
+                    db.collection("teams").document(teamId).collection("robots").get().get()
+                }
                 val robotsList = querySnapshot.documents.map { doc ->
                     val data = doc.data
                     RobotProfile(
@@ -168,7 +190,9 @@ fun Route.archiveRoutes(
                     "seasonId" to req.robot.seasonId,
                     "name" to req.robot.name
                 )
-                docRef.set(robotMap).get()
+                withContext(Dispatchers.IO) {
+                    docRef.set(robotMap).get()
+                }
                 call.respond(HttpStatusCode.OK, "Robot profile added successfully")
             } catch (e: Exception) {
                 call.respond(HttpStatusCode.InternalServerError, "Failed to add robot: ${e.message}")
@@ -184,7 +208,9 @@ fun Route.archiveRoutes(
                     return@post call.respond(HttpStatusCode.Forbidden, "Only mentors and administrators can delete robot profiles.")
                 }
                 val docRef = db.collection("teams").document(req.teamId).collection("robots").document(req.robotId)
-                docRef.delete().get()
+                withContext(Dispatchers.IO) {
+                    docRef.delete().get()
+                }
                 call.respond(HttpStatusCode.OK, "Robot profile deleted successfully")
             } catch (e: Exception) {
                 call.respond(HttpStatusCode.InternalServerError, "Failed to delete robot: ${e.message}")
@@ -226,7 +252,7 @@ fun Route.archiveRoutes(
  */
 private suspend fun isUserAdmin(db: Firestore, uid: String): Boolean {
     // 1. Try ARESWEB 'authorized_users' collection
-    val authUserDoc = db.collection("authorized_users").document(uid).get().get()
+    val authUserDoc = withContext(Dispatchers.IO) { db.collection("authorized_users").document(uid).get().get() }
     if (authUserDoc.exists()) {
         val role = authUserDoc.getString("role")?.lowercase()
         if (role == "admin" || role == "coach") {
@@ -235,7 +261,7 @@ private suspend fun isUserAdmin(db: Firestore, uid: String): Boolean {
     }
 
     // 2. Try ARESWEB 'user_profiles' collection
-    val areswebDoc = db.collection("user_profiles").document(uid).get().get()
+    val areswebDoc = withContext(Dispatchers.IO) { db.collection("user_profiles").document(uid).get().get() }
     if (areswebDoc.exists()) {
         val memberType = areswebDoc.getString("memberType")?.lowercase()
         if (memberType == "admin" || memberType == "coach") {
@@ -244,7 +270,7 @@ private suspend fun isUserAdmin(db: Firestore, uid: String): Boolean {
     }
 
     // 3. Try old/local 'users' collection fallback
-    val userDoc = db.collection("users").document(uid).get().get()
+    val userDoc = withContext(Dispatchers.IO) { db.collection("users").document(uid).get().get() }
     if (userDoc.exists()) {
         val role = userDoc.getString("role")?.lowercase()
         if (role == "admin" || role == "coach") {

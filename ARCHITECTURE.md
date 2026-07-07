@@ -607,3 +607,20 @@ The following additions are made to the `com.areslib.hardware` package:
 
 ### 15.4 Unified Language Invariant
 > **Strict Maintainability Invariant:** All application source code — desktop client, cloud gateway, and shared libraries — must be written in Kotlin. This ensures that any team member capable of writing FTC robot code can read, debug, and extend the analytics platform without learning additional programming languages. Third-party dependencies may use JVM-compatible languages, but all first-party code must remain Kotlin.
+
+
+## 10. Hardened System Invariants (Post-Audit)
+
+To maintain championship-grade reliability, all future AI agents and developers must strictly adhere to the following architectural invariants discovered during the Multi-League Ecosystem Audit:
+
+### 10.1 Analytics Gateway Security & Scalability
+- **Zero-Trust IDOR Protection:** All Ktor endpoints routing data based on a 	eamId path parameter must cryptographically verify that the authenticated Firebase user token explicitly possesses claims for that 	eamId. DEV_MODE auth bypasses are strictly prohibited in production branches.
+- **Async Cloud Futures:** Synchronous .get() or .get().get() calls on Google Cloud ApiFuture objects inside Ktor Netty Coroutines are strictly forbidden, as they cause thread starvation. Always use kotlinx-coroutines-guava's .await() extension function.
+
+### 10.2 Desktop App Concurrency & Memory
+- **SQLite Mutex Deadlocks:** Nested non-reentrant mutex locks (e.g. calling withDbLock inside another withDbLock scope) are prohibited in DatabaseService.
+- **Streaming Log Ingestion:** LogParserService and decoders (RoadRunner, WPILog) must never load entire file payloads directly into unbounded byte arrays in memory. They must utilize the streaming FrameBatcher to guarantee constant (1)$ heap usage.
+- **Compose GC Rates:** High-frequency (50Hz) rendering components like TelemetryChartPanel must aggressively minimize dynamic state allocations to prevent recomposition storms and GC death spirals.
+
+### 10.3 Offline-First Isolation
+- **Strict Local Subnet Policy:** Robot code (Control Hub/RoboRIO) must never attempt direct outbound HTTP requests (e.g. to Zulip, GCS, Vertex AI). All uploads must be routed through the Desktop Application (which acts as the cloud bridge) via local subnet endpoints (LogManagerServer serving files over port 5002).

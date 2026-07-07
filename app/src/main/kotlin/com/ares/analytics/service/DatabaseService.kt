@@ -534,7 +534,7 @@ class DatabaseService(dbPath: String = System.getProperty("user.home") + "/.ares
         }
     }
 
-    suspend fun associateSessionWithMatch(sessionId: String, matchNumber: Int, allianceColor: String, opponentTeams: List<String>) = withDbLock {
+    suspend fun associateSessionWithMatch(sessionId: String, matchNumber: Int, allianceColor: String, opponentTeams: List<String>) {
         updateSessionMatchDetails(sessionId, matchNumber, allianceColor)
     }
 

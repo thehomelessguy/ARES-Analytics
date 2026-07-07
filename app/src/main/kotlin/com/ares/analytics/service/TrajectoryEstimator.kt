@@ -13,14 +13,16 @@ import kotlin.math.*
 object TrajectoryEstimator {
 
     private data class SampledPoint(
-        val x: Double,
-        val y: Double,
-        val s: Double,
-        val relativePos: Double,
+        var x: Double = 0.0,
+        var y: Double = 0.0,
+        var s: Double = 0.0,
+        var relativePos: Double = 0.0,
         var maxV: Double = 0.0,
         var v: Double = 0.0,
         var t: Double = 0.0
     )
+    
+    private val pointPool = ThreadLocal.withInitial { ArrayList<SampledPoint>(500) }
 
     fun generateTrajectory(
         waypoints: List<Waypoint>,
@@ -32,9 +34,22 @@ object TrajectoryEstimator {
     ): Trajectory {
         if (waypoints.size < 2) return Trajectory(0.0, emptyList())
 
-        val sampledPoints = mutableListOf<SampledPoint>()
+        val sampledPoints = pointPool.get()!!
+        var pointCount = 0
+
+        fun getNextPoint(): SampledPoint {
+            if (pointCount >= sampledPoints.size) {
+                sampledPoints.add(SampledPoint())
+            }
+            return sampledPoints[pointCount++]
+        }
+
         // Start with the first waypoint
-        sampledPoints.add(SampledPoint(waypoints[0].x, waypoints[0].y, 0.0, 0.0))
+        val firstPt = getNextPoint()
+        firstPt.x = waypoints[0].x
+        firstPt.y = waypoints[0].y
+        firstPt.s = 0.0
+        firstPt.relativePos = 0.0
 
         val maxIdx = waypoints.size - 1
         var totalDist = 0.0
@@ -51,18 +66,22 @@ object TrajectoryEstimator {
                 val t = j.toDouble() / steps
                 val px = catmullRom(p0.x, p1.x, p2.x, p3.x, t)
                 val py = catmullRom(p0.y, p1.y, p2.y, p3.y, t)
-                val prev = sampledPoints.last()
+                val prev = sampledPoints[pointCount - 1]
                 val ds = sqrt((px - prev.x).pow(2) + (py - prev.y).pow(2))
                 if (ds >= 0.05 || (i == maxIdx - 1 && j == steps)) {
                     totalDist += ds
                     val relativePos = i.toDouble() + t
-                    sampledPoints.add(SampledPoint(px, py, totalDist, relativePos))
+                    val newPt = getNextPoint()
+                    newPt.x = px
+                    newPt.y = py
+                    newPt.s = totalDist
+                    newPt.relativePos = relativePos
                 }
             }
         }
 
         // Step 2: Calculate max velocity limits at each point based on local constraints and curvature
-        for (idx in sampledPoints.indices) {
+        for (idx in 0 until pointCount) {
             val pt = sampledPoints[idx]
             val constraints = getConstraintsAt(pt.relativePos, globalConstraints, constraintZones)
 
@@ -70,7 +89,7 @@ object TrajectoryEstimator {
             val maxVel = constraints.maxVelocity
 
             // Curvature radius calculation
-            val r = if (idx > 0 && idx < sampledPoints.size - 1) {
+            val r = if (idx > 0 && idx < pointCount - 1) {
                 val prev = sampledPoints[idx - 1]
                 val curr = sampledPoints[idx]
                 val next = sampledPoints[idx + 1]
@@ -90,11 +109,11 @@ object TrajectoryEstimator {
 
         // Apply start/end velocity limits
         sampledPoints[0].maxV = minOf(sampledPoints[0].maxV, idealStartingState.velocity)
-        sampledPoints[sampledPoints.size - 1].maxV = minOf(sampledPoints[sampledPoints.size - 1].maxV, goalEndState.velocity)
+        sampledPoints[pointCount - 1].maxV = minOf(sampledPoints[pointCount - 1].maxV, goalEndState.velocity)
 
         // Step 3: Forward Pass (acceleration profile)
         sampledPoints[0].v = sampledPoints[0].maxV
-        for (i in 1 until sampledPoints.size) {
+        for (i in 1 until pointCount) {
             val ds = sampledPoints[i].s - sampledPoints[i - 1].s
             val constraints = getConstraintsAt(sampledPoints[i].relativePos, globalConstraints, constraintZones)
             val maxAcc = constraints.maxAcceleration
@@ -103,8 +122,8 @@ object TrajectoryEstimator {
         }
 
         // Step 4: Backward Pass (deceleration profile)
-        sampledPoints[sampledPoints.size - 1].v = sampledPoints[sampledPoints.size - 1].maxV
-        for (i in (sampledPoints.size - 2) downTo 0) {
+        sampledPoints[pointCount - 1].v = sampledPoints[pointCount - 1].maxV
+        for (i in (pointCount - 2) downTo 0) {
             val ds = sampledPoints[i + 1].s - sampledPoints[i].s
             val constraints = getConstraintsAt(sampledPoints[i].relativePos, globalConstraints, constraintZones)
             val maxAcc = constraints.maxAcceleration
@@ -116,7 +135,7 @@ object TrajectoryEstimator {
         var currentTime = 0.0
         val states = mutableListOf<TrajectoryState>()
 
-        for (i in 0 until sampledPoints.size) {
+        for (i in 0 until pointCount) {
             if (i > 0) {
                 val ds = sampledPoints[i].s - sampledPoints[i - 1].s
                 val avgV = (sampledPoints[i].v + sampledPoints[i - 1].v) / 2.0
@@ -125,7 +144,7 @@ object TrajectoryEstimator {
             sampledPoints[i].t = currentTime
 
             val prevPt = if (i > 0) sampledPoints[i - 1] else null
-            val nextPt = if (i < sampledPoints.size - 1) sampledPoints[i + 1] else null
+            val nextPt = if (i < pointCount - 1) sampledPoints[i + 1] else null
             val headingRad = getHeadingAt(sampledPoints[i].relativePos, rotationTargets, waypoints, sampledPoints[i], prevPt, nextPt)
 
             states.add(
@@ -180,9 +199,9 @@ object TrajectoryEstimator {
                 val rad1 = Math.toRadians(t1.rotationDegrees)
                 val rad2 = Math.toRadians(t2.rotationDegrees)
                 
-                var diff = rad2 - rad1
-                while (diff > Math.PI) diff -= 2 * Math.PI
-                while (diff < -Math.PI) diff += 2 * Math.PI
+                var diff = (rad2 - rad1) % (2 * Math.PI)
+                if (diff > Math.PI) diff -= 2 * Math.PI
+                else if (diff <= -Math.PI) diff += 2 * Math.PI
                 
                 return rad1 + alpha * diff
             }

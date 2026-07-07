@@ -21,6 +21,8 @@ import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.*
 import io.ktor.server.testing.*
+import io.ktor.server.plugins.ratelimit.*
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.serialization.json.Json
 import org.mockito.ArgumentMatchers.any
 import org.mockito.ArgumentMatchers.anyLong
@@ -78,6 +80,11 @@ class GcsUploadIntegrationTest {
                 })
             }
             installFirebaseAuthentication()
+            install(RateLimit) {
+                register(RateLimitName("archive")) {
+                    rateLimiter(limit = 30, refillPeriod = 60.seconds)
+                }
+            }
             routing {
                 archiveRoutes(mockStorage, mockFirestore)
                 
