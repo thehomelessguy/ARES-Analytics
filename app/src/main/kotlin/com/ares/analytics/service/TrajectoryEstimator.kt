@@ -29,8 +29,8 @@ object TrajectoryEstimator {
         globalConstraints: PathConstraints,
         constraintZones: List<ConstraintsZone>,
         rotationTargets: List<RotationTarget>,
-        idealStartingState: IdealStartingState,
-        goalEndState: GoalEndState
+        idealStartingState: IdealStartingState?,
+        goalEndState: GoalEndState?
     ): Trajectory {
         if (waypoints.size < 2) return Trajectory(0.0, emptyList())
 
@@ -108,8 +108,8 @@ object TrajectoryEstimator {
         }
 
         // Apply start/end velocity limits
-        sampledPoints[0].maxV = minOf(sampledPoints[0].maxV, idealStartingState.velocity)
-        sampledPoints[pointCount - 1].maxV = minOf(sampledPoints[pointCount - 1].maxV, goalEndState.velocity)
+        sampledPoints[0].maxV = minOf(sampledPoints[0].maxV, idealStartingState?.velocity ?: 0.0)
+        sampledPoints[pointCount - 1].maxV = minOf(sampledPoints[pointCount - 1].maxV, goalEndState?.velocity ?: 0.0)
 
         // Step 3: Forward Pass (acceleration profile)
         sampledPoints[0].v = sampledPoints[0].maxV

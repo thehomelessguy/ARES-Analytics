@@ -42,7 +42,7 @@ fun JoystickVisualizer(
                 val g1 = gamepad1StateFlow?.value
 
                 val (vx, vy, omega) = if (keyboardState.useGamepad && g1 != null && g1.connected) {
-                    val activeVx = g1.leftStickY.toDouble() * -4.0
+                    val activeVx = g1.leftStickY.toDouble() * 4.0
                     val activeVy = g1.leftStickX.toDouble() * -4.0
                     val activeOmega = g1.rightStickX.toDouble() * -4.0
                     Triple(activeVx, activeVy, activeOmega)
@@ -108,6 +108,14 @@ fun JoystickVisualizer(
                     Text("🎮 View Mappings", color = AresTextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
 
+                Button(
+                    onClick = { keyboardState.useGamepad = !keyboardState.useGamepad },
+                    colors = ButtonDefaults.buttonColors(containerColor = if (keyboardState.useGamepad) AresCyan else AresSurfaceElevated),
+                    shape = RoundedCornerShape(6.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Text(if (keyboardState.useGamepad) "Mode: Controller" else "Mode: Keyboard", color = AresTextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
                 if (nt4ClientService != null) {
                     Button(
                         onClick = { 

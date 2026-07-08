@@ -79,8 +79,8 @@ data class PathPlannerFile(
     val pointTowardsZones: List<PointTowardsZone> = emptyList(),
     val eventMarkers: List<PathPlannerEventMarker> = emptyList(),
     val globalConstraints: PathConstraints = PathConstraints(),
-    val goalEndState: GoalEndState = GoalEndState(),
-    val idealStartingState: IdealStartingState = IdealStartingState(),
+    val goalEndState: GoalEndState? = null,
+    val idealStartingState: IdealStartingState? = null,
     val reversed: Boolean = false,
     val useDefaultConstraints: Boolean = true
 )

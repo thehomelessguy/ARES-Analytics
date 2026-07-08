@@ -259,7 +259,7 @@ fun DrawScope.drawRobotRepresentations(
         val robotSizePx = ((0.45 / fieldWidthM) * w).toFloat()
         
         drawContext.canvas.save()
-        drawContext.transform.rotate(degrees = -Math.toDegrees(activeRobotWp.headingRad).toFloat(), pivot = robotOffset)
+        drawContext.transform.rotate(degrees = -Math.toDegrees(activeRobotWp.headingRad).toFloat() - 90f, pivot = robotOffset)
         drawRect(color = AresCyan.copy(alpha = 0.2f), topLeft = Offset(robotOffset.x - robotSizePx / 2, robotOffset.y - robotSizePx / 2), size = Size(robotSizePx, robotSizePx))
         drawRect(color = AresCyan, topLeft = Offset(robotOffset.x - robotSizePx / 2, robotOffset.y - robotSizePx / 2), size = Size(robotSizePx, robotSizePx), style = Stroke(width = 2.dp.toPx()))
         drawLine(color = AresAmber, start = Offset(robotOffset.x + robotSizePx / 2, robotOffset.y - robotSizePx / 2), end = Offset(robotOffset.x + robotSizePx / 2, robotOffset.y + robotSizePx / 2), strokeWidth = 3.dp.toPx())
@@ -278,7 +278,7 @@ fun DrawScope.drawRobotRepresentations(
         val robotSizePx = ((0.45 / fieldWidthM) * w).toFloat()
         
         drawContext.canvas.save()
-        drawContext.transform.rotate(degrees = -Math.toDegrees(estimatedPose.headingRad).toFloat(), pivot = robotOffset)
+        drawContext.transform.rotate(degrees = -Math.toDegrees(estimatedPose.headingRad).toFloat() - 90f, pivot = robotOffset)
         drawRect(color = AresAmber.copy(alpha = 0.15f), topLeft = Offset(robotOffset.x - robotSizePx / 2, robotOffset.y - robotSizePx / 2), size = Size(robotSizePx, robotSizePx))
         drawRect(color = AresAmber, topLeft = Offset(robotOffset.x - robotSizePx / 2, robotOffset.y - robotSizePx / 2), size = Size(robotSizePx, robotSizePx), style = Stroke(width = 1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)))
         drawLine(color = AresAmber, start = Offset(robotOffset.x + robotSizePx / 2, robotOffset.y - robotSizePx / 2), end = Offset(robotOffset.x + robotSizePx / 2, robotOffset.y + robotSizePx / 2), strokeWidth = 2.dp.toPx())
@@ -297,7 +297,7 @@ fun DrawScope.drawRobotRepresentations(
         val robotSizePx = ((0.45 / fieldWidthM) * w).toFloat()
         
         drawContext.canvas.save()
-        drawContext.transform.rotate(degrees = -Math.toDegrees(playbackPose.headingRad).toFloat(), pivot = robotOffset)
+        drawContext.transform.rotate(degrees = -Math.toDegrees(playbackPose.headingRad).toFloat() - 90f, pivot = robotOffset)
         drawRect(color = AresCyan.copy(alpha = 0.3f), topLeft = Offset(robotOffset.x - robotSizePx / 2, robotOffset.y - robotSizePx / 2), size = Size(robotSizePx, robotSizePx))
         drawRect(color = AresCyan, topLeft = Offset(robotOffset.x - robotSizePx / 2, robotOffset.y - robotSizePx / 2), size = Size(robotSizePx, robotSizePx), style = Stroke(width = 2.dp.toPx()))
         drawLine(color = AresCyan, start = Offset(robotOffset.x + robotSizePx / 2, robotOffset.y - robotSizePx / 2), end = Offset(robotOffset.x + robotSizePx / 2, robotOffset.y + robotSizePx / 2), strokeWidth = 3.dp.toPx())
@@ -316,7 +316,7 @@ fun DrawScope.drawRobotRepresentations(
         val robotSizePx = ((0.45 / fieldWidthM) * w).toFloat()
         
         drawContext.canvas.save()
-        drawContext.transform.rotate(degrees = -Math.toDegrees(pose.headingRad).toFloat(), pivot = robotOffset)
+        drawContext.transform.rotate(degrees = -Math.toDegrees(pose.headingRad).toFloat() - 90f, pivot = robotOffset)
         drawRect(color = AresGreen.copy(alpha = 0.15f), topLeft = Offset(robotOffset.x - robotSizePx / 2, robotOffset.y - robotSizePx / 2), size = Size(robotSizePx, robotSizePx))
         drawRect(color = AresGreen, topLeft = Offset(robotOffset.x - robotSizePx / 2, robotOffset.y - robotSizePx / 2), size = Size(robotSizePx, robotSizePx), style = Stroke(width = 1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(4f, 4f), 0f)))
         drawLine(color = AresGreen, start = Offset(robotOffset.x + robotSizePx / 2, robotOffset.y - robotSizePx / 2), end = Offset(robotOffset.x + robotSizePx / 2, robotOffset.y + robotSizePx / 2), strokeWidth = 2.dp.toPx())

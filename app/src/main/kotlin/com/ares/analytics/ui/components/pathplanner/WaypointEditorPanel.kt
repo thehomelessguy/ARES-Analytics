@@ -194,18 +194,19 @@ fun WaypointEditorPanel(
 
             // STARTING STATE
             item {
-                val startVelText by remember(state.idealStartingState.velocity) { mutableStateOf(String.format("%.2f", state.idealStartingState.velocity)) }
-                val startRotText by remember(state.idealStartingState.rotation) { mutableStateOf(String.format("%.1f", state.idealStartingState.rotation)) }
-                CollapsibleSection(title = "Ideal Starting State", badgeText = "${startVelText} M/S") {
+                val startVelStr = state.idealStartingState?.velocity?.toString() ?: ""
+                val startRotStr = state.idealStartingState?.rotation?.toString() ?: ""
+                CollapsibleSection(title = "Ideal Starting State", badgeText = "${startVelStr} M/S") {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         OutlinedTextField(
-                            value = startVelText,
+                            value = startVelStr,
                             onValueChange = { newValue ->
-                                newValue.toDoubleOrNull()?.let {
-                                    onIntent(PathPlannerIntent.UpdateStartingState(state.idealStartingState.copy(velocity = it)))
+                                newValue.toDoubleOrNull()?.let { v ->
+                                    val currentState = state.idealStartingState ?: IdealStartingState()
+                                    onIntent(PathPlannerIntent.UpdateStartingState(currentState.copy(velocity = v)))
                                 }
                             },
                             label = { Text("Velocity (M/S)", fontSize = 10.sp) },
@@ -215,10 +216,11 @@ fun WaypointEditorPanel(
                             colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder)
                         )
                         OutlinedTextField(
-                            value = startRotText,
+                            value = startRotStr,
                             onValueChange = { newValue ->
-                                newValue.toDoubleOrNull()?.let {
-                                    onIntent(PathPlannerIntent.UpdateStartingState(state.idealStartingState.copy(rotation = it)))
+                                newValue.toDoubleOrNull()?.let { v ->
+                                    val currentState = state.idealStartingState ?: IdealStartingState()
+                                    onIntent(PathPlannerIntent.UpdateStartingState(currentState.copy(rotation = v)))
                                 }
                             },
                             label = { Text("Rotation (Deg)", fontSize = 10.sp) },
@@ -233,18 +235,19 @@ fun WaypointEditorPanel(
 
             // END STATE
             item {
-                val endVelText by remember(state.goalEndState.velocity) { mutableStateOf(String.format("%.2f", state.goalEndState.velocity)) }
-                val endRotText by remember(state.goalEndState.rotation) { mutableStateOf(String.format("%.1f", state.goalEndState.rotation)) }
-                CollapsibleSection(title = "Goal End State", badgeText = "${endVelText} M/S") {
+                val endVelStr = state.goalEndState?.velocity?.toString() ?: ""
+                val endRotStr = state.goalEndState?.rotation?.toString() ?: ""
+                CollapsibleSection(title = "Goal End State", badgeText = "${endVelStr} M/S") {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         OutlinedTextField(
-                            value = endVelText,
+                            value = endVelStr,
                             onValueChange = { newValue ->
-                                newValue.toDoubleOrNull()?.let {
-                                    onIntent(PathPlannerIntent.UpdateEndState(state.goalEndState.copy(velocity = it)))
+                                newValue.toDoubleOrNull()?.let { v ->
+                                    val currentState = state.goalEndState ?: GoalEndState()
+                                    onIntent(PathPlannerIntent.UpdateEndState(currentState.copy(velocity = v)))
                                 }
                             },
                             label = { Text("Velocity (M/S)", fontSize = 10.sp) },
@@ -254,10 +257,11 @@ fun WaypointEditorPanel(
                             colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder)
                         )
                         OutlinedTextField(
-                            value = endRotText,
+                            value = endRotStr,
                             onValueChange = { newValue ->
-                                newValue.toDoubleOrNull()?.let {
-                                    onIntent(PathPlannerIntent.UpdateEndState(state.goalEndState.copy(rotation = it)))
+                                newValue.toDoubleOrNull()?.let { v ->
+                                    val currentState = state.goalEndState ?: GoalEndState()
+                                    onIntent(PathPlannerIntent.UpdateEndState(currentState.copy(rotation = v)))
                                 }
                             },
                             label = { Text("Rotation (Deg)", fontSize = 10.sp) },

@@ -29,8 +29,8 @@ data class PathPlannerState(
     val constraintZones: List<ConstraintsZone> = emptyList(),
     val pointTowardsZones: List<PointTowardsZone> = emptyList(),
     val globalConstraints: PathConstraints = PathConstraints(),
-    val idealStartingState: IdealStartingState = IdealStartingState(),
-    val goalEndState: GoalEndState = GoalEndState(),
+    val idealStartingState: IdealStartingState? = null,
+    val goalEndState: GoalEndState? = null,
     val reversed: Boolean = false,
     val useDefaultConstraints: Boolean = true,
     val estimatedDuration: Double = 0.0,
@@ -55,8 +55,8 @@ sealed class PathPlannerIntent {
     data class SelectWaypoint(val index: Int?) : PathPlannerIntent()
     data class UpdateToolMode(val mode: String) : PathPlannerIntent()
     data class UpdateGlobalConstraints(val constraints: PathConstraints) : PathPlannerIntent()
-    data class UpdateStartingState(val state: IdealStartingState) : PathPlannerIntent()
-    data class UpdateEndState(val state: GoalEndState) : PathPlannerIntent()
+    data class UpdateStartingState(val state: IdealStartingState?) : PathPlannerIntent()
+    data class UpdateEndState(val state: GoalEndState?) : PathPlannerIntent()
     data class UpdateReversed(val reversed: Boolean) : PathPlannerIntent()
     data class UpdateUseDefaultConstraints(val useDefault: Boolean) : PathPlannerIntent()
     data class UpdateViewRotation(val viewRotation: Float) : PathPlannerIntent()
@@ -245,7 +245,7 @@ class PathPlannerViewModel(
 
                                 val json = Json { 
                                     prettyPrint = true
-                                    encodeDefaults = true
+                                    encodeDefaults = false
                                 }
                                 val serialized = json.encodeToString(pathFile)
 
