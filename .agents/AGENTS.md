@@ -52,9 +52,9 @@ rotate(degrees = -Math.toDegrees(heading).toFloat() - 90f, pivot = robotOffset)
 
 All heading values in the dashboard are in **radians, CCW-positive** (math convention):
 - **0 rad**: Facing +X (toward audience wall)
-- **π/2 rad**: Facing +Y (toward red alliance wall)
+- **π/2 rad**: Facing +Y (toward blue alliance wall)
 - **π rad**: Facing -X
-- **-π/2 rad**: Facing -Y
+- **-π/2 rad**: Facing -Y (toward red alliance wall)
 
 The `PoseViewerCard` converts to degrees for display only: `Math.toDegrees(heading)`.
 
