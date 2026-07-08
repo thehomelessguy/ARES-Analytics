@@ -51,7 +51,7 @@ rotate(degrees = -Math.toDegrees(heading).toFloat() - 90f, pivot = robotOffset)
 ## Heading Convention
 
 All heading values in the dashboard are in **radians, CCW-positive** (math convention):
-- **0 rad**: Facing +X (toward audience wall)
+- **0 rad**: Facing +X
 - **π/2 rad**: Facing +Y (toward blue alliance wall)
 - **π rad**: Facing -X
 - **-π/2 rad**: Facing -Y (toward red alliance wall)
