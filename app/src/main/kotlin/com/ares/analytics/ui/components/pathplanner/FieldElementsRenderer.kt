@@ -141,10 +141,30 @@ fun DrawScope.drawCustomObstacles(
             is Obstacle.Rectangle -> {
                 val centerWp = Waypoint(obs.centerX, obs.centerY)
                 val centerOffset = getCanvasOffsetBase(centerWp, w, h, fieldWidthM, fieldHeightM, league)
-                val rw = (obs.width / fieldWidthM) * w
-                val rh = (obs.height / fieldHeightM) * h
+                
+                val rw: Double
+                val rh: Double
+                if (league == League.FTC) {
+                    // FTC: Canvas X corresponds to Field Y, Canvas Y corresponds to Field X
+                    rw = (obs.height / fieldWidthM) * w
+                    rh = (obs.width / fieldHeightM) * h
+                } else {
+                    // FRC: Canvas X corresponds to Field X, Canvas Y corresponds to Field Y
+                    rw = (obs.width / fieldWidthM) * w
+                    rh = (obs.height / fieldHeightM) * h
+                }
+                
                 drawContext.canvas.save()
-                drawContext.transform.rotate(obs.rotation.toFloat(), pivot = centerOffset)
+                
+                // Rotation drawing: in FTC, heading 0 is +X (which points UP on screen).
+                // A rectangle with 0 rotation should have its length (obs.width) aligned with +X (UP).
+                // Since we swapped rw and rh above, rh is the visual size along Canvas Y (UP/DOWN).
+                // So rh is already visually the obs.width.
+                // When rotation = 0, we just draw it.
+                // Note: -obs.rotation is used in hit detection. 
+                val drawRot = if (league == League.FTC) -obs.rotation.toFloat() else -obs.rotation.toFloat() 
+                drawContext.transform.rotate(drawRot, pivot = centerOffset)
+                
                 val rectOffset = Offset((centerOffset.x - rw / 2).toFloat(), (centerOffset.y - rh / 2).toFloat())
                 drawRect(color = AresRed.copy(alpha = 0.3f), topLeft = rectOffset, size = Size(rw.toFloat(), rh.toFloat()))
                 drawRect(color = AresRed, topLeft = rectOffset, size = Size(rw.toFloat(), rh.toFloat()), style = Stroke(width = 2f))

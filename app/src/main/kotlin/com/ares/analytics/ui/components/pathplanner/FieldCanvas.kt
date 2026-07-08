@@ -271,13 +271,12 @@ fun FieldCanvas(
             )
         }
 
-        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            Canvas(
-                modifier = Modifier
-                    .aspectRatio(fieldWidthM.toFloat() / fieldHeightM.toFloat())
-                    .align(Alignment.Center)
-                    .rotate(viewRotation)
-                    .background(AresSurface)
+        Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.aspectRatio(fieldWidthM.toFloat() / fieldHeightM.toFloat())) {
+                Canvas(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(AresSurface)
                     .pointerInput(Unit) {
                         detectDragGestures(
                             onDragStart = { },
@@ -332,15 +331,13 @@ fun FieldCanvas(
                                 } else if (selectedObstacleId != null && showObstacleControls) {
                                     val targetObs = currentActiveObstacles.find { it.id == selectedObstacleId }
                                     if (targetObs != null && !targetObs.locked) {
-                                        val prevWp = getRobotCoordFromScreen(change.previousPosition, w, h, fieldWidthM, fieldHeightM, league, zoomScale, panOffset)
-                                        val currWp = getRobotCoordFromScreen(change.position, w, h, fieldWidthM, fieldHeightM, league, zoomScale, panOffset)
-                                        val dx = currWp.x - prevWp.x; val dy = currWp.y - prevWp.y
+                                        val delta = getDragDeltaInFieldCoords(dragAmount, w, h, fieldWidthM, fieldHeightM, league, zoomScale)
                                         updateObstacles(currentActiveObstacles.map { obs ->
                                             if (obs.id == selectedObstacleId) {
                                                 when (obs) {
-                                                    is Obstacle.Circle -> obs.copy(centerX = snap(obs.centerX + dx), centerY = snap(obs.centerY + dy))
-                                                    is Obstacle.Rectangle -> obs.copy(centerX = snap(obs.centerX + dx), centerY = snap(obs.centerY + dy))
-                                                    is Obstacle.Polygon -> obs.copy(vertices = obs.vertices.map { PathPoint(snap(it.x + dx), snap(it.y + dy)) })
+                                                    is Obstacle.Circle -> obs.copy(centerX = snap(obs.centerX + delta.x), centerY = snap(obs.centerY + delta.y))
+                                                    is Obstacle.Rectangle -> obs.copy(centerX = snap(obs.centerX + delta.x), centerY = snap(obs.centerY + delta.y))
+                                                    is Obstacle.Polygon -> obs.copy(vertices = obs.vertices.map { PathPoint(snap(it.x + delta.x), snap(it.y + delta.y)) })
                                                 }
                                             } else obs
                                         })
@@ -348,16 +345,14 @@ fun FieldCanvas(
                                 } else if (selectedAprilTagId != null && showObstacleControls) {
                                     val targetAt = currentActiveAprilTags.find { it.id == selectedAprilTagId }
                                     if (targetAt != null && !targetAt.locked) {
-                                        val prevWp = getRobotCoordFromScreen(change.previousPosition, w, h, fieldWidthM, fieldHeightM, league, zoomScale, panOffset)
-                                        val currWp = getRobotCoordFromScreen(change.position, w, h, fieldWidthM, fieldHeightM, league, zoomScale, panOffset)
-                                        updateAprilTags(currentActiveAprilTags.map { at -> if (at.id == selectedAprilTagId) at.copy(x = snap(at.x + currWp.x - prevWp.x), y = snap(at.y + currWp.y - prevWp.y)) else at })
+                                        val delta = getDragDeltaInFieldCoords(dragAmount, w, h, fieldWidthM, fieldHeightM, league, zoomScale)
+                                        updateAprilTags(currentActiveAprilTags.map { at -> if (at.id == selectedAprilTagId) at.copy(x = snap(at.x + delta.x), y = snap(at.y + delta.y)) else at })
                                     }
                                 } else if (selectedGamePieceId != null && showObstacleControls) {
                                     val targetGp = currentActiveGamePieces.find { it.id == selectedGamePieceId }
                                     if (targetGp != null && !targetGp.locked) {
-                                        val prevWp = getRobotCoordFromScreen(change.previousPosition, w, h, fieldWidthM, fieldHeightM, league, zoomScale, panOffset)
-                                        val currWp = getRobotCoordFromScreen(change.position, w, h, fieldWidthM, fieldHeightM, league, zoomScale, panOffset)
-                                        updateGamePieces(currentActiveGamePieces.map { gp -> if (gp.id == selectedGamePieceId) gp.copy(x = snap(gp.x + currWp.x - prevWp.x), y = snap(gp.y + currWp.y - prevWp.y)) else gp })
+                                        val delta = getDragDeltaInFieldCoords(dragAmount, w, h, fieldWidthM, fieldHeightM, league, zoomScale)
+                                        updateGamePieces(currentActiveGamePieces.map { gp -> if (gp.id == selectedGamePieceId) gp.copy(x = snap(gp.x + delta.x), y = snap(gp.y + delta.y)) else gp })
                                     }
                                 }
                             }
@@ -547,6 +542,10 @@ fun FieldCanvas(
                 val h = size.height
 
                 drawContext.canvas.save()
+                // Apply view rotation around the canvas center (replaces Modifier.rotate)
+                if (viewRotation != 0f) {
+                    drawContext.transform.rotate(viewRotation, pivot = Offset(w / 2f, h / 2f))
+                }
                 drawContext.transform.translate(panOffset.x, panOffset.y)
                 drawContext.transform.scale(zoomScale, zoomScale, pivot = Offset.Zero)
 
@@ -573,6 +572,7 @@ fun FieldCanvas(
                 drawWaypoints(waypoints, selectedWaypointIndex, isDraggingHeading, w, h, fieldWidthM, fieldHeightM, league)
 
                 drawContext.canvas.restore()
+            }
             }
 
             DropdownMenu(

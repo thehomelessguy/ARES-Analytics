@@ -109,6 +109,35 @@ fun getRobotCoordFromScreen(
     return getRobotCoordBase(baseOffset, w, h, fieldWidthM, fieldHeightM, league)
 }
 
+/**
+ * Converts a pixel-space drag delta directly to a field-coordinate delta.
+ * Uses the `dragAmount` vector from Compose's `detectDragGestures` to avoid
+ * absolute coordinate conversion issues (DPI scaling, rotate modifier, etc.).
+ *
+ * For FTC:
+ *   canvasX = (-fieldY / fieldW + 0.5) * canvasW  ⇒  deltaFieldY = -deltaCanvasX / canvasW * fieldW
+ *   canvasY = (-fieldX / fieldH + 0.5) * canvasH  ⇒  deltaFieldX = -deltaCanvasY / canvasH * fieldH
+ */
+fun getDragDeltaInFieldCoords(
+    dragAmount: Offset,
+    canvasW: Float,
+    canvasH: Float,
+    fieldW: Double,
+    fieldH: Double,
+    league: League,
+    zoomScale: Float
+): Waypoint {
+    return if (league == League.FTC) {
+        val dx = -(dragAmount.y / canvasH) * fieldH / zoomScale
+        val dy = -(dragAmount.x / canvasW) * fieldW / zoomScale
+        Waypoint(dx, dy)
+    } else {
+        val dx = (dragAmount.x / canvasW) * fieldW / zoomScale
+        val dy = -(dragAmount.y / canvasH) * fieldH / zoomScale
+        Waypoint(dx, dy)
+    }
+}
+
 fun cubicHermite(p0: Double, v0: Double, p1: Double, v1: Double, t: Double): Double {
     val t2 = t * t
     val t3 = t2 * t
