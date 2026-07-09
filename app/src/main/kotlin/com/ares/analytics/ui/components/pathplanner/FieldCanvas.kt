@@ -309,7 +309,7 @@ fun FieldCanvas(
                                         if (sqrt((pressOffset.x - handleOffset.x).pow(2) + (pressOffset.y - handleOffset.y).pow(2)) < 15.dp.toPx()) {
                                             hitIdx = i; hitHeading = true; break
                                         }
-                                        val targetAngleRad = rotationTargets.find { kotlin.math.abs(it.waypointRelativePos - i) < 1e-3 }?.rotationDegrees?.let { Math.toRadians(-it - 90.0) }
+                                        val targetAngleRad = currentRotationTargets.find { kotlin.math.abs(it.waypointRelativePos - i) < 1e-3 }?.rotationDegrees?.let { Math.toRadians(-it - 90.0) }
                                             ?: Math.toRadians(-90.0)
                                         val rotationHandleLenPx = 30.dp.toPx()
                                         val rotHandleX = wpOffset.x + rotationHandleLenPx * cos(targetAngleRad).toFloat()
@@ -415,13 +415,13 @@ fun FieldCanvas(
                                             val posMeters = getRobotCoordFromScreen(change.position, w, h, fieldWidthM, fieldHeightM, league, zoomScale, panOffset)
                                             val angle = kotlin.math.atan2(posMeters.y - wp.y, posMeters.x - wp.x)
                                             val degrees = Math.toDegrees(angle)
-                                            val existingIdx = rotationTargets.indexOfFirst { kotlin.math.abs(it.waypointRelativePos - selectedWaypointIndex) < 1e-3 }
+                                            val existingIdx = currentRotationTargets.indexOfFirst { kotlin.math.abs(it.waypointRelativePos - selectedWaypointIndex) < 1e-3 }
                                             if (existingIdx != -1) {
-                                                val newList = rotationTargets.toMutableList()
+                                                val newList = currentRotationTargets.toMutableList()
                                                 newList[existingIdx] = newList[existingIdx].copy(rotationDegrees = if (isShiftPressed) snap(degrees).toDouble() else degrees)
                                                 onRotationTargetsChanged(newList)
                                             } else {
-                                                val newList = rotationTargets.toMutableList()
+                                                val newList = currentRotationTargets.toMutableList()
                                                 newList.add(RotationTarget(waypointRelativePos = selectedWaypointIndex.toDouble(), rotationDegrees = if (isShiftPressed) snap(degrees).toDouble() else degrees))
                                                 onRotationTargetsChanged(newList)
                                             }
