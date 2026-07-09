@@ -395,43 +395,41 @@ fun DrawScope.drawWaypoints(
         val rotHandleY = offset.y + rotHandleLenPx * sin(rotAngleRad).toFloat()
         val rotHandleCenter = Offset(rotHandleX, rotHandleY)
 
-        if (isSelected || hasExplicitTarget) {
-            // Dashed line from center to rotation handle
-            val rotColor = if (isSelected && isDraggingRotation) AresCyan else AresGreen
-            val rotAlpha = if (isSelected) 1f else 0.5f
-            drawLine(
-                color = rotColor.copy(alpha = 0.7f * rotAlpha),
-                start = offset,
-                end = rotHandleCenter,
-                strokeWidth = 2.dp.toPx(),
-                pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 4f))
+        // Dashed line from center to rotation handle
+        val rotColor = if (isSelected && isDraggingRotation) AresCyan else AresGreen
+        val rotAlpha = if (isSelected) 1f else 0.5f
+        drawLine(
+            color = rotColor.copy(alpha = 0.7f * rotAlpha),
+            start = offset,
+            end = rotHandleCenter,
+            strokeWidth = 2.dp.toPx(),
+            pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 4f))
+        )
+
+        // Diamond shape at rotation handle position
+        val diamondSize = if (isSelected) 7.dp.toPx() else 5.dp.toPx()
+        val diamondPath = Path().apply {
+            moveTo(rotHandleX, rotHandleY - diamondSize)
+            lineTo(rotHandleX + diamondSize, rotHandleY)
+            lineTo(rotHandleX, rotHandleY + diamondSize)
+            lineTo(rotHandleX - diamondSize, rotHandleY)
+            close()
+        }
+        drawPath(path = diamondPath, color = rotColor.copy(alpha = 0.6f * rotAlpha))
+        drawPath(path = diamondPath, color = rotColor.copy(alpha = rotAlpha), style = Stroke(width = 2f))
+
+        // Arc indicator (only on selected waypoint)
+        if (isSelected) {
+            val arcRadius = 18.dp.toPx()
+            drawArc(
+                color = rotColor.copy(alpha = 0.3f),
+                startAngle = Math.toDegrees(rotAngleRad).toFloat() - 30f,
+                sweepAngle = 60f,
+                useCenter = false,
+                topLeft = Offset(offset.x - arcRadius, offset.y - arcRadius),
+                size = Size(arcRadius * 2, arcRadius * 2),
+                style = Stroke(width = 2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(4f, 3f)))
             )
-
-            // Diamond shape at rotation handle position
-            val diamondSize = if (isSelected) 7.dp.toPx() else 5.dp.toPx()
-            val diamondPath = Path().apply {
-                moveTo(rotHandleX, rotHandleY - diamondSize)
-                lineTo(rotHandleX + diamondSize, rotHandleY)
-                lineTo(rotHandleX, rotHandleY + diamondSize)
-                lineTo(rotHandleX - diamondSize, rotHandleY)
-                close()
-            }
-            drawPath(path = diamondPath, color = rotColor.copy(alpha = 0.6f * rotAlpha))
-            drawPath(path = diamondPath, color = rotColor.copy(alpha = rotAlpha), style = Stroke(width = 2f))
-
-            // Arc indicator (only on selected waypoint)
-            if (isSelected) {
-                val arcRadius = 18.dp.toPx()
-                drawArc(
-                    color = rotColor.copy(alpha = 0.3f),
-                    startAngle = Math.toDegrees(rotAngleRad).toFloat() - 30f,
-                    sweepAngle = 60f,
-                    useCenter = false,
-                    topLeft = Offset(offset.x - arcRadius, offset.y - arcRadius),
-                    size = Size(arcRadius * 2, arcRadius * 2),
-                    style = Stroke(width = 2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(4f, 3f)))
-                )
-            }
         }
     }
 }
