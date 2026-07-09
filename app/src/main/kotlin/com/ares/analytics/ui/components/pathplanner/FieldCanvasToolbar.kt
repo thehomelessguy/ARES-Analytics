@@ -184,6 +184,16 @@ fun FieldCanvasToolbar(
                 }
             }
 
+            // Place Field Waypoint Mode
+            if (showObstacleControls) {
+                IconButton(
+                    onClick = { onEditorModeChanged(EditorMode.PLACE_FIELD_WAYPOINT) },
+                    colors = IconButtonDefaults.iconButtonColors(contentColor = if (editorMode == EditorMode.PLACE_FIELD_WAYPOINT) AresCyan else AresTextTertiary)
+                ) {
+                    Icon(Icons.Default.LocationOn, contentDescription = "Place Waypoint")
+                }
+            }
+
             // Eraser Mode
             if (showPathControls || showObstacleControls) {
                 IconButton(

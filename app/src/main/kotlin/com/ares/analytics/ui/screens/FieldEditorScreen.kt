@@ -28,6 +28,7 @@ import com.ares.analytics.ui.components.pathplanner.FieldCanvas
 import com.ares.analytics.ui.screens.fieldeditor.AprilTagRow
 import com.ares.analytics.ui.screens.fieldeditor.GamePieceRow
 import com.ares.analytics.ui.screens.fieldeditor.ObstacleRow
+import com.ares.analytics.ui.screens.fieldeditor.FieldWaypointRow
 import com.ares.analytics.ui.theme.*
 import com.ares.analytics.viewmodel.FieldEditorIntent
 import com.ares.analytics.viewmodel.FieldEditorViewModel
@@ -420,6 +421,28 @@ fun FieldEditorScreen(
                         }
                     }
                 }
+
+                // Placed Waypoints Section
+                if (state.fieldWaypoints.isNotEmpty()) {
+                    HorizontalDivider(color = AresBorder)
+                    Text("Placed Waypoints (${state.fieldWaypoints.size})", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = AresTextPrimary)
+                    state.fieldWaypoints.forEachIndexed { index, wp ->
+                        key(wp.id) {
+                            FieldWaypointRow(
+                                index = index,
+                                wp = wp,
+                                onUpdate = { i, updated ->
+                                    viewModel.onIntent(FieldEditorIntent.UpdateFieldWaypoint(i, updated))
+                                    viewModel.onIntent(FieldEditorIntent.SaveFieldWaypoints(projectPath, league))
+                                },
+                                onDelete = { i ->
+                                    viewModel.onIntent(FieldEditorIntent.DeleteFieldWaypoint(i))
+                                    viewModel.onIntent(FieldEditorIntent.SaveFieldWaypoints(projectPath, league))
+                                }
+                            )
+                        }
+                    }
+                }
             }
         }
 
@@ -448,6 +471,11 @@ fun FieldEditorScreen(
                 aprilTags = state.aprilTags,
                 onAprilTagsChanged = {
                     viewModel.onIntent(FieldEditorIntent.SetAprilTags(it))
+                },
+                fieldWaypoints = state.fieldWaypoints,
+                onFieldWaypointsChanged = {
+                    viewModel.onIntent(FieldEditorIntent.SetFieldWaypoints(it))
+                    viewModel.onIntent(FieldEditorIntent.SaveFieldWaypoints(projectPath, league))
                 }
             )
         }

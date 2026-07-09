@@ -14,7 +14,7 @@ import com.ares.analytics.shared.League
 import com.ares.analytics.ui.theme.*
 
 enum class EditorMode {
-    SELECT, ADD_WAYPOINT, DRAW_POLYGON, DRAW_CIRCLE, DRAW_RECTANGLE, PLACE_GAME_PIECE, PLACE_APRILTAG, ERASER
+    SELECT, ADD_WAYPOINT, DRAW_POLYGON, DRAW_CIRCLE, DRAW_RECTANGLE, PLACE_GAME_PIECE, PLACE_APRILTAG, PLACE_FIELD_WAYPOINT, ERASER
 }
 
 data class PointTowardsZoneRenderData(

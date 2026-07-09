@@ -438,3 +438,13 @@ data class Trajectory(
     val durationSeconds: Double,
     val states: List<TrajectoryState>
 )
+
+@Serializable
+data class FieldWaypoint(
+    val id: String,
+    val name: String,
+    val x: Double,
+    val y: Double,
+    val headingDegrees: Double,
+    val locked: Boolean = false
+)

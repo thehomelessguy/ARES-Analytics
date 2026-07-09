@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.dp
 import com.ares.analytics.shared.FieldImageConfig
 import com.ares.analytics.shared.League
 import com.ares.analytics.shared.Obstacle
@@ -292,5 +293,82 @@ fun DrawScope.drawActivePolygonPoints(
         }
         drawPath(path = path, color = AresRed.copy(alpha = 0.15f))
         drawPath(path = path, color = AresRed, style = Stroke(width = 1.5f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(5f, 5f))))
+    }
+}
+
+fun DrawScope.drawFieldWaypoints(
+    fieldWaypoints: List<com.ares.analytics.shared.FieldWaypoint>,
+    selectedId: String?,
+    w: Float,
+    h: Float,
+    fieldWidthM: Double,
+    fieldHeightM: Double,
+    league: League
+) {
+    fieldWaypoints.forEach { wp ->
+        val offset = getCanvasOffsetBase(Waypoint(wp.x, wp.y), w, h, fieldWidthM, fieldHeightM, league)
+        val radius = 10.dp.toPx()
+        val isSelected = wp.id == selectedId
+        val baseColor = if (isSelected) AresCyan else Color(0xFF00E676) // Cyan when selected, neon green when not
+
+        // Draw reticle circle
+        drawCircle(
+            color = baseColor.copy(alpha = 0.2f),
+            center = offset,
+            radius = radius
+        )
+        drawCircle(
+            color = baseColor,
+            center = offset,
+            radius = radius,
+            style = Stroke(width = 2.dp.toPx())
+        )
+        drawCircle(
+            color = baseColor,
+            center = offset,
+            radius = 3.dp.toPx()
+        )
+
+        // Draw heading line and arrow pointer
+        val angleRad = Math.toRadians(-wp.headingDegrees - 90.0)
+        val cosA = kotlin.math.cos(angleRad).toFloat()
+        val sinA = kotlin.math.sin(angleRad).toFloat()
+        val pointerLen = 22.dp.toPx()
+        val pointerEnd = Offset(
+            offset.x + pointerLen * cosA,
+            offset.y + pointerLen * sinA
+        )
+        drawLine(
+            color = baseColor,
+            start = offset,
+            end = pointerEnd,
+            strokeWidth = 2.dp.toPx()
+        )
+        // Draw small arrowhead
+        val arrowSize = 6.dp.toPx()
+        val arrowAngle1 = angleRad + Math.toRadians(145.0)
+        val arrowAngle2 = angleRad - Math.toRadians(145.0)
+        val cosA1 = kotlin.math.cos(arrowAngle1).toFloat()
+        val sinA1 = kotlin.math.sin(arrowAngle1).toFloat()
+        val cosA2 = kotlin.math.cos(arrowAngle2).toFloat()
+        val sinA2 = kotlin.math.sin(arrowAngle2).toFloat()
+        drawLine(
+            color = baseColor,
+            start = pointerEnd,
+            end = Offset(
+                pointerEnd.x + arrowSize * cosA1,
+                pointerEnd.y + arrowSize * sinA1
+            ),
+            strokeWidth = 2.dp.toPx()
+        )
+        drawLine(
+            color = baseColor,
+            start = pointerEnd,
+            end = Offset(
+                pointerEnd.x + arrowSize * cosA2,
+                pointerEnd.y + arrowSize * sinA2
+            ),
+            strokeWidth = 2.dp.toPx()
+        )
     }
 }

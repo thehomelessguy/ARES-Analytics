@@ -21,6 +21,7 @@ data class FieldEditorState(
     val obstacles: List<Obstacle> = emptyList(),
     val gamePieces: List<GamePiece> = emptyList(),
     val aprilTags: List<AprilTagPlacement> = emptyList(),
+    val fieldWaypoints: List<FieldWaypoint> = emptyList(),
     val saveStatus: String = "",
     val selectedElement: String? = null,
     val isLoading: Boolean = false,
@@ -43,11 +44,16 @@ sealed class FieldEditorIntent {
     data class AddAprilTag(val tag: AprilTagPlacement) : FieldEditorIntent()
     data class UpdateAprilTag(val index: Int, val tag: AprilTagPlacement) : FieldEditorIntent()
     data class DeleteAprilTag(val index: Int) : FieldEditorIntent()
+    data class SaveFieldWaypoints(val projectPath: String?, val league: League) : FieldEditorIntent()
+    data class AddFieldWaypoint(val waypoint: FieldWaypoint) : FieldEditorIntent()
+    data class UpdateFieldWaypoint(val index: Int, val waypoint: FieldWaypoint) : FieldEditorIntent()
+    data class DeleteFieldWaypoint(val index: Int) : FieldEditorIntent()
     data class SelectElement(val elementId: String?) : FieldEditorIntent()
     object ClearSaveStatus : FieldEditorIntent()
     data class SetObstacles(val obstacles: List<Obstacle>) : FieldEditorIntent()
     data class SetGamePieces(val gamePieces: List<GamePiece>) : FieldEditorIntent()
     data class SetAprilTags(val tags: List<AprilTagPlacement>) : FieldEditorIntent()
+    data class SetFieldWaypoints(val waypoints: List<FieldWaypoint>) : FieldEditorIntent()
 }
 
 class FieldEditorViewModel(
@@ -93,6 +99,13 @@ class FieldEditorViewModel(
                                     emptyList()
                                 }
 
+                                val wpFile = File(File(projectPath, relativePathsDir), "field_waypoints.json")
+                                val loadedFieldWaypoints = if (wpFile.exists()) {
+                                    Json.decodeFromString<List<FieldWaypoint>>(wpFile.readText())
+                                } else {
+                                    emptyList()
+                                }
+
                                 val relativeDir = if (league == League.FTC) {
                                     if (File(projectPath, "TeamCode/src/main/assets").exists()) "TeamCode/src/main/assets"
                                     else "src/main/assets"
@@ -121,6 +134,7 @@ class FieldEditorViewModel(
                                         obstacles = loadedObstacles,
                                         gamePieces = loadedGamePieces,
                                         aprilTags = loadedAprilTags,
+                                        fieldWaypoints = loadedFieldWaypoints,
                                         fieldImage = loadedBitmap,
                                         fieldImageConfig = loadedConfig,
                                         isLoading = false
@@ -322,6 +336,50 @@ class FieldEditorViewModel(
                 }
                 is FieldEditorIntent.SetAprilTags -> {
                     _state.update { it.copy(aprilTags = intent.tags) }
+                }
+                is FieldEditorIntent.SaveFieldWaypoints -> {
+                    val projectPath = intent.projectPath
+                    val league = intent.league
+                    val s = _state.value
+                    if (!projectPath.isNullOrEmpty()) {
+                        try {
+                            withContext(Dispatchers.IO) {
+                                val relativeDir = if (league == League.FTC) {
+                                    if (File(projectPath, "TeamCode/src/main/assets").exists()) "TeamCode/src/main/assets/paths"
+                                    else "src/main/assets/paths"
+                                } else {
+                                    "src/main/deploy/paths"
+                                }
+                                val targetDir = File(projectPath, relativeDir)
+                                targetDir.mkdirs()
+                                val targetFile = File(targetDir, "field_waypoints.json")
+                                val jsonFormat = Json { prettyPrint = true }
+                                targetFile.writeText(jsonFormat.encodeToString(s.fieldWaypoints))
+                            }
+                            _state.update { it.copy(saveStatus = "Saved field waypoints successfully!") }
+                        } catch (e: Exception) {
+                            _state.update { it.copy(saveStatus = "Failed to save field waypoints: ${e.message}") }
+                        }
+                    }
+                }
+                is FieldEditorIntent.AddFieldWaypoint -> {
+                    val updated = _state.value.fieldWaypoints + intent.waypoint
+                    _state.update { it.copy(fieldWaypoints = updated) }
+                }
+                is FieldEditorIntent.UpdateFieldWaypoint -> {
+                    val updated = _state.value.fieldWaypoints.toMutableList().apply {
+                        set(intent.index, intent.waypoint)
+                    }
+                    _state.update { it.copy(fieldWaypoints = updated) }
+                }
+                is FieldEditorIntent.DeleteFieldWaypoint -> {
+                    val updated = _state.value.fieldWaypoints.toMutableList().apply {
+                        removeAt(intent.index)
+                    }
+                    _state.update { it.copy(fieldWaypoints = updated) }
+                }
+                is FieldEditorIntent.SetFieldWaypoints -> {
+                    _state.update { it.copy(fieldWaypoints = intent.waypoints) }
                 }
             }
         }
