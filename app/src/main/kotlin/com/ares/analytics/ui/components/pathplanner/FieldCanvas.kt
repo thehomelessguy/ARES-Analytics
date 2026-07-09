@@ -609,7 +609,7 @@ fun FieldCanvas(
 
                 drawActualPathAndDeviations(pathCache, actualPath, waypoints, w, h, fieldWidthM, fieldHeightM, league)
                 drawRobotRepresentations(actualPath, estimatedPose, playbackPose, visionPoses, w, h, fieldWidthM, fieldHeightM, league)
-                drawWaypoints(waypoints, selectedWaypointIndex, isDraggingHeading, w, h, fieldWidthM, fieldHeightM, league)
+                drawWaypoints(waypoints, selectedWaypointIndex, isDraggingHeading, w, h, fieldWidthM, fieldHeightM, league, currentRotationTargets, isDraggingRotation)
 
                 drawContext.canvas.restore()
             }
