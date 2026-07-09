@@ -2,8 +2,6 @@ package com.ares.analytics.ui.components.pathplanner
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
@@ -310,7 +308,7 @@ fun FieldCanvas(
                                             hitIdx = i; hitHeading = true; break
                                         }
                                         val targetAngleRad = rotationTargets.find { kotlin.math.abs(it.waypointRelativePos - i) < 1e-3 }?.rotationDegrees?.let { Math.toRadians(-it) }
-                                            ?: wp.headingRad
+                                            ?: 0.0 // Default to 0.0 instead of wp.headingRad
                                         val rotationHandleLenPx = 30.dp.toPx()
                                         val rotHandleX = wpOffset.x + rotationHandleLenPx * cos(targetAngleRad).toFloat()
                                         val rotHandleY = wpOffset.y + rotationHandleLenPx * sin(targetAngleRad).toFloat()
@@ -620,25 +618,24 @@ fun FieldCanvas(
             DropdownMenu(
                 expanded = contextMenuExpanded,
                 onDismissRequest = { contextMenuExpanded = false },
-                offset = contextMenuOffset,
-                modifier = Modifier.background(AresSurfaceElevated).border(1.dp, AresBorder, RoundedCornerShape(4.dp))
+                offset = contextMenuOffset
             ) {
                 if (contextTargetType == "Waypoint" && contextTargetIndex in waypoints.indices) {
-                    DropdownMenuItem(onClick = { contextMenuExpanded = false }) { Text("Edit Waypoint...", color = AresTextPrimary) }
+                    DropdownMenuItem(onClick = { contextMenuExpanded = false }) { Text("Edit Waypoint...") }
                     DropdownMenuItem(onClick = {
                         onWaypointsChanged(waypoints.toMutableList().apply { removeAt(contextTargetIndex) })
                         contextMenuExpanded = false; selectedWaypointIndex = -1
-                    }) { Text("Delete Waypoint", color = AresRed) }
+                    }) { Text("Delete Waypoint") }
                 } else if (contextTargetType == "Obstacle" && contextTargetId != null) {
                     DropdownMenuItem(onClick = {
                         updateObstacles(currentActiveObstacles.filter { it.id != contextTargetId })
                         contextMenuExpanded = false; selectedObstacleId = null
-                    }) { Text("Delete Obstacle", color = AresRed) }
+                    }) { Text("Delete Obstacle") }
                 } else if (contextTargetType == "AprilTag" && contextTargetId != null) {
                     DropdownMenuItem(onClick = {
                         updateAprilTags(currentActiveAprilTags.filter { it.id != contextTargetId })
                         contextMenuExpanded = false; selectedAprilTagId = null
-                    }) { Text("Delete AprilTag", color = AresRed) }
+                    }) { Text("Delete AprilTag") }
                 } else if (contextTargetType == "GamePiece" && contextTargetId != null) {
                     val gp = currentActiveGamePieces.find { it.id == contextTargetId }
                     if (gp != null) {
@@ -646,19 +643,19 @@ fun FieldCanvas(
                             val nextType = if (gp.type == "Sample") "Specimen" else "Sample"
                             updateGamePieces(currentActiveGamePieces.map { if (it.id == contextTargetId) it.copy(type = nextType) else it })
                             contextMenuExpanded = false
-                        }) { Text("Toggle Type: ${if (gp.type == "Sample") "Specimen" else "Sample"}", color = AresTextPrimary) }
+                        }) { Text("Toggle Type: ${if (gp.type == "Sample") "Specimen" else "Sample"}") }
                     }
                     DropdownMenuItem(onClick = {
                         updateGamePieces(currentActiveGamePieces.filter { it.id != contextTargetId })
                         contextMenuExpanded = false; selectedGamePieceId = null
-                    }) { Text("Delete Game Piece", color = AresRed) }
+                    }) { Text("Delete Game Piece") }
                 } else if (contextTargetType == "EventMarker" && contextTargetIndex in currentEventMarkers.indices) {
                     DropdownMenuItem(onClick = {
                         onEventMarkersChanged?.invoke(currentEventMarkers.toMutableList().apply { removeAt(contextTargetIndex) })
                         contextMenuExpanded = false; selectedEventMarkerIndex = -1
-                    }) { Text("Delete Event Marker", color = AresRed) }
+                    }) { Text("Delete Event Marker") }
                 } else {
-                    DropdownMenuItem(onClick = { contextMenuExpanded = false }) { Text("Cancel", color = AresTextSecondary) }
+                    DropdownMenuItem(onClick = { contextMenuExpanded = false }) { Text("Cancel") }
                 }
             }
 

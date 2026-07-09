@@ -81,14 +81,24 @@ fun getTransformedCanvasOffset(
     fieldHeightM: Double, 
     league: League, 
     zoomScale: Float, 
-    panOffset: Offset
+    panOffset: Offset,
+    viewRotationDeg: Float = 0f
 ): Offset {
     val base = getCanvasOffsetBase(wp, w, h, fieldWidthM, fieldHeightM, league)
-    // Apply zoom scale (relative to top-left or pivot) and pan offset
-    return Offset(
-        x = base.x * zoomScale + panOffset.x,
-        y = base.y * zoomScale + panOffset.y
-    )
+    // Apply zoom scale and pan offset
+    var x = base.x * zoomScale + panOffset.x
+    var y = base.y * zoomScale + panOffset.y
+    // Apply view rotation around canvas center (matching the draw transform)
+    if (viewRotationDeg != 0f) {
+        val cx = w / 2f; val cy = h / 2f
+        val rad = Math.toRadians(viewRotationDeg.toDouble())
+        val cosR = kotlin.math.cos(rad).toFloat()
+        val sinR = kotlin.math.sin(rad).toFloat()
+        val dx = x - cx; val dy = y - cy
+        x = cx + dx * cosR - dy * sinR
+        y = cy + dx * sinR + dy * cosR
+    }
+    return Offset(x, y)
 }
 
 fun getRobotCoordFromScreen(
@@ -99,14 +109,54 @@ fun getRobotCoordFromScreen(
     fieldHeightM: Double, 
     league: League, 
     zoomScale: Float, 
-    panOffset: Offset
+    panOffset: Offset,
+    viewRotationDeg: Float = 0f
 ): Waypoint {
+    var sx = screenOffset.x; var sy = screenOffset.y
+    // Reverse view rotation around canvas center
+    if (viewRotationDeg != 0f) {
+        val cx = w / 2f; val cy = h / 2f
+        val rad = Math.toRadians(-viewRotationDeg.toDouble()) // negative to reverse
+        val cosR = kotlin.math.cos(rad).toFloat()
+        val sinR = kotlin.math.sin(rad).toFloat()
+        val dx = sx - cx; val dy = sy - cy
+        sx = cx + dx * cosR - dy * sinR
+        sy = cy + dx * sinR + dy * cosR
+    }
     // Reverse pan & zoom
     val baseOffset = Offset(
-        x = (screenOffset.x - panOffset.x) / zoomScale,
-        y = (screenOffset.y - panOffset.y) / zoomScale
+        x = (sx - panOffset.x) / zoomScale,
+        y = (sy - panOffset.y) / zoomScale
     )
     return getRobotCoordBase(baseOffset, w, h, fieldWidthM, fieldHeightM, league)
+}
+
+/**
+ * Reverse-transforms screen pointer coordinates to base (untransformed) canvas coordinates.
+ * This allows hit-testing using getCanvasOffsetBase positions directly.
+ */
+fun getBaseCanvasFromScreen(
+    screenOffset: Offset,
+    w: Float,
+    h: Float,
+    zoomScale: Float,
+    panOffset: Offset,
+    viewRotationDeg: Float = 0f
+): Offset {
+    var sx = screenOffset.x; var sy = screenOffset.y
+    if (viewRotationDeg != 0f) {
+        val cx = w / 2f; val cy = h / 2f
+        val rad = Math.toRadians(-viewRotationDeg.toDouble())
+        val cosR = kotlin.math.cos(rad).toFloat()
+        val sinR = kotlin.math.sin(rad).toFloat()
+        val dx = sx - cx; val dy = sy - cy
+        sx = cx + dx * cosR - dy * sinR
+        sy = cy + dx * sinR + dy * cosR
+    }
+    return Offset(
+        x = (sx - panOffset.x) / zoomScale,
+        y = (sy - panOffset.y) / zoomScale
+    )
 }
 
 /**
@@ -125,15 +175,28 @@ fun getDragDeltaInFieldCoords(
     fieldW: Double,
     fieldH: Double,
     league: League,
-    zoomScale: Float
+    zoomScale: Float,
+    viewRotationDeg: Float = 0f
 ): Waypoint {
+    var dxPx = dragAmount.x
+    var dyPx = dragAmount.y
+    if (viewRotationDeg != 0f) {
+        val rad = Math.toRadians(-viewRotationDeg.toDouble())
+        val cosR = kotlin.math.cos(rad).toFloat()
+        val sinR = kotlin.math.sin(rad).toFloat()
+        val rotatedX = dxPx * cosR - dyPx * sinR
+        val rotatedY = dxPx * sinR + dyPx * cosR
+        dxPx = rotatedX
+        dyPx = rotatedY
+    }
+    
     return if (league == League.FTC) {
-        val dx = -(dragAmount.y / canvasH) * fieldH / zoomScale
-        val dy = -(dragAmount.x / canvasW) * fieldW / zoomScale
+        val dx = -(dyPx / canvasH) * fieldH / zoomScale
+        val dy = -(dxPx / canvasW) * fieldW / zoomScale
         Waypoint(dx, dy)
     } else {
-        val dx = (dragAmount.x / canvasW) * fieldW / zoomScale
-        val dy = -(dragAmount.y / canvasH) * fieldH / zoomScale
+        val dx = (dxPx / canvasW) * fieldW / zoomScale
+        val dy = -(dyPx / canvasH) * fieldH / zoomScale
         Waypoint(dx, dy)
     }
 }
