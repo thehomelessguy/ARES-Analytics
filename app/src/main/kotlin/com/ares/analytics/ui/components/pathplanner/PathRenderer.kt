@@ -168,7 +168,7 @@ fun DrawScope.drawHolonomicRotationTargets(
                 val rectSize = 24.dp.toPx()
                 
                 drawContext.canvas.save()
-                drawContext.transform.rotate(degrees = -target.rotationDegrees.toFloat(), pivot = offset)
+                drawContext.transform.rotate(degrees = -target.rotationDegrees.toFloat() - 90f, pivot = offset)
                 
                 drawRect(color = AresAmber.copy(alpha = 0.25f), topLeft = Offset(offset.x - rectSize/2, offset.y - rectSize/2), size = Size(rectSize, rectSize))
                 drawRect(color = AresAmber, topLeft = Offset(offset.x - rectSize/2, offset.y - rectSize/2), size = Size(rectSize, rectSize), style = Stroke(width = 1.5.dp.toPx()))
@@ -389,7 +389,7 @@ fun DrawScope.drawWaypoints(
         // --- Rotation handle (green diamond, defaults to 0°) ---
         val rotTarget = rotationTargets.find { kotlin.math.abs(it.waypointRelativePos - idx) < 1e-3 }
         val hasExplicitTarget = rotTarget != null
-        val rotAngleRad = rotTarget?.rotationDegrees?.let { Math.toRadians(-it) } ?: 0.0
+        val rotAngleRad = rotTarget?.rotationDegrees?.let { Math.toRadians(-it - 90.0) } ?: Math.toRadians(-90.0)
         val rotHandleLenPx = 30.dp.toPx()
         val rotHandleX = offset.x + rotHandleLenPx * cos(rotAngleRad).toFloat()
         val rotHandleY = offset.y + rotHandleLenPx * sin(rotAngleRad).toFloat()

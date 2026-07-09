@@ -307,8 +307,8 @@ fun FieldCanvas(
                                         if (sqrt((pressOffset.x - handleOffset.x).pow(2) + (pressOffset.y - handleOffset.y).pow(2)) < 15.dp.toPx()) {
                                             hitIdx = i; hitHeading = true; break
                                         }
-                                        val targetAngleRad = rotationTargets.find { kotlin.math.abs(it.waypointRelativePos - i) < 1e-3 }?.rotationDegrees?.let { Math.toRadians(-it) }
-                                            ?: 0.0 // Default to 0.0 instead of wp.headingRad
+                                        val targetAngleRad = rotationTargets.find { kotlin.math.abs(it.waypointRelativePos - i) < 1e-3 }?.rotationDegrees?.let { Math.toRadians(-it - 90.0) }
+                                            ?: Math.toRadians(-90.0)
                                         val rotationHandleLenPx = 30.dp.toPx()
                                         val rotHandleX = wpOffset.x + rotationHandleLenPx * cos(targetAngleRad).toFloat()
                                         val rotHandleY = wpOffset.y + rotationHandleLenPx * sin(targetAngleRad).toFloat()
