@@ -224,60 +224,129 @@ fun SysIdScreen(
                 }
             }
 
-            // Right Panel: Regression Results
+            // Right Panel: Results & Profiles
             Surface(
                 modifier = Modifier.weight(1f).fillMaxHeight().border(1.dp, AresBorder, RoundedCornerShape(12.dp)),
                 shape = RoundedCornerShape(12.dp),
                 color = AresSurface
             ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Text("Calculated Characterization Constants", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = AresTextPrimary)
-                    Divider(color = AresBorder)
+                var activeTab by remember { mutableStateOf(0) }
 
-                    val activeSummary = state.localAnalysisResult ?: state.summary
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().background(AresSurfaceElevated, RoundedCornerShape(6.dp)).border(1.dp, AresBorder, RoundedCornerShape(6.dp))
+                    ) {
+                        listOf("Drivetrain Constants", "Driver Profiles").forEachIndexed { index, title ->
+                            val selected = activeTab == index
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .background(if (selected) AresCyan else Color.Transparent, RoundedCornerShape(6.dp))
+                                    .clickable { activeTab = index }
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = title,
+                                    color = if (selected) AresBackground else AresTextPrimary,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+
+                    Divider(color = AresBorder)
 
                     if (state.isLoading) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             CircularProgressIndicator(color = AresCyan)
                         }
-                    } else if (activeSummary == null) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text("No characterization data calculated yet.", color = AresTextTertiary, fontSize = 12.sp)
-                                Text("Run a live routine or upload a local log file above.", color = AresTextTertiary, fontSize = 11.sp)
+                    } else if (activeTab == 0) {
+                        // Tab 0: Drivetrain Constants
+                        val activeSummary = state.localAnalysisResult ?: state.summary
+                        if (activeSummary == null) {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text("No characterization data calculated yet.", color = AresTextTertiary, fontSize = 12.sp)
+                                    Text("Run a live routine or upload a local log file above.", color = AresTextTertiary, fontSize = 11.sp)
+                                }
+                            }
+                        } else {
+                            if (state.localAnalysisResult != null) {
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth().border(1.dp, AresCyan, RoundedCornerShape(8.dp)),
+                                    color = AresCyan.copy(alpha = 0.05f),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(10.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text("Displaying Local File Results", color = AresCyan, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                        Text(
+                                            "Clear",
+                                            color = AresTextSecondary,
+                                            fontSize = 11.sp,
+                                            modifier = Modifier.clickable { viewModel.onIntent(SysIdIntent.ClearLocalAnalysis) }
+                                        )
+                                    }
+                                }
+                            }
+
+                            ParamRow("Static Friction (kS)", String.format("%.4f V", activeSummary.kS))
+                            ParamRow("Velocity Constant (kV)", String.format("%.4f V/(m/s)", activeSummary.kV))
+                            ParamRow("Acceleration Constant (kA)", String.format("%.4f V/(m/s²)", activeSummary.kA))
+                            ParamRow("OLS Fit Quality (R²)", String.format("%.2f%%", activeSummary.rSquared * 100))
+                            ParamRow("Transient Type", activeSummary.transientClassification.name)
+                            
+                            state.fileAnalysisError?.let { err ->
+                                Text(err, color = AresError, fontSize = 11.sp)
                             }
                         }
                     } else {
-                        if (state.localAnalysisResult != null) {
-                            Surface(
-                                modifier = Modifier.fillMaxWidth().border(1.dp, AresCyan, RoundedCornerShape(8.dp)),
-                                color = AresCyan.copy(alpha = 0.05f),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(10.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text("Displaying Local File Results", color = AresCyan, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                                    Text(
-                                        "Clear",
-                                        color = AresTextSecondary,
-                                        fontSize = 11.sp,
-                                        modifier = Modifier.clickable { viewModel.onIntent(SysIdIntent.ClearLocalAnalysis) }
+                        // Tab 1: Driver Profiles
+                        val j = state.jitterResult
+                        if (j == null) {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Text("Select a session in Dashboard index to analyze joystick telemetry.", color = AresTextTertiary, fontSize = 12.sp)
+                            }
+                        } else {
+                            ParamRow("Jitter Present", if (j.hasJitter) "YES (Warning)" else "NO")
+                            ParamRow("Peak Jitter Frequency", String.format("%.1f Hz", j.peakFrequencyHz))
+                            ParamRow("Recommended Exponent", String.format("%.1f", j.recommendedExponent))
+                            ParamRow("Recommended Slew Rate", if (j.recommendedSlewRate == Double.MAX_VALUE) "No Limit" else String.format("%.1f units/s", j.recommendedSlewRate))
+
+                            Spacer(Modifier.height(8.dp))
+                            Text("AI Assessment:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = AresTextSecondary)
+                            Text(j.message, fontSize = 13.sp, color = AresTextPrimary, lineHeight = 18.sp)
+
+                            Spacer(Modifier.height(12.dp))
+                            Button(
+                                onClick = {
+                                    viewModel.onIntent(
+                                        SysIdIntent.ApplyToRobotCode(
+                                            recommendedExponent = j.recommendedExponent,
+                                            recommendedSlewRate = j.recommendedSlewRate,
+                                            projectPath = projectPath
+                                        )
                                     )
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = AresCyan),
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(6.dp)
+                            ) {
+                                Text("Apply to Robot Code", color = AresBackground, fontWeight = FontWeight.Bold)
+                            }
+                            if (state.exportStatus.isNotEmpty()) {
+                                Spacer(Modifier.height(4.dp))
+                                Text(state.exportStatus, color = if (state.exportStatus.contains("Failed")) AresError else AresGreen, fontSize = 11.sp)
+                                LaunchedEffect(state.exportStatus) {
+                                    kotlinx.coroutines.delay(3000)
+                                    viewModel.onIntent(SysIdIntent.ClearExportStatus)
                                 }
                             }
-                        }
-
-                        ParamRow("Static Friction (kS)", String.format("%.4f V", activeSummary.kS))
-                        ParamRow("Velocity Constant (kV)", String.format("%.4f V/(m/s)", activeSummary.kV))
-                        ParamRow("Acceleration Constant (kA)", String.format("%.4f V/(m/s²)", activeSummary.kA))
-                        ParamRow("OLS Fit Quality (R²)", String.format("%.2f%%", activeSummary.rSquared * 100))
-                        ParamRow("Transient Type", activeSummary.transientClassification.name)
-                        
-                        state.fileAnalysisError?.let { err ->
-                            Text(err, color = AresError, fontSize = 11.sp)
                         }
                     }
                 }
