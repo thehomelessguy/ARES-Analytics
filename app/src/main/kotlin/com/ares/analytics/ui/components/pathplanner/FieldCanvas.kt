@@ -710,8 +710,8 @@ fun FieldCanvas(
 
                 drawCustomObstacles(currentActiveObstacles, w, h, fieldWidthM, fieldHeightM, league, showCostmap = showCostmap)
                 drawGamePieces(currentActiveGamePieces, w, h, fieldWidthM, fieldHeightM, league)
-                drawAprilTags(currentActiveAprilTags, w, h, fieldWidthM, fieldHeightM, league)
-                drawFieldWaypoints(currentActiveFieldWaypoints, selectedFieldWaypointId, w, h, fieldWidthM, fieldHeightM, league)
+                drawAprilTags(currentActiveAprilTags, w, h, fieldWidthM, fieldHeightM, league, textMeasurer)
+                drawFieldWaypoints(currentActiveFieldWaypoints, selectedFieldWaypointId, w, h, fieldWidthM, fieldHeightM, league, textMeasurer)
                 drawActivePolygonPoints(currentPolygonPoints, w, h, fieldWidthM, fieldHeightM, league)
 
                 drawPlannedSpline(pathCache, splinePoints, waypoints, w, h, fieldWidthM, fieldHeightM, league)

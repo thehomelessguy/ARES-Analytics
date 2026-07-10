@@ -19,6 +19,12 @@ import com.ares.analytics.shared.PathPoint
 import com.ares.analytics.ui.theme.*
 import kotlin.math.cos
 import kotlin.math.sin
+import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.geometry.CornerRadius
 
 fun DrawScope.drawFieldBackground(
     activeImage: ImageBitmap?,
@@ -344,7 +350,8 @@ fun DrawScope.drawAprilTags(
     h: Float,
     fieldWidthM: Double,
     fieldHeightM: Double,
-    league: League
+    league: League,
+    textMeasurer: TextMeasurer
 ) {
     activeAprilTags.forEach { at ->
         val atOffset = getCanvasOffsetBase(Waypoint(at.x, at.y), w, h, fieldWidthM, fieldHeightM, league)
@@ -356,10 +363,60 @@ fun DrawScope.drawAprilTags(
         
         val rectOffset = Offset((atOffset.x - rw/2).toFloat(), (atOffset.y - rh/2).toFloat())
         drawRect(color = Color.White, topLeft = rectOffset, size = Size(rw.toFloat(), rh.toFloat()))
+        
         val innerOffset = Offset((atOffset.x - rw/2 + 2).toFloat(), (atOffset.y - rh/2 + 2).toFloat())
-        drawRect(color = Color.Black, topLeft = innerOffset, size = Size((rw - 4).toFloat(), (rh - 4).toFloat()))
+        val innerW = rw - 4
+        val innerH = rh - 4
+        drawRect(color = Color.Black, topLeft = innerOffset, size = Size(innerW.toFloat(), innerH.toFloat()))
+        
+        // Stylized AprilTag inner pattern
+        val blockW = innerW / 6.0
+        val blockH = innerH / 6.0
+        val activeBlocks = listOf(
+            Pair(1, 1), Pair(2, 1), Pair(4, 1),
+            Pair(1, 2), Pair(3, 2),
+            Pair(2, 3), Pair(4, 3),
+            Pair(1, 4), Pair(3, 4), Pair(4, 4)
+        )
+        activeBlocks.forEach { (bx, by) ->
+            drawRect(
+                color = Color.White,
+                topLeft = Offset(
+                    (innerOffset.x + bx * blockW).toFloat(),
+                    (innerOffset.y + by * blockH).toFloat()
+                ),
+                size = Size(blockW.toFloat(), blockH.toFloat())
+            )
+        }
         
         drawContext.canvas.restore()
+        
+        // Display Tag ID Label
+        val textStyle = TextStyle(
+            color = Color.White,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold
+        )
+        val labelText = "#${at.tagId}"
+        val textLayout = textMeasurer.measure(labelText, textStyle)
+        val labelOffset = Offset(
+            (atOffset.x - textLayout.size.width / 2f).toFloat(),
+            (atOffset.y - rh/2 - textLayout.size.height - 4).toFloat()
+        )
+        
+        drawRoundRect(
+            color = Color(0xCC212121),
+            topLeft = Offset(labelOffset.x - 4, labelOffset.y - 2),
+            size = Size((textLayout.size.width + 8).toFloat(), (textLayout.size.height + 4).toFloat()),
+            cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx())
+        )
+        
+        drawText(
+            textMeasurer = textMeasurer,
+            text = labelText,
+            style = textStyle,
+            topLeft = labelOffset
+        )
     }
 }
 
@@ -391,13 +448,40 @@ fun DrawScope.drawFieldWaypoints(
     h: Float,
     fieldWidthM: Double,
     fieldHeightM: Double,
-    league: League
+    league: League,
+    textMeasurer: TextMeasurer
 ) {
     fieldWaypoints.forEach { wp ->
         val offset = getCanvasOffsetBase(Waypoint(wp.x, wp.y), w, h, fieldWidthM, fieldHeightM, league)
         val radius = 10.dp.toPx()
         val isSelected = wp.id == selectedId
         val baseColor = if (isSelected) AresCyan else Color(0xFF00E676) // Cyan when selected, neon green when not
+
+        // Waypoint name label
+        val textStyle = TextStyle(
+            color = baseColor,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold
+        )
+        val textLayout = textMeasurer.measure(wp.name, textStyle)
+        val textOffset = Offset(
+            (offset.x + radius + 6).toFloat(),
+            (offset.y - textLayout.size.height / 2f).toFloat()
+        )
+        
+        drawRoundRect(
+            color = Color(0xCC212121),
+            topLeft = Offset(textOffset.x - 3, textOffset.y - 1),
+            size = Size((textLayout.size.width + 6).toFloat(), (textLayout.size.height + 2).toFloat()),
+            cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx())
+        )
+        
+        drawText(
+            textMeasurer = textMeasurer,
+            text = wp.name,
+            style = textStyle,
+            topLeft = textOffset
+        )
 
         // Draw reticle circle
         drawCircle(
