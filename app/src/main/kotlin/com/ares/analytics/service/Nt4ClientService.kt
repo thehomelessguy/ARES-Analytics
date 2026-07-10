@@ -155,7 +155,8 @@ open class Nt4ClientService(
                               {"method": "publish", "params": {"name": "ARES/DriverStation/Command", "pubuid": 1011, "type": "string"}},
                               {"method": "publish", "params": {"name": "ARES/DriverStation/SelectedOpMode", "pubuid": 1012, "type": "string"}},
                               {"method": "publish", "params": {"name": "ARES/DriverStation/MatchTime", "pubuid": 1013, "type": "double"}},
-                              {"method": "publish", "params": {"name": "ARES/DriverStation/MatchState", "pubuid": 1014, "type": "string"}}
+                              {"method": "publish", "params": {"name": "ARES/DriverStation/MatchState", "pubuid": 1014, "type": "string"}},
+                              {"method": "publish", "params": {"name": "SysId/Command", "pubuid": 1015, "type": "string"}}
                             ]
                         """.trimIndent()
                         send(Frame.Text(announceInputsMsg))

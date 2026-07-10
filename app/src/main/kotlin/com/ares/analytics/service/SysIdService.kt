@@ -69,6 +69,10 @@ class SysIdService(private val databaseService: DatabaseService) {
             alignedData.add(AlignedDataRow(t, volt, v.value, accel))
         }
 
+        return analyzeRawData(alignedData)
+    }
+
+    fun analyzeRawData(alignedData: List<AlignedDataRow>): CalculatedSummary {
         if (alignedData.size < 10) {
             return CalculatedSummary()
         }

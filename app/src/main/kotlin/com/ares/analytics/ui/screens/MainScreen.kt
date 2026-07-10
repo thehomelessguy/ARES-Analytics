@@ -140,6 +140,7 @@ fun MainScreen(services: ServiceRegistry) {
             sysIdService = services.sysIdService,
             driverAnalysisService = services.driverAnalysisService,
             constantsParserService = services.constantsParserService,
+            nt4ClientService = services.nt4ClientService,
             scope = scope
         )
     }
