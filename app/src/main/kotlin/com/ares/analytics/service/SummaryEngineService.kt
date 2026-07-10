@@ -218,6 +218,10 @@ class SummaryEngineService(
                         framesToInsert.add(TelemetryFrame(session.createdAt, session.sessionId, "Diagnostics/SysId/kV", summary.kV))
                         framesToInsert.add(TelemetryFrame(session.createdAt, session.sessionId, "Diagnostics/SysId/kA", summary.kA))
                         framesToInsert.add(TelemetryFrame(session.createdAt, session.sessionId, "Diagnostics/SysId/R2", summary.rSquared))
+
+                        if (summary.kA > 1e-6) {
+                            framesToInsert.add(TelemetryFrame(session.createdAt, session.sessionId, "Diagnostics/SysId/ADRC_b0", 1.0 / summary.kA))
+                        }
                     }
                 }
             }
@@ -278,6 +282,10 @@ class SummaryEngineService(
                         framesToInsert.add(TelemetryFrame(session.createdAt, session.sessionId, "Diagnostics/SysId/Motors/$motorName/kV", summary.kV))
                         framesToInsert.add(TelemetryFrame(session.createdAt, session.sessionId, "Diagnostics/SysId/Motors/$motorName/kA", summary.kA))
                         framesToInsert.add(TelemetryFrame(session.createdAt, session.sessionId, "Diagnostics/SysId/Motors/$motorName/R2", summary.rSquared))
+
+                        if (summary.kA > 1e-6) {
+                            framesToInsert.add(TelemetryFrame(session.createdAt, session.sessionId, "Diagnostics/SysId/Motors/$motorName/ADRC_b0", 1.0 / summary.kA))
+                        }
                     }
                 }
             }
