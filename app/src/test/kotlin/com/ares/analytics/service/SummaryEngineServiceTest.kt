@@ -14,7 +14,9 @@ class SummaryEngineServiceTest {
     fun testGenerateSummary() = runTest {
         val tempDb = File.createTempFile("summary_db_test", ".db").apply { deleteOnExit() }
         val databaseService = DatabaseService(tempDb.absolutePath)
-        val summaryEngine = SummaryEngineService(databaseService)
+        val sysIdService = SysIdService(databaseService)
+        val driverAnalysisService = DriverAnalysisService(databaseService, sysIdService)
+        val summaryEngine = SummaryEngineService(databaseService, sysIdService, driverAnalysisService)
 
         val session = Session(
             sessionId = "summary-session",

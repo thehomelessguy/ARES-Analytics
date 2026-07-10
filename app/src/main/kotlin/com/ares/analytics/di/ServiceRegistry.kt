@@ -33,7 +33,6 @@ class ServiceRegistry {
     // ── Tier 1: Depend on Tier 0 ─────────────────────────────────────────────
     val nt4ClientService by lazy { Nt4ClientService(databaseService) }
     val logParserService by lazy { LogParserService(databaseService, summaryEngineService) }
-    val summaryEngineService by lazy { SummaryEngineService(databaseService) }
     val parquetExporterService by lazy { ParquetExporterService(databaseService) }
     val replayEngineService by lazy { ReplayEngineService(databaseService) }
     val sysIdService by lazy { SysIdService(databaseService) }
@@ -43,8 +42,9 @@ class ServiceRegistry {
 
     // ── Tier 2: Depend on Tier 0 + Tier 1 ────────────────────────────────────
     val alertEngineService by lazy { AlertEngineService(databaseService, nt4ClientService) }
-    val hootDecoderService by lazy { HootDecoderService(databaseService, summaryEngineService, sysIdService) }
     val driverAnalysisService by lazy { DriverAnalysisService(databaseService, sysIdService) }
+    val summaryEngineService by lazy { SummaryEngineService(databaseService, sysIdService, driverAnalysisService) }
+    val hootDecoderService by lazy { HootDecoderService(databaseService, summaryEngineService, sysIdService) }
     val teamApiService by lazy { TeamApiService(firebaseClientService) }
     val syncEngineService by lazy { SyncEngineService(databaseService, parquetExporterService, firebaseClientService, environmentService, teamApiService, summaryEngineService) }
     val phoenixDiagnosticsService by lazy { PhoenixDiagnosticsService(nt4ClientService) }

@@ -2,10 +2,18 @@ package com.ares.analytics.service
 
 import com.ares.analytics.shared.Session
 import com.ares.analytics.shared.SessionSummary
+import com.ares.analytics.shared.TelemetryFrame
+import com.ares.analytics.service.AlignedDataRow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlin.math.abs
+import kotlin.math.sign
 
-class SummaryEngineService(private val databaseService: DatabaseService) {
+class SummaryEngineService(
+    private val databaseService: DatabaseService,
+    private val sysIdService: SysIdService,
+    private val driverAnalysisService: DriverAnalysisService
+) {
 
     suspend fun generateSummary(session: Session): SessionSummary = withContext(Dispatchers.Default) {
         val totalFrames = databaseService.countTelemetryFrames(session.sessionId)
@@ -133,7 +141,101 @@ class SummaryEngineService(private val databaseService: DatabaseService) {
         )
 
         databaseService.insertSessionSummary(summary)
+        calculateAndSaveDiagnostics(session)
         summary
+    }
+
+    private suspend fun calculateAndSaveDiagnostics(session: Session) {
+        try {
+            // 1. SysId Characterization
+            val voltages = databaseService.getTelemetryRange(session.sessionId, 0L, Long.MAX_VALUE)
+                .filter { it.key == "/Drive/Voltage" || it.key == "Drive/Voltage" }
+            val velocities = databaseService.getTelemetryRange(session.sessionId, 0L, Long.MAX_VALUE)
+                .filter { it.key == "/Drive/Velocity" || it.key == "Drive/Velocity" }
+            val accelerations = databaseService.getTelemetryRange(session.sessionId, 0L, Long.MAX_VALUE)
+                .filter { it.key == "/Drive/Acceleration" || it.key == "Drive/Acceleration" }
+
+            if (voltages.isNotEmpty() && velocities.isNotEmpty()) {
+                val alignedData = mutableListOf<AlignedDataRow>()
+                val timeMap = voltages.associateBy { it.timestampMs }
+
+                val directionChanges = mutableListOf<Long>()
+                var lastSign = 0.0
+                val sortedVelocities = velocities.sortedBy { it.timestampMs }
+                for (v in sortedVelocities) {
+                    val currentSign = sign(v.value)
+                    if (currentSign != 0.0 && currentSign != lastSign) {
+                        directionChanges.add(v.timestampMs)
+                        lastSign = currentSign
+                    }
+                }
+
+                val sortedAccels = accelerations.sortedBy { it.timestampMs }
+                var accelIdx = 0
+
+                for (v in sortedVelocities) {
+                    val t = v.timestampMs
+                    val isNearDirectionChange = directionChanges.any { abs(it - t) <= 50 }
+                    if (isNearDirectionChange) continue
+
+                    val volt = timeMap[t]?.value ?: continue
+
+                    val accel = if (sortedAccels.isNotEmpty()) {
+                        while (accelIdx < sortedAccels.size - 1 &&
+                            abs(sortedAccels[accelIdx + 1].timestampMs - t) <= abs(sortedAccels[accelIdx].timestampMs - t)
+                        ) {
+                            accelIdx++
+                        }
+                        sortedAccels[accelIdx].value
+                    } else 0.0
+
+                    alignedData.add(AlignedDataRow(t, volt, v.value, accel))
+                }
+
+                val finalAlignedData = if (alignedData.isNotEmpty() && alignedData.all { it.accel == 0.0 }) {
+                    val approxRows = mutableListOf<AlignedDataRow>()
+                    val sorted = alignedData.sortedBy { it.timestampMs }
+                    for (i in 0 until sorted.size) {
+                        val current = sorted[i]
+                        val accel = if (i == 0) 0.0 else {
+                            val prev = sorted[i - 1]
+                            val dt = (current.timestampMs - prev.timestampMs) / 1000.0
+                            if (dt > 1e-4) (current.velocity - prev.velocity) / dt else 0.0
+                        }
+                        approxRows.add(current.copy(accel = accel))
+                    }
+                    approxRows
+                } else {
+                    alignedData
+                }
+                val framesToInsert = mutableListOf<TelemetryFrame>()
+
+                if (finalAlignedData.size >= 10) {
+                    val summary = sysIdService.analyzeRawData(finalAlignedData)
+                    if (summary.rSquared > 0.1) {
+                        framesToInsert.add(TelemetryFrame(session.createdAt, session.sessionId, "Diagnostics/SysId/kS", summary.kS))
+                        framesToInsert.add(TelemetryFrame(session.createdAt, session.sessionId, "Diagnostics/SysId/kV", summary.kV))
+                        framesToInsert.add(TelemetryFrame(session.createdAt, session.sessionId, "Diagnostics/SysId/kA", summary.kA))
+                        framesToInsert.add(TelemetryFrame(session.createdAt, session.sessionId, "Diagnostics/SysId/R2", summary.rSquared))
+                    }
+                }
+
+                // 2. Driver Jitter Analysis
+                val j = driverAnalysisService.analyzeDriverJitter(session.sessionId)
+                if (j.peakFrequencyHz > 0.1) {
+                    framesToInsert.add(TelemetryFrame(session.createdAt, session.sessionId, "Diagnostics/Driver/RecommendedExponent", j.recommendedExponent))
+                    framesToInsert.add(TelemetryFrame(session.createdAt, session.sessionId, "Diagnostics/Driver/RecommendedSlewRate", if (j.recommendedSlewRate == Double.MAX_VALUE) 999.0 else j.recommendedSlewRate))
+                    framesToInsert.add(TelemetryFrame(session.createdAt, session.sessionId, "Diagnostics/Driver/PeakJitterFrequency", j.peakFrequencyHz))
+                    framesToInsert.add(TelemetryFrame(session.createdAt, session.sessionId, "Diagnostics/Driver/JitterPresent", if (j.hasJitter) 1.0 else 0.0))
+                }
+
+                if (framesToInsert.isNotEmpty()) {
+                    databaseService.insertTelemetryFrames(framesToInsert)
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     private fun cleanKeyToDeviceName(key: String): String {

@@ -13,8 +13,9 @@ class HootDecoderServiceTest {
     fun testParseAndInsertTelemetry() = runTest {
         val tempDb = File.createTempFile("hoot_db_test", ".db").apply { deleteOnExit() }
         val databaseService = DatabaseService(tempDb.absolutePath)
-        val summaryEngineService = SummaryEngineService(databaseService)
         val sysIdService = SysIdService(databaseService)
+        val driverAnalysisService = DriverAnalysisService(databaseService, sysIdService)
+        val summaryEngineService = SummaryEngineService(databaseService, sysIdService, driverAnalysisService)
         
         val hootDecoderService = HootDecoderService(databaseService, summaryEngineService, sysIdService)
 
