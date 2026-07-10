@@ -147,13 +147,15 @@ class SummaryEngineService(
 
     private suspend fun calculateAndSaveDiagnostics(session: Session) {
         try {
-            // 1. SysId Characterization
-            val voltages = databaseService.getTelemetryRange(session.sessionId, 0L, Long.MAX_VALUE)
-                .filter { it.key == "/Drive/Voltage" || it.key == "Drive/Voltage" }
-            val velocities = databaseService.getTelemetryRange(session.sessionId, 0L, Long.MAX_VALUE)
-                .filter { it.key == "/Drive/Velocity" || it.key == "Drive/Velocity" }
-            val accelerations = databaseService.getTelemetryRange(session.sessionId, 0L, Long.MAX_VALUE)
-                .filter { it.key == "/Drive/Acceleration" || it.key == "Drive/Acceleration" }
+            val allFrames = databaseService.getTelemetryRange(session.sessionId, 0L, Long.MAX_VALUE)
+            if (allFrames.isEmpty()) return
+
+            val framesToInsert = mutableListOf<TelemetryFrame>()
+
+            // 1. Drivetrain SysId Characterization
+            val voltages = allFrames.filter { it.key == "/Drive/Voltage" || it.key == "Drive/Voltage" }
+            val velocities = allFrames.filter { it.key == "/Drive/Velocity" || it.key == "Drive/Velocity" }
+            val accelerations = allFrames.filter { it.key == "/Drive/Acceleration" || it.key == "Drive/Acceleration" }
 
             if (voltages.isNotEmpty() && velocities.isNotEmpty()) {
                 val alignedData = mutableListOf<AlignedDataRow>()
@@ -208,7 +210,6 @@ class SummaryEngineService(
                 } else {
                     alignedData
                 }
-                val framesToInsert = mutableListOf<TelemetryFrame>()
 
                 if (finalAlignedData.size >= 10) {
                     val summary = sysIdService.analyzeRawData(finalAlignedData)
@@ -219,19 +220,79 @@ class SummaryEngineService(
                         framesToInsert.add(TelemetryFrame(session.createdAt, session.sessionId, "Diagnostics/SysId/R2", summary.rSquared))
                     }
                 }
+            }
 
-                // 2. Driver Jitter Analysis
-                val j = driverAnalysisService.analyzeDriverJitter(session.sessionId)
-                if (j.peakFrequencyHz > 0.1) {
-                    framesToInsert.add(TelemetryFrame(session.createdAt, session.sessionId, "Diagnostics/Driver/RecommendedExponent", j.recommendedExponent))
-                    framesToInsert.add(TelemetryFrame(session.createdAt, session.sessionId, "Diagnostics/Driver/RecommendedSlewRate", if (j.recommendedSlewRate == Double.MAX_VALUE) 999.0 else j.recommendedSlewRate))
-                    framesToInsert.add(TelemetryFrame(session.createdAt, session.sessionId, "Diagnostics/Driver/PeakJitterFrequency", j.peakFrequencyHz))
-                    framesToInsert.add(TelemetryFrame(session.createdAt, session.sessionId, "Diagnostics/Driver/JitterPresent", if (j.hasJitter) 1.0 else 0.0))
+            // 2. Individual Subsystem & Motor SysId Characterization
+            val motorVoltages = mutableMapOf<String, MutableMap<Long, Double>>()
+            val motorVelocities = mutableMapOf<String, MutableMap<Long, Double>>()
+
+            for (frame in allFrames) {
+                val cleanKey = frame.key.removePrefix("/")
+                if (cleanKey.startsWith("Hardware/Motors/")) {
+                    val parts = cleanKey.split("/")
+                    if (parts.size >= 4) {
+                        val motorName = parts[2]
+                        val metric = parts[3].lowercase()
+                        val t = frame.timestampMs
+                        when {
+                            metric.contains("volt") || metric.contains("power") -> {
+                                val voltVal = if (metric.contains("power") && abs(frame.value) <= 1.0) frame.value * 12.0 else frame.value
+                                motorVoltages.getOrPut(motorName) { mutableMapOf() }[t] = voltVal
+                            }
+                            metric.contains("vel") || metric.contains("speed") -> {
+                                motorVelocities.getOrPut(motorName) { mutableMapOf() }[t] = frame.value
+                            }
+                        }
+                    }
+                }
+            }
+
+            for ((motorName, velocitiesMap) in motorVelocities) {
+                val voltagesMap = motorVoltages[motorName] ?: continue
+                if (velocitiesMap.size < 10 || voltagesMap.size < 10) continue
+
+                val alignedRows = mutableListOf<AlignedDataRow>()
+                val sortedTimes = velocitiesMap.keys.sorted()
+
+                var lastTime = 0L
+                var lastVel = 0.0
+
+                for (t in sortedTimes) {
+                    val vel = velocitiesMap[t] ?: continue
+                    val volt = voltagesMap[t] ?: continue
+
+                    val accel = if (lastTime == 0L) 0.0 else {
+                        val dt = (t - lastTime) / 1000.0
+                        if (dt > 1e-4) (vel - lastVel) / dt else 0.0
+                    }
+
+                    alignedRows.add(AlignedDataRow(t, volt, vel, accel))
+                    lastTime = t
+                    lastVel = vel
                 }
 
-                if (framesToInsert.isNotEmpty()) {
-                    databaseService.insertTelemetryFrames(framesToInsert)
+                if (alignedRows.size >= 10) {
+                    val summary = sysIdService.analyzeRawData(alignedRows)
+                    if (summary.rSquared > 0.5) {
+                        framesToInsert.add(TelemetryFrame(session.createdAt, session.sessionId, "Diagnostics/SysId/Motors/$motorName/kS", summary.kS))
+                        framesToInsert.add(TelemetryFrame(session.createdAt, session.sessionId, "Diagnostics/SysId/Motors/$motorName/kV", summary.kV))
+                        framesToInsert.add(TelemetryFrame(session.createdAt, session.sessionId, "Diagnostics/SysId/Motors/$motorName/kA", summary.kA))
+                        framesToInsert.add(TelemetryFrame(session.createdAt, session.sessionId, "Diagnostics/SysId/Motors/$motorName/R2", summary.rSquared))
+                    }
                 }
+            }
+
+            // 3. Driver Jitter Analysis
+            val j = driverAnalysisService.analyzeDriverJitter(session.sessionId)
+            if (j.peakFrequencyHz > 0.1) {
+                framesToInsert.add(TelemetryFrame(session.createdAt, session.sessionId, "Diagnostics/Driver/RecommendedExponent", j.recommendedExponent))
+                framesToInsert.add(TelemetryFrame(session.createdAt, session.sessionId, "Diagnostics/Driver/RecommendedSlewRate", if (j.recommendedSlewRate == Double.MAX_VALUE) 999.0 else j.recommendedSlewRate))
+                framesToInsert.add(TelemetryFrame(session.createdAt, session.sessionId, "Diagnostics/Driver/PeakJitterFrequency", j.peakFrequencyHz))
+                framesToInsert.add(TelemetryFrame(session.createdAt, session.sessionId, "Diagnostics/Driver/JitterPresent", if (j.hasJitter) 1.0 else 0.0))
+            }
+
+            if (framesToInsert.isNotEmpty()) {
+                databaseService.insertTelemetryFrames(framesToInsert)
             }
         } catch (e: Exception) {
             e.printStackTrace()
