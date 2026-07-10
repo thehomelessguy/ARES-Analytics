@@ -106,8 +106,9 @@ fun TelemetryChartPanel(
         }
     }
     
-    // In-memory data store for live plotting: key -> list of points
-    val telemetryData = remember { mutableStateMapOf<String, List<TelemetryPoint>>() }
+    // In-memory data store for live plotting: key -> ArrayDeque of points (circular buffer)
+    val telemetryData = remember { ConcurrentHashMap<String, ArrayDeque<TelemetryPoint>>() }
+    var lastUpdateTick by remember { mutableStateOf(0L) }
 
     // Selected target unit for each key
     val targetUnits = remember { mutableStateMapOf<String, RobotUnit>() }
@@ -131,15 +132,15 @@ fun TelemetryChartPanel(
     LaunchedEffect(Unit) {
         nt4ClientService.telemetryFlow.collect { frame ->
             if (selectedKeys.contains(frame.key)) {
-                val currentPoints = telemetryData[frame.key] ?: emptyList()
+                val queue = telemetryData.getOrPut(frame.key) { ArrayDeque() }
                 val now = System.currentTimeMillis()
                 val cutoff = now - (selectedWindowSec * 1000)
                 
-                // Add new point, filter out old points beyond window size
-                val updatedPoints = (currentPoints + TelemetryPoint(frame.timestampMs, frame.value))
-                    .filter { it.timestampMs >= cutoff }
-                    
-                telemetryData[frame.key] = updatedPoints
+                queue.add(TelemetryPoint(frame.timestampMs, frame.value))
+                while (queue.isNotEmpty() && queue.first().timestampMs < cutoff) {
+                    queue.removeFirst()
+                }
+                lastUpdateTick = frame.timestampMs
             }
         }
     }
@@ -430,8 +431,9 @@ fun TelemetryChartPanel(
                     }
                 } else {
                     Canvas(modifier = Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 12.dp)) {
-                    val width = size.width
-                    val height = size.height
+                        val _tick = lastUpdateTick
+                        val width = size.width
+                        val height = size.height
  
                     // 1. Draw Grid Lines
                     val gridLinesX = 5

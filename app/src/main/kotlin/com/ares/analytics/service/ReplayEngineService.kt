@@ -70,6 +70,10 @@ class ReplayEngineService(private val databaseService: DatabaseService) {
     private var startTimestampMs: Long = 0L
     private var endTimestampMs: Long = 0L
     private var currentPlayheadMs: Long = 0L
+    private var lastTargetTimestamp: Long = -1L
+    private var lastFrameIndex: Int = 0
+    private var lastActionIndex: Int = 0
+    private val valuesMap = mutableMapOf<String, Double>()
 
     private val datagramSocket = DatagramSocket()
     private val loopbackAddress = InetAddress.getByName("127.0.0.1")
@@ -211,23 +215,33 @@ class ReplayEngineService(private val databaseService: DatabaseService) {
         index = index.coerceIn(0, timestamps.size - 1)
         val targetTimestamp = timestamps[index]
 
-        // Aggregate values up to this target timestamp
-        val valuesMap = mutableMapOf<String, Double>()
-        for (frame in allFrames) {
+        // Reset incremental cache if we seeked backwards or this is first run
+        if (targetTimestamp < lastTargetTimestamp || lastTargetTimestamp == -1L) {
+            lastFrameIndex = 0
+            lastActionIndex = 0
+            valuesMap.clear()
+        }
+        lastTargetTimestamp = targetTimestamp
+
+        // Incrementally aggregate frame updates
+        while (lastFrameIndex < allFrames.size) {
+            val frame = allFrames[lastFrameIndex]
             if (frame.timestampMs > targetTimestamp) break
             valuesMap[frame.key] = frame.value
+            lastFrameIndex++
         }
 
-        // Synthesize telemetry from actions to drive dashboard widgets for action-only logs
+        // Incrementally aggregate actions
         val jsonParser = Json { ignoreUnknownKeys = true }
-        for (action in _sessionActions.value) {
+        val actionsList = _sessionActions.value
+        while (lastActionIndex < actionsList.size) {
+            val action = actionsList[lastActionIndex]
             if (action.timestampMs > targetTimestamp) break
             try {
                 val payloadObj = jsonParser.parseToJsonElement(action.payloadJson).let {
                     if (it is JsonObject) it else null
-                } ?: continue
-                
-                if (action.actionType == "PoseUpdate") {
+                }
+                if (payloadObj != null && action.actionType == "PoseUpdate") {
                     val x = payloadObj["xMeters"]?.let { if (it is JsonPrimitive) it.doubleOrNull else null }
                     val y = payloadObj["yMeters"]?.let { if (it is JsonPrimitive) it.doubleOrNull else null }
                     val heading = payloadObj["headingRadians"]?.let { if (it is JsonPrimitive) it.doubleOrNull else null }
@@ -248,16 +262,19 @@ class ReplayEngineService(private val databaseService: DatabaseService) {
             } catch (e: Exception) {
                 // Ignore parsing errors for individual actions
             }
+            lastActionIndex++
         }
 
-        val frame = ReplayFrame(targetTimestamp, valuesMap)
+        // Expose a snapshot copy of the aggregated state map
+        val currentValuesMap = valuesMap.toMap()
+        val frame = ReplayFrame(targetTimestamp, currentValuesMap)
         _currentFrame.value = frame
 
         // 3. Emit individual TelemetryFrame objects for dashboard widget consumption
         val sessionId = "replay"
         emitJob?.cancel()
         emitJob = CoroutineScope(Dispatchers.Default).launch {
-            for ((key, value) in valuesMap) {
+            for ((key, value) in currentValuesMap) {
                 val normalizedKey = key.removePrefix("/")
                 val telemetryFrame = TelemetryFrame(
                     timestampMs = targetTimestamp,

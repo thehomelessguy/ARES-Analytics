@@ -147,7 +147,16 @@ class SummaryEngineService(
 
     private suspend fun calculateAndSaveDiagnostics(session: Session) {
         try {
-            val allFrames = databaseService.getTelemetryRange(session.sessionId, 0L, Long.MAX_VALUE)
+            val allFrames = databaseService.getTelemetryForFilters(
+                sessionId = session.sessionId,
+                keys = listOf(
+                    "/Drive/Voltage", "Drive/Voltage",
+                    "/Drive/Velocity", "Drive/Velocity",
+                    "/Drive/Acceleration", "Drive/Acceleration",
+                    "Drive/Velocity_Omega", "/Drive/Velocity_Omega"
+                ),
+                prefixes = listOf("Diagnostics/%", "Hardware/Motors/%")
+            )
             if (allFrames.isEmpty()) return
 
             val framesToInsert = mutableListOf<TelemetryFrame>()
@@ -156,7 +165,7 @@ class SummaryEngineService(
             val loopTimes = allFrames.filter { it.key.lowercase().contains("loop") || it.key.lowercase().contains("period") }.map { it.value }
             val loopOverruns = loopTimes.count { it > 40.0 }
 
-            val sortedTimes = allFrames.map { it.timestampMs }.distinct().sorted()
+            val sortedTimes = databaseService.getDistinctTimestamps(session.sessionId)
             var commsLosses = 0
             if (sortedTimes.size > 1) {
                 for (i in 0 until sortedTimes.size - 1) {

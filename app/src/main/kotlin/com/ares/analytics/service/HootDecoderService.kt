@@ -326,12 +326,19 @@ class HootDecoderService(
             val actuals = databaseService.getTelemetryForKey(sessionId, pair.actualKey)
             val setpoints = databaseService.getTelemetryForKey(sessionId, pair.setpointKey)
             if (actuals.size >= 32 && setpoints.isNotEmpty()) {
-                val setpointMap = setpoints.associateBy { it.timestampMs }
+                val actualsSorted = actuals.sortedBy { it.timestampMs }
+                val setpointsSorted = setpoints.sortedBy { it.timestampMs }
                 val errorList = mutableListOf<Double>()
                 val timestamps = mutableListOf<Long>()
-                
-                for (act in actuals.sortedBy { it.timestampMs }) {
-                    val spVal = setpointMap[act.timestampMs]?.value ?: setpoints.minByOrNull { abs(it.timestampMs - act.timestampMs) }?.value ?: continue
+                var setpointIndex = 0
+
+                for (act in actualsSorted) {
+                    val targetTime = act.timestampMs
+                    while (setpointIndex + 1 < setpointsSorted.size &&
+                           abs(setpointsSorted[setpointIndex + 1].timestampMs - targetTime) <= abs(setpointsSorted[setpointIndex].timestampMs - targetTime)) {
+                        setpointIndex++
+                    }
+                    val spVal = setpointsSorted[setpointIndex].value
                     errorList.add(spVal - act.value)
                     timestamps.add(act.timestampMs)
                 }
@@ -369,15 +376,21 @@ class HootDecoderService(
             
             if (currents.isEmpty() || velocities.isEmpty()) continue
 
-            val velMap = velocities.associateBy { it.timestampMs }
+            val currentsSorted = currents.sortedBy { it.timestampMs }
+            val velocitiesSorted = velocities.sortedBy { it.timestampMs }
+            var velIndex = 0
             var thermalSum = 0.0
             var maxStallDurationMs = 0L
             var currentStallDurationMs = 0L
             var lastTimeMs = 0L
             
-            for (currFrame in currents.sortedBy { it.timestampMs }) {
+            for (currFrame in currentsSorted) {
                 val t = currFrame.timestampMs
-                val velFrame = velMap[t] ?: velocities.minByOrNull { abs(it.timestampMs - t) } ?: continue
+                while (velIndex + 1 < velocitiesSorted.size &&
+                       abs(velocitiesSorted[velIndex + 1].timestampMs - t) <= abs(velocitiesSorted[velIndex].timestampMs - t)) {
+                    velIndex++
+                }
+                val velFrame = velocitiesSorted[velIndex]
                 
                 val current = currFrame.value
                 val velocity = velFrame.value

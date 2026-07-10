@@ -575,8 +575,27 @@ class CalibrationService(private val databaseService: DatabaseService) {
             4 to FieldTag(-1.8, 0.0, 0.12)
         )
 
+        // Pre-group camToTagFrames by their index (e.g. [0], [1]... [5])
+        val groupedFrames = camToTagFrames.groupBy { frame ->
+            val key = frame.key
+            val lastOpenBracket = key.lastIndexOf('[')
+            val lastCloseBracket = key.lastIndexOf(']')
+            if (lastOpenBracket != -1 && lastCloseBracket != -1 && lastCloseBracket > lastOpenBracket) {
+                key.substring(lastOpenBracket + 1, lastCloseBracket).toIntOrNull() ?: -1
+            } else {
+                -1
+            }
+        }
+
         val measurements = mutableListOf<CalibrationMeasurement>()
         val timeMap = gyroFrames.associateBy { it.timestampMs }
+
+        val list0 = groupedFrames[0] ?: emptyList()
+        val list1 = groupedFrames[1] ?: emptyList()
+        val list2 = groupedFrames[2] ?: emptyList()
+        val list3 = groupedFrames[3] ?: emptyList()
+        val list4 = groupedFrames[4] ?: emptyList()
+        val list5 = groupedFrames[5] ?: emptyList()
 
         for (tagFrame in tagIdFrames) {
             val t = tagFrame.timestampMs
@@ -584,12 +603,12 @@ class CalibrationService(private val databaseService: DatabaseService) {
             val tagId = tagFrame.value.toInt()
             val tagField = tagMap[tagId] ?: continue
 
-            val x = getVal(camToTagFrames, t, 0)
-            val y = getVal(camToTagFrames, t, 1)
-            val z = getVal(camToTagFrames, t, 2)
-            val roll = getVal(camToTagFrames, t, 3)
-            val pitch = getVal(camToTagFrames, t, 4)
-            val yaw = getVal(camToTagFrames, t, 5)
+            val x = getVal(list0, t, 0)
+            val y = getVal(list1, t, 1)
+            val z = getVal(list2, t, 2)
+            val roll = getVal(list3, t, 3)
+            val pitch = getVal(list4, t, 4)
+            val yaw = getVal(list5, t, 5)
 
             measurements.add(
                 CalibrationMeasurement(
@@ -611,11 +630,32 @@ class CalibrationService(private val databaseService: DatabaseService) {
         solveCameraExtrinsicsWithDiagnostics(measurements)
     }
 
-    private fun getVal(frames: List<TelemetryFrame>, timestampMs: Long, index: Int): Double {
-        val indexKeySuffix = "[$index]"
-        val matchingKeys = frames.filter { it.key.endsWith(indexKeySuffix) }
-        val targetList = if (matchingKeys.isNotEmpty()) matchingKeys else frames
-        return targetList.minByOrNull { abs(it.timestampMs - (timestampMs + index)) }?.value ?: 0.0
+    private fun getVal(targetList: List<TelemetryFrame>, timestampMs: Long, index: Int): Double {
+        if (targetList.isEmpty()) return 0.0
+
+        val targetTime = timestampMs + index
+        var low = 0
+        var high = targetList.size - 1
+        var bestFrame = targetList[0]
+        var minDiff = abs(bestFrame.timestampMs - targetTime)
+
+        while (low <= high) {
+            val mid = (low + high) ushr 1
+            val midFrame = targetList[mid]
+            val diff = abs(midFrame.timestampMs - targetTime)
+            if (diff < minDiff) {
+                minDiff = diff
+                bestFrame = midFrame
+            }
+            if (midFrame.timestampMs == targetTime) {
+                return midFrame.value
+            } else if (midFrame.timestampMs < targetTime) {
+                low = mid + 1
+            } else {
+                high = mid - 1
+            }
+        }
+        return bestFrame.value
     }
 }
 

@@ -86,6 +86,7 @@ fun DrawScope.drawEventMarkers(
 }
 
 fun DrawScope.drawConstraintZones(
+    pathCache: PathCacheHolder,
     waypoints: List<Waypoint>,
     constraintZoneSplines: List<List<Waypoint>>,
     w: Float,
@@ -109,7 +110,7 @@ fun DrawScope.drawConstraintZones(
                     color = AresRed,
                     style = Stroke(
                         width = 8.dp.toPx(),
-                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f))
+                        pathEffect = pathCache.dashEffect8
                     )
                 )
             }
@@ -118,6 +119,7 @@ fun DrawScope.drawConstraintZones(
 }
 
 fun DrawScope.drawPointTowardsZones(
+    pathCache: PathCacheHolder,
     waypoints: List<Waypoint>,
     pointTowardsZoneRenderData: List<PointTowardsZoneRenderData>,
     w: Float,
@@ -142,7 +144,7 @@ fun DrawScope.drawPointTowardsZones(
                     start = splineOffset,
                     end = targetOffset,
                     strokeWidth = 1.dp.toPx(),
-                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(5f, 5f))
+                    pathEffect = pathCache.dashEffect5
                 )
             }
         }
@@ -246,6 +248,7 @@ fun DrawScope.drawActualPathAndDeviations(
 }
 
 fun DrawScope.drawRobotRepresentations(
+    pathCache: PathCacheHolder,
     actualPath: List<Waypoint>,
     estimatedPose: Waypoint?,
     playbackPose: Waypoint?,
@@ -288,7 +291,7 @@ fun DrawScope.drawRobotRepresentations(
         drawContext.canvas.save()
         drawContext.transform.rotate(degrees = -Math.toDegrees(estimatedPose.headingRad).toFloat() - 90f, pivot = robotOffset)
         drawRect(color = AresAmber.copy(alpha = 0.15f), topLeft = Offset(robotOffset.x - robotSizePx / 2, robotOffset.y - robotSizePx / 2), size = Size(robotSizePx, robotSizePx))
-        drawRect(color = AresAmber, topLeft = Offset(robotOffset.x - robotSizePx / 2, robotOffset.y - robotSizePx / 2), size = Size(robotSizePx, robotSizePx), style = Stroke(width = 1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)))
+        drawRect(color = AresAmber, topLeft = Offset(robotOffset.x - robotSizePx / 2, robotOffset.y - robotSizePx / 2), size = Size(robotSizePx, robotSizePx), style = Stroke(width = 1.5.dp.toPx(), pathEffect = pathCache.dashEffect10))
         drawLine(color = AresAmber, start = Offset(robotOffset.x + robotSizePx / 2, robotOffset.y - robotSizePx / 2), end = Offset(robotOffset.x + robotSizePx / 2, robotOffset.y + robotSizePx / 2), strokeWidth = 2.dp.toPx())
         val arrowPath = Path().apply {
             moveTo(robotOffset.x + robotSizePx / 2, robotOffset.y - robotSizePx / 4)
@@ -307,7 +310,7 @@ fun DrawScope.drawRobotRepresentations(
         drawContext.canvas.save()
         drawContext.transform.rotate(degrees = -Math.toDegrees(odomPose.headingRad).toFloat() - 90f, pivot = robotOffset)
         drawRect(color = AresGreen.copy(alpha = 0.15f), topLeft = Offset(robotOffset.x - robotSizePx / 2, robotOffset.y - robotSizePx / 2), size = Size(robotSizePx, robotSizePx))
-        drawRect(color = AresGreen, topLeft = Offset(robotOffset.x - robotSizePx / 2, robotOffset.y - robotSizePx / 2), size = Size(robotSizePx, robotSizePx), style = Stroke(width = 1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)))
+        drawRect(color = AresGreen, topLeft = Offset(robotOffset.x - robotSizePx / 2, robotOffset.y - robotSizePx / 2), size = Size(robotSizePx, robotSizePx), style = Stroke(width = 1.5.dp.toPx(), pathEffect = pathCache.dashEffect10))
         drawLine(color = AresGreen, start = Offset(robotOffset.x + robotSizePx / 2, robotOffset.y - robotSizePx / 2), end = Offset(robotOffset.x + robotSizePx / 2, robotOffset.y + robotSizePx / 2), strokeWidth = 2.dp.toPx())
         val arrowPath = Path().apply {
             moveTo(robotOffset.x + robotSizePx / 2, robotOffset.y - robotSizePx / 4)
@@ -346,7 +349,7 @@ fun DrawScope.drawRobotRepresentations(
             drawContext.canvas.save()
             drawContext.transform.rotate(degrees = -Math.toDegrees(pose.headingRad).toFloat() - 90f, pivot = robotOffset)
             drawRect(color = AresGold.copy(alpha = 0.15f), topLeft = Offset(robotOffset.x - robotSizePx / 2, robotOffset.y - robotSizePx / 2), size = Size(robotSizePx, robotSizePx))
-            drawRect(color = AresGold, topLeft = Offset(robotOffset.x - robotSizePx / 2, robotOffset.y - robotSizePx / 2), size = Size(robotSizePx, robotSizePx), style = Stroke(width = 1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(4f, 4f), 0f)))
+            drawRect(color = AresGold, topLeft = Offset(robotOffset.x - robotSizePx / 2, robotOffset.y - robotSizePx / 2), size = Size(robotSizePx, robotSizePx), style = Stroke(width = 1.5.dp.toPx(), pathEffect = pathCache.dashEffect4))
             drawLine(color = AresGold, start = Offset(robotOffset.x + robotSizePx / 2, robotOffset.y - robotSizePx / 2), end = Offset(robotOffset.x + robotSizePx / 2, robotOffset.y + robotSizePx / 2), strokeWidth = 2.dp.toPx())
             val arrowPath = Path().apply {
                 moveTo(robotOffset.x + robotSizePx / 2, robotOffset.y - robotSizePx / 4)
@@ -361,6 +364,7 @@ fun DrawScope.drawRobotRepresentations(
 }
 
 fun DrawScope.drawWaypoints(
+    pathCache: PathCacheHolder,
     waypoints: List<Waypoint>,
     selectedWaypointIndex: Int,
     isDraggingHeading: Boolean,
@@ -429,7 +433,7 @@ fun DrawScope.drawWaypoints(
             start = offset,
             end = rotHandleCenter,
             strokeWidth = 2.dp.toPx(),
-            pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 4f))
+            pathEffect = pathCache.dashEffect6_4
         )
 
         // Diamond shape at rotation handle position
@@ -454,7 +458,7 @@ fun DrawScope.drawWaypoints(
                 useCenter = false,
                 topLeft = Offset(offset.x - arcRadius, offset.y - arcRadius),
                 size = Size(arcRadius * 2, arcRadius * 2),
-                style = Stroke(width = 2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(4f, 3f)))
+                style = Stroke(width = 2.dp.toPx(), pathEffect = pathCache.dashEffect4_3)
             )
         }
     }

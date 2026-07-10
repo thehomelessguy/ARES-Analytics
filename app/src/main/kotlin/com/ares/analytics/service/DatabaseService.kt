@@ -479,6 +479,47 @@ class DatabaseService(dbPath: String = System.getProperty("user.home") + "/.ares
         }
         list
     }
+    suspend fun getTelemetryForFilters(sessionId: String, keys: List<String>, prefixes: List<String>): List<TelemetryFrame> = withDbLock {
+        val list = mutableListOf<TelemetryFrame>()
+        val queryBuilder = StringBuilder("SELECT * FROM telemetry_frames WHERE session_id = ?")
+        val conditions = mutableListOf<String>()
+        if (keys.isNotEmpty()) {
+            val placeholders = keys.joinToString(",") { "?" }
+            conditions.add("key IN ($placeholders)")
+        }
+        if (prefixes.isNotEmpty()) {
+            val likeConditions = prefixes.joinToString(" OR ") { "key LIKE ?" }
+            conditions.add("($likeConditions)")
+        }
+        if (conditions.isEmpty()) return@withDbLock list
+        queryBuilder.append(" AND (").append(conditions.joinToString(" OR ")).append(") ORDER BY timestamp_ms ASC")
+
+        conn.prepareStatement(queryBuilder.toString()).use { ps ->
+            ps.setString(1, sessionId)
+            var idx = 2
+            for (k in keys) {
+                ps.setString(idx++, k)
+            }
+            for (p in prefixes) {
+                ps.setString(idx++, p)
+            }
+            ps.executeQuery().use { rs ->
+                while (rs.next()) list.add(rs.toTelemetryFrame())
+            }
+        }
+        list
+    }
+
+    suspend fun getDistinctTimestamps(sessionId: String): List<Long> = withDbLock {
+        val list = mutableListOf<Long>()
+        conn.prepareStatement("SELECT DISTINCT timestamp_ms FROM telemetry_frames WHERE session_id = ? ORDER BY timestamp_ms ASC").use { ps ->
+            ps.setString(1, sessionId)
+            ps.executeQuery().use { rs ->
+                while (rs.next()) list.add(rs.getLong(1))
+            }
+        }
+        list
+    }
 
     suspend fun deleteTelemetryFrames(sessionId: String) = withDbLock {
         conn.prepareStatement("DELETE FROM telemetry_frames WHERE session_id = ?").use { ps ->

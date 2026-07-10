@@ -721,12 +721,13 @@ fun FieldCanvas(
 
                 drawPlannedSpline(pathCache, splinePoints, waypoints, w, h, fieldWidthM, fieldHeightM, league)
                 drawEventMarkers(waypoints, eventMarkerPoints, w, h, fieldWidthM, fieldHeightM, league, selectedEventMarkerIndex)
-                drawConstraintZones(waypoints, constraintZoneSplines, w, h, fieldWidthM, fieldHeightM, league)
-                drawPointTowardsZones(waypoints, pointTowardsZoneRenderData, w, h, fieldWidthM, fieldHeightM, league)
+                drawConstraintZones(pathCache, waypoints, constraintZoneSplines, w, h, fieldWidthM, fieldHeightM, league)
+                drawPointTowardsZones(pathCache, waypoints, pointTowardsZoneRenderData, w, h, fieldWidthM, fieldHeightM, league)
                 drawHolonomicRotationTargets(waypoints, currentRotationTargets, rotationTargetPoints, w, h, fieldWidthM, fieldHeightM, league)
 
                 drawActualPathAndDeviations(pathCache, actualPath, waypoints, w, h, fieldWidthM, fieldHeightM, league)
                 drawRobotRepresentations(
+                    pathCache = pathCache,
                     actualPath = actualPath,
                     estimatedPose = estimatedPose,
                     playbackPose = playbackPose,
@@ -742,7 +743,7 @@ fun FieldCanvas(
                     fieldHeightM = fieldHeightM,
                     league = league
                 )
-                drawWaypoints(waypoints, selectedWaypointIndex, isDraggingHeading, w, h, fieldWidthM, fieldHeightM, league, currentRotationTargets, isDraggingRotation)
+                drawWaypoints(pathCache, waypoints, selectedWaypointIndex, isDraggingHeading, w, h, fieldWidthM, fieldHeightM, league, currentRotationTargets, isDraggingRotation)
 
                 drawContext.canvas.restore()
             }
