@@ -31,9 +31,13 @@ fun PoseViewerCard(
 ) {
     val scope = rememberCoroutineScope()
 
-    var robotX by remember { mutableStateOf<Double?>(null) }
-    var robotY by remember { mutableStateOf<Double?>(null) }
-    var robotHeading by remember { mutableStateOf<Double?>(null) }
+    var trueX by remember { mutableStateOf<Double?>(null) }
+    var trueY by remember { mutableStateOf<Double?>(null) }
+    var trueHeading by remember { mutableStateOf<Double?>(null) }
+
+    var ekfX by remember { mutableStateOf<Double?>(null) }
+    var ekfY by remember { mutableStateOf<Double?>(null) }
+    var ekfHeading by remember { mutableStateOf<Double?>(null) }
 
     var pinpointX by remember { mutableStateOf<Double?>(null) }
     var pinpointY by remember { mutableStateOf<Double?>(null) }
@@ -52,12 +56,12 @@ fun PoseViewerCard(
                 val value = frame.value
                 lastUpdateMs = System.currentTimeMillis()
                 when (key) {
-                    "ARES/EstimatedPose/0" -> robotX = value
-                    "ARES/EstimatedPose/1" -> robotY = value
-                    "ARES/EstimatedPose/2" -> robotHeading = value
-                    "Drive/Pose_X" -> robotX = value
-                    "Drive/Pose_Y" -> robotY = value
-                    "Drive/Pose_Heading", "Drive/Drive_Heading" -> robotHeading = value
+                    "ARES/EstimatedPose/0" -> trueX = value
+                    "ARES/EstimatedPose/1" -> trueY = value
+                    "ARES/EstimatedPose/2" -> trueHeading = value
+                    "Drive/Pose_X" -> ekfX = value
+                    "Drive/Pose_Y" -> ekfY = value
+                    "Drive/Pose_Heading", "Drive/Drive_Heading" -> ekfHeading = value
 
                     "Drive/Odom_X", "pinpoint_x", "pinpoint/x" -> pinpointX = value
                     "Drive/Odom_Y", "pinpoint_y", "pinpoint/y" -> pinpointY = value
@@ -135,11 +139,13 @@ fun PoseViewerCard(
             verticalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier.weight(1f)
         ) {
-            PoseRow("Estimated (EKF)", robotX, robotY, robotHeading, AresCyan)
+            PoseRow("True (Actual)", trueX, trueY, trueHeading, AresCyan)
+            Divider(color = AresBorder.copy(alpha = 0.5f), thickness = 0.5.dp)
+            PoseRow("Estimated (EKF)", ekfX, ekfY, ekfHeading, AresAmber)
             Divider(color = AresBorder.copy(alpha = 0.5f), thickness = 0.5.dp)
             PoseRow("Pinpoint (Odom)", pinpointX, pinpointY, pinpointHeading, AresGreen)
             Divider(color = AresBorder.copy(alpha = 0.5f), thickness = 0.5.dp)
-            PoseRow("Vision (Limelight)", visionX, visionY, visionHeading, AresAmber)
+            PoseRow("Vision (Limelight)", visionX, visionY, visionHeading, AresGold)
         }
     }
 }

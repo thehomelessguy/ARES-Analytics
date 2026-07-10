@@ -19,12 +19,15 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 
 data class FieldViewerState(
-    val robotX: Double = 0.0,
-    val robotY: Double = 0.0,
-    val robotHeading: Double = 0.0,
+    val trueX: Double = 0.0,
+    val trueY: Double = 0.0,
+    val trueHeading: Double = 0.0,
     val ekfX: Double? = null,
     val ekfY: Double? = null,
     val ekfHeading: Double? = null,
+    val odomX: Double? = null,
+    val odomY: Double? = null,
+    val odomHeading: Double? = null,
     val visionX: Double? = null,
     val visionY: Double? = null,
     val visionHeading: Double? = null,
@@ -64,17 +67,15 @@ class FieldViewerViewModel(
                 _state.update { currentState ->
                     var newState = currentState
                     when (key) {
-                        "ARES/EstimatedPose/0" -> newState = newState.copy(robotX = value)
-                        "ARES/EstimatedPose/1" -> newState = newState.copy(robotY = value)
-                        "ARES/EstimatedPose/2" -> newState = newState.copy(robotHeading = value)
-                        "Drive/Pose_X" -> newState = newState.copy(robotX = value)
-                        "Drive/Pose_Y" -> newState = newState.copy(robotY = value)
-                        "Drive/Pose_Heading", "Drive/Drive_Heading" -> newState = newState.copy(robotHeading = value)
-
-                        "Drive/Odom_X", "pinpoint_x", "pinpoint/x" -> newState = newState.copy(ekfX = value)
-                        "Drive/Odom_Y", "pinpoint_y", "pinpoint/y" -> newState = newState.copy(ekfY = value)
-                        "Drive/Odom_Heading", "pinpoint_heading", "pinpoint/heading" -> newState = newState.copy(ekfHeading = value)
-
+                        "ARES/EstimatedPose/0" -> newState = newState.copy(trueX = value)
+                        "ARES/EstimatedPose/1" -> newState = newState.copy(trueY = value)
+                        "ARES/EstimatedPose/2" -> newState = newState.copy(trueHeading = value)
+                        "Drive/Pose_X" -> newState = newState.copy(ekfX = value)
+                        "Drive/Pose_Y" -> newState = newState.copy(ekfY = value)
+                        "Drive/Pose_Heading", "Drive/Drive_Heading" -> newState = newState.copy(ekfHeading = value)
+                        "Drive/Odom_X", "pinpoint_x", "pinpoint/x" -> newState = newState.copy(odomX = value)
+                        "Drive/Odom_Y", "pinpoint_y", "pinpoint/y" -> newState = newState.copy(odomY = value)
+                        "Drive/Odom_Heading", "pinpoint_heading", "pinpoint/heading" -> newState = newState.copy(odomHeading = value)
                         "Vision/Pose_X", "Vision/Pose/X" -> newState = newState.copy(visionX = value)
                         "Vision/Pose_Y", "Vision/Pose/Y" -> newState = newState.copy(visionY = value)
                         "Vision/Pose_Heading", "Vision/Pose/Heading" -> newState = newState.copy(visionHeading = value)
@@ -123,8 +124,8 @@ class FieldViewerViewModel(
             while (true) {
                 kotlinx.coroutines.delay(50)
                 val currentState = _state.value
-                if (currentState.robotX != 0.0 || currentState.robotY != 0.0) {
-                    val newWp = Waypoint(currentState.robotX, currentState.robotY, currentState.robotHeading)
+                if (currentState.trueX != 0.0 || currentState.trueY != 0.0) {
+                    val newWp = Waypoint(currentState.trueX, currentState.trueY, currentState.trueHeading)
                     val lastWp = currentState.poseHistory.lastOrNull()
                     if (lastWp == null || kotlin.math.abs(lastWp.x - newWp.x) > 0.01 || kotlin.math.abs(lastWp.y - newWp.y) > 0.01) {
                         val newHistory = currentState.poseHistory.toMutableList()

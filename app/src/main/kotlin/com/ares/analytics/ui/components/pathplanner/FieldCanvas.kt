@@ -72,6 +72,11 @@ fun FieldCanvas(
     estimatedPose: Waypoint? = null,
     playbackPose: Waypoint? = null,
     visionPoses: List<Waypoint> = emptyList(),
+    odomPose: Waypoint? = null,
+    showTruePose: Boolean = true,
+    showEkfPose: Boolean = true,
+    showOdomPose: Boolean = true,
+    showVisionPoses: Boolean = true,
     onItemSelected: ((String?, String?) -> Unit)? = null,
     onItemDoubleTapped: ((String, String) -> Unit)? = null,
     initialViewRotation: Float = 0f,
@@ -721,7 +726,22 @@ fun FieldCanvas(
                 drawHolonomicRotationTargets(waypoints, currentRotationTargets, rotationTargetPoints, w, h, fieldWidthM, fieldHeightM, league)
 
                 drawActualPathAndDeviations(pathCache, actualPath, waypoints, w, h, fieldWidthM, fieldHeightM, league)
-                drawRobotRepresentations(actualPath, estimatedPose, playbackPose, visionPoses, w, h, fieldWidthM, fieldHeightM, league)
+                drawRobotRepresentations(
+                    actualPath = actualPath,
+                    estimatedPose = estimatedPose,
+                    playbackPose = playbackPose,
+                    visionPoses = visionPoses,
+                    odomPose = odomPose,
+                    showTruePose = showTruePose,
+                    showEkfPose = showEkfPose,
+                    showOdomPose = showOdomPose,
+                    showVisionPoses = showVisionPoses,
+                    w = w,
+                    h = h,
+                    fieldWidthM = fieldWidthM,
+                    fieldHeightM = fieldHeightM,
+                    league = league
+                )
                 drawWaypoints(waypoints, selectedWaypointIndex, isDraggingHeading, w, h, fieldWidthM, fieldHeightM, league, currentRotationTargets, isDraggingRotation)
 
                 drawContext.canvas.restore()

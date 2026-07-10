@@ -15,6 +15,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.RotateRight
 import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Layers
+import androidx.compose.ui.Alignment
 import androidx.compose.material.DropdownMenu
 import androidx.compose.material.DropdownMenuItem
 import com.ares.analytics.service.Nt4ClientService
@@ -41,6 +43,15 @@ fun FieldViewerCard(
     val estimatedPose = if (state.ekfX != null && state.ekfY != null && state.ekfHeading != null) {
         Waypoint(state.ekfX!!, state.ekfY!!, state.ekfHeading!!)
     } else null
+
+    val odomPose = if (state.odomX != null && state.odomY != null && state.odomHeading != null) {
+        Waypoint(state.odomX!!, state.odomY!!, state.odomHeading!!)
+    } else null
+
+    var showEkfPose by remember { mutableStateOf(true) }
+    var showOdomPose by remember { mutableStateOf(true) }
+    var showVisionPoses by remember { mutableStateOf(true) }
+    var layersMenuExpanded by remember { mutableStateOf(false) }
 
     val activeVisionPoses = remember(state.visionPoses.size, state.visionX, state.visionY, state.visionHeading) {
         val list = mutableListOf<Waypoint>()
@@ -158,6 +169,104 @@ fun FieldViewerCard(
                         )
                     }
 
+                    Box {
+                        IconButton(
+                            onClick = { layersMenuExpanded = true },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Layers,
+                                contentDescription = "Robot Poses Layers",
+                                tint = if (showEkfPose || showOdomPose || showVisionPoses) AresCyan else AresTextTertiary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = layersMenuExpanded,
+                            onDismissRequest = { layersMenuExpanded = false },
+                            modifier = Modifier.background(AresBackground)
+                        ) {
+                            val allSelected = showEkfPose && showOdomPose && showVisionPoses
+                            DropdownMenuItem(onClick = {
+                                val target = !allSelected
+                                showEkfPose = target
+                                showOdomPose = target
+                                showVisionPoses = target
+                            }) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Checkbox(
+                                        checked = allSelected,
+                                        onCheckedChange = { target ->
+                                            showEkfPose = target
+                                            showOdomPose = target
+                                            showVisionPoses = target
+                                        },
+                                        colors = CheckboxDefaults.colors(
+                                            checkedColor = AresCyan,
+                                            uncheckedColor = AresTextTertiary,
+                                            checkmarkColor = AresBackground
+                                        )
+                                    )
+                                    Text("Select All", fontWeight = FontWeight.Bold, color = AresTextPrimary, fontSize = 12.sp)
+                                }
+                            }
+                            DropdownMenuItem(onClick = { showEkfPose = !showEkfPose }) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Checkbox(
+                                        checked = showEkfPose,
+                                        onCheckedChange = { showEkfPose = it },
+                                        colors = CheckboxDefaults.colors(
+                                            checkedColor = AresAmber,
+                                            uncheckedColor = AresTextTertiary,
+                                            checkmarkColor = AresBackground
+                                        )
+                                    )
+                                    Text("Estimated (EKF)", color = AresTextPrimary, fontSize = 12.sp)
+                                }
+                            }
+                            DropdownMenuItem(onClick = { showOdomPose = !showOdomPose }) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Checkbox(
+                                        checked = showOdomPose,
+                                        onCheckedChange = { showOdomPose = it },
+                                        colors = CheckboxDefaults.colors(
+                                            checkedColor = AresGreen,
+                                            uncheckedColor = AresTextTertiary,
+                                            checkmarkColor = AresBackground
+                                        )
+                                    )
+                                    Text("Pinpoint (Odom)", color = AresTextPrimary, fontSize = 12.sp)
+                                }
+                            }
+                            DropdownMenuItem(onClick = { showVisionPoses = !showVisionPoses }) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Checkbox(
+                                        checked = showVisionPoses,
+                                        onCheckedChange = { showVisionPoses = it },
+                                        colors = CheckboxDefaults.colors(
+                                            checkedColor = AresGold,
+                                            uncheckedColor = AresTextTertiary,
+                                            checkmarkColor = AresBackground
+                                        )
+                                    )
+                                    Text("Vision (Limelight)", color = AresTextPrimary, fontSize = 12.sp)
+                                }
+                            }
+                        }
+                    }
+
                     IconButton(
                         onClick = { viewModel.onIntent(FieldViewerIntent.ClearTrace) },
                         modifier = Modifier.size(24.dp)
@@ -182,11 +291,15 @@ fun FieldViewerCard(
                 FieldCanvas(
                     league = league,
                     waypoints = state.selectedPathWaypoints,
-                    actualPath = if (tracerEnabled) state.poseHistory else listOfNotNull(state.poseHistory.lastOrNull() ?: if (state.robotX != 0.0 || state.robotY != 0.0) Waypoint(state.robotX, state.robotY, state.robotHeading) else null),
+                    actualPath = if (tracerEnabled) state.poseHistory else listOfNotNull(state.poseHistory.lastOrNull() ?: if (state.trueX != 0.0 || state.trueY != 0.0) Waypoint(state.trueX, state.trueY, state.trueHeading) else null),
                     onWaypointsChanged = {},
                     projectPath = projectPath,
                     estimatedPose = estimatedPose,
+                    odomPose = odomPose,
                     visionPoses = activeVisionPoses,
+                    showEkfPose = showEkfPose,
+                    showOdomPose = showOdomPose,
+                    showVisionPoses = showVisionPoses,
                     gamePieces = state.liveGamePieces.values.toList(),
                     showPathControls = false,
                     showObstacleControls = false,
