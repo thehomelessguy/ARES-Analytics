@@ -166,27 +166,8 @@ class CloudViewModel(
                             }
                             
                             if (errors.isEmpty() && downloadedFiles.isNotEmpty()) {
-                                logUpload("2/5: Uploading raw files to GCS bucket...")
-                                // 2. Upload raw files to GCS (archival — preserves originals)
-                                val runTimestamp = run.runId.let { id ->
-                                    // Convert "20260704_201500" to "2026-07-04_20-15-00"
-                                    if (id.length == 15 && id[8] == '_') {
-                                        "${id.substring(0, 4)}-${id.substring(4, 6)}-${id.substring(6, 8)}_${id.substring(9, 11)}-${id.substring(11, 13)}-${id.substring(13, 15)}"
-                                    } else id
-                                }
+                                logUpload("2/5: Skipping raw file archival (database sync only)...")
                                 
-                                var rawGcsPath: String? = null
-                                try {
-                                    rawGcsPath = syncEngineService.uploadRawFiles(
-                                        teamId = intent.teamId,
-                                        runTimestamp = runTimestamp,
-                                        files = downloadedFiles.filter { !it.name.endsWith(".csv", ignoreCase = true) }
-                                    )
-                                } catch (rawEx: Exception) {
-                                    errors.add("Raw file archival failed: ${rawEx.message}")
-                                    logUpload("      -> Raw archival failed: ${rawEx.message}")
-                                }
-
                                 val totalSizeKb = downloadedFiles.sumOf { it.length() } / 1024
                                 logUpload("3/5: Parsing ${downloadedFiles.size} log files (${totalSizeKb} KB) into DuckDB...")
                                 // 3. Parse into DuckDB
@@ -197,7 +178,7 @@ class CloudViewModel(
                                     robotId = intent.robotId
                                 )
                                 logUpload("      -> Parsed session: ${session.sessionId} (${session.durationMs?.let { "${it / 1000}s" } ?: "unknown"} duration)")
-
+ 
                                 logUpload("4/5: Pushing DuckDB Parquet blob to Cloud & syncing...")
                                 // 4. Upload Parquet to GCS + delta sync
                                 try {
@@ -213,8 +194,7 @@ class CloudViewModel(
                                 downloadedFiles.forEach { it.delete() }
                                 
                                 logUpload("5/5: Deleting remote files from Robot...")
-                                // 6. Delete files from robot after confirmed GCS upload
-                                if (rawGcsPath != null && errors.isEmpty()) {
+                                if (errors.isEmpty()) {
                                     try {
                                         withContext(Dispatchers.IO) {
                                             for (file in run.files) {
