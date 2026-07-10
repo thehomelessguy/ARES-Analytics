@@ -304,7 +304,7 @@ class LogParserService(
                     WHEN TRY_CAST(value AS DOUBLE) IS NULL THEN CAST(value AS VARCHAR) 
                 END AS string_value
             FROM (
-                SELECT * FROM read_csv_auto('$absolutePath', header=true, ignore_errors=true)
+                SELECT * FROM read_csv_auto('$absolutePath', header=true, ignore_errors=true, all_varchar=true)
             ) UNPIVOT (
                 value FOR key IN (* EXCLUDE ("$escapedTimeCol"))
             )
