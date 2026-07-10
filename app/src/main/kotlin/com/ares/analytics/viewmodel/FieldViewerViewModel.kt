@@ -81,7 +81,7 @@ class FieldViewerViewModel(
                         "Vision/Pose_Heading", "Vision/Pose/Heading" -> newState = newState.copy(visionHeading = value)
                     }
 
-                    if (key.startsWith("AdvantageScope/VisionPose/")) {
+                    if (key.startsWith("Vision/PoseArray/") || key.startsWith("AdvantageScope/VisionPose/")) {
                         val idx = key.substringAfterLast("/").toIntOrNull()
                         if (idx != null) {
                             val newMap = newState.visionPoses.toMutableMap()
