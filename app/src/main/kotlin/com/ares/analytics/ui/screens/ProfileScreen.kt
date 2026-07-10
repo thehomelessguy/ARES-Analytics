@@ -49,6 +49,8 @@ fun ProfileScreen(
     // AI Diagnostics overrides
     var aiMode by remember(state.aiMode) { mutableStateOf(state.aiMode) }
     var geminiApiKey by remember(state.geminiApiKey) { mutableStateOf(state.geminiApiKey) }
+    var geminiModel by remember(state.geminiModel) { mutableStateOf(state.geminiModel) }
+    var modelMenuExpanded by remember { mutableStateOf(false) }
     var vertexServiceAccountPath by remember(state.vertexServiceAccountPath) { mutableStateOf(state.vertexServiceAccountPath) }
     var vertexProjectId by remember(state.vertexProjectId) { mutableStateOf(state.vertexProjectId) }
     var vertexLocation by remember(state.vertexLocation) { mutableStateOf(state.vertexLocation) }
@@ -243,6 +245,41 @@ fun ProfileScreen(
             }
         }
 
+        Box(modifier = Modifier.fillMaxWidth()) {
+            OutlinedTextField(
+                value = geminiModel,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("AI Diagnostics Model") },
+                modifier = Modifier.fillMaxWidth().clickable { modelMenuExpanded = !modelMenuExpanded },
+                trailingIcon = {
+                    IconButton(onClick = { modelMenuExpanded = !modelMenuExpanded }) {
+                        Icon(
+                            imageVector = if (modelMenuExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Expand model selection",
+                            tint = AresTextSecondary
+                        )
+                    }
+                },
+                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder)
+            )
+            DropdownMenu(
+                expanded = modelMenuExpanded,
+                onDismissRequest = { modelMenuExpanded = false }
+            ) {
+                listOf("gemini-1.5-flash", "gemini-2.5-flash", "gemini-3.1-flash", "gemini-3.5-flash").forEach { model ->
+                    DropdownMenuItem(
+                        text = { Text(model, color = AresTextPrimary) },
+                        onClick = {
+                            geminiModel = model
+                            modelMenuExpanded = false
+                        }
+                    )
+                }
+            }
+        }
+
+
         if (aiMode == "STUDIO") {
             OutlinedTextField(
                 value = geminiApiKey,
@@ -292,6 +329,7 @@ fun ProfileScreen(
                         tbaApiKey = tbaApiKey,
                         aiMode = aiMode,
                         geminiApiKey = geminiApiKey,
+                        geminiModel = geminiModel,
                         vertexServiceAccountPath = vertexServiceAccountPath,
                         vertexProjectId = vertexProjectId,
                         vertexLocation = vertexLocation,

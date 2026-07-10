@@ -28,6 +28,7 @@ data class ProfileState(
     val tbaApiKey: String = "",
     val aiMode: String = "STUDIO",
     val geminiApiKey: String = "",
+    val geminiModel: String = "gemini-1.5-flash",
     val vertexServiceAccountPath: String = "",
     val vertexProjectId: String = "",
     val vertexLocation: String = "us-central1",
@@ -50,6 +51,7 @@ sealed class ProfileIntent {
         val tbaApiKey: String,
         val aiMode: String,
         val geminiApiKey: String,
+        val geminiModel: String,
         val vertexServiceAccountPath: String,
         val vertexProjectId: String,
         val vertexLocation: String,
@@ -99,6 +101,7 @@ class ProfileViewModel(
                             tbaApiKey = cfg.tbaApiKey ?: "",
                             aiMode = cfg.aiMode ?: "STUDIO",
                             geminiApiKey = cfg.geminiApiKey ?: "",
+                            geminiModel = cfg.geminiModel ?: "gemini-1.5-flash",
                             vertexServiceAccountPath = cfg.vertexServiceAccountPath ?: "",
                             vertexProjectId = cfg.vertexProjectId ?: "",
                             vertexLocation = cfg.vertexLocation ?: "us-central1"
@@ -152,6 +155,7 @@ class ProfileViewModel(
                         tbaApiKey = intent.tbaApiKey.takeIf { it.isNotBlank() },
                         aiMode = intent.aiMode.takeIf { it.isNotBlank() },
                         geminiApiKey = intent.geminiApiKey.takeIf { it.isNotBlank() },
+                        geminiModel = intent.geminiModel.takeIf { it.isNotBlank() },
                         vertexServiceAccountPath = intent.vertexServiceAccountPath.takeIf { it.isNotBlank() },
                         vertexProjectId = intent.vertexProjectId.takeIf { it.isNotBlank() },
                         vertexLocation = intent.vertexLocation.takeIf { it.isNotBlank() }
@@ -170,6 +174,7 @@ class ProfileViewModel(
                             tbaApiKey = intent.tbaApiKey,
                             aiMode = intent.aiMode,
                             geminiApiKey = intent.geminiApiKey,
+                            geminiModel = intent.geminiModel,
                             vertexServiceAccountPath = intent.vertexServiceAccountPath,
                             vertexProjectId = intent.vertexProjectId,
                             vertexLocation = intent.vertexLocation

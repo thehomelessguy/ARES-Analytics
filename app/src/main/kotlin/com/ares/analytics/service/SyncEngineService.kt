@@ -284,9 +284,11 @@ class SyncEngineService(
             ${Json.encodeToString(ForensicsRequest.serializer(), request)}
         """.trimIndent()
 
+        val modelName = config.geminiModel ?: "gemini-1.5-flash"
+
         val jsonResponse = if (aiMode == "STUDIO") {
             val apiKey = config.geminiApiKey ?: throw IllegalStateException("Gemini API key is not configured in settings")
-            val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$apiKey"
+            val url = "https://generativelanguage.googleapis.com/v1beta/models/$modelName:generateContent?key=$apiKey"
             
             val response = httpClient.post(url) {
                 contentType(ContentType.Application.Json)
@@ -315,7 +317,7 @@ class SyncEngineService(
             val location = config.vertexLocation ?: "us-central1"
             
             val accessToken = getVertexAccessToken(saPath)
-            val url = "https://$location-aiplatform.googleapis.com/v1/projects/$projectId/locations/$location/publishers/google/models/gemini-1.5-flash:generateContent"
+            val url = "https://$location-aiplatform.googleapis.com/v1/projects/$projectId/locations/$location/publishers/google/models/$modelName:generateContent"
             
             val response = httpClient.post(url) {
                 header(HttpHeaders.Authorization, "Bearer $accessToken")

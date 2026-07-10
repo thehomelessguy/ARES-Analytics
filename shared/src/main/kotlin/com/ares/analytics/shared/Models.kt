@@ -25,6 +25,7 @@ data class WorkspaceConfig(
     val simulatorCommand: String? = null,
     val aiMode: String? = "STUDIO",
     val geminiApiKey: String? = null,
+    val geminiModel: String? = "gemini-1.5-flash",
     val vertexServiceAccountPath: String? = null,
     val vertexProjectId: String? = null,
     val vertexLocation: String? = "us-central1"
