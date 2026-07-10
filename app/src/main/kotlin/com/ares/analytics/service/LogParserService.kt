@@ -209,9 +209,7 @@ class LogParserService(
                     }
                 }
                 lowerName.endsWith(".csv") -> {
-                    // For multi-file CSV imports, fall back to streaming parser
-                    // since DuckDB native import is not used here
-                    parseCsvLogStreaming(file, sessionId, batcher)
+                    parseCsvLogNative(file, sessionId)
                 }
                 lowerName.endsWith(".dslog") || lowerName.endsWith(".dsevents") -> {
                     val targetFile = if (lowerName.endsWith(".dsevents")) {
@@ -250,8 +248,9 @@ class LogParserService(
         databaseService.insertSession(baseSession)
 
         // Update session with actual duration if frames exist
-        val finalSession = if (globalMinTimestamp != Long.MAX_VALUE) {
-            val duration = globalMaxTimestamp - globalMinTimestamp
+        val range = databaseService.getSessionTimestampRange(sessionId)
+        val finalSession = if (range != null) {
+            val duration = range.second - range.first
             val s = baseSession.copy(durationMs = duration)
             databaseService.insertSession(s)
             s
