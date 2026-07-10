@@ -97,9 +97,11 @@ fun main() {
                 else ValidationResult.Valid
             }
             validate<ForensicsRequest> { req ->
-                if (req.alerts.size > 2000) ValidationResult.Invalid("Payload too large: max alerts exceeded")
-                else if (req.topology != null && req.topology!!.nodes.size > 500) ValidationResult.Invalid("Payload too large: max topology nodes exceeded")
-                else ValidationResult.Valid
+                when {
+                    req.alerts.size > 2000 -> ValidationResult.Invalid("Payload too large: max alerts exceeded")
+                    req.topology != null && req.topology!!.nodes.size > 500 -> ValidationResult.Invalid("Payload too large: max topology nodes exceeded")
+                    else -> ValidationResult.Valid
+                }
             }
         }
 

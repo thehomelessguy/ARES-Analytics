@@ -95,73 +95,76 @@ class DSLogDecoderService(private val databaseService: DatabaseService) {
                         val pdTypeByte = pdHeader[3].toInt() and 0xFF
                         val pdType = getPDType(pdTypeByte)
 
-                        if (pdType == PowerDistributionType.REV) {
-                            dis.readUnsignedByte() // skip CAN ID
-                            val bitBytes = ByteArray(27)
-                            dis.readFully(bitBytes)
+                        when {
+                            pdType == PowerDistributionType.REV -> {
+                                dis.readUnsignedByte() // skip CAN ID
+                                val bitBytes = ByteArray(27)
+                                dis.readFully(bitBytes)
 
-                            val revBooleans = BooleanArray(216)
-                            var bitIdx = 0
-                            for (b in bitBytes) {
-                                val byteVal = b.toInt() and 0xFF
-                                for (i in 0 until 8) {
-                                    revBooleans[bitIdx++] = (byteVal and (1 shl i)) != 0
-                                }
-                            }
-
-                            val currents = mutableListOf<Double>()
-                            for (i in 0 until 20) {
-                                val readPosition = (i / 3) * 32 + (i % 3) * 10
-                                var value = 0
-                                for (j in 0 until 10) {
-                                    if (revBooleans[readPosition + j]) {
-                                        value = value or (1 shl j)
+                                val revBooleans = BooleanArray(216)
+                                var bitIdx = 0
+                                for (b in bitBytes) {
+                                    val byteVal = b.toInt() and 0xFF
+                                    for (i in 0 until 8) {
+                                        revBooleans[bitIdx++] = (byteVal and (1 shl i)) != 0
                                     }
                                 }
-                                currents.add(value.toDouble() / 8.0)
-                            }
 
-                            val extraBytes = ByteArray(4)
-                            dis.readFully(extraBytes)
-                            for (i in 0 until 4) {
-                                currents.add((extraBytes[i].toInt() and 0xFF).toDouble() / 16.0)
-                            }
+                                val currents = mutableListOf<Double>()
+                                for (i in 0 until 20) {
+                                    val readPosition = (i / 3) * 32 + (i % 3) * 10
+                                    var value = 0
+                                    for (j in 0 until 10) {
+                                        if (revBooleans[readPosition + j]) {
+                                            value = value or (1 shl j)
+                                        }
+                                    }
+                                    currents.add(value.toDouble() / 8.0)
+                                }
 
-                            dis.readUnsignedByte() // skip last byte
+                                val extraBytes = ByteArray(4)
+                                dis.readFully(extraBytes)
+                                for (i in 0 until 4) {
+                                    currents.add((extraBytes[i].toInt() and 0xFF).toDouble() / 16.0)
+                                }
 
-                            for (i in currents.indices) {
-                                batcher.add(TelemetryFrame(timestampMs, sessionId, "/DSLog/PowerDistributionCurrents[$i]", currents[i]))
-                            }
-                        } else if (pdType == PowerDistributionType.CTRE) {
-                            dis.readUnsignedByte() // skip CAN ID
-                            val bitBytes = ByteArray(21)
-                            dis.readFully(bitBytes)
+                                dis.readUnsignedByte() // skip last byte
 
-                            val ctreBooleans = BooleanArray(168)
-                            var bitIdx = 0
-                            for (b in bitBytes) {
-                                val byteVal = b.toInt() and 0xFF
-                                for (i in 0 until 8) {
-                                    ctreBooleans[bitIdx++] = (byteVal and (1 shl i)) != 0
+                                for (i in currents.indices) {
+                                    batcher.add(TelemetryFrame(timestampMs, sessionId, "/DSLog/PowerDistributionCurrents[$i]", currents[i]))
                                 }
                             }
+                            pdType == PowerDistributionType.CTRE -> {
+                                dis.readUnsignedByte() // skip CAN ID
+                                val bitBytes = ByteArray(21)
+                                dis.readFully(bitBytes)
 
-                            val currents = mutableListOf<Double>()
-                            for (i in 0 until 16) {
-                                val readPosition = (i / 6) * 64 + (i % 6) * 10
-                                var value = 0
-                                for (j in 0 until 8) {
-                                    if (ctreBooleans[readPosition + j]) {
-                                        value = value or (1 shl j)
+                                val ctreBooleans = BooleanArray(168)
+                                var bitIdx = 0
+                                for (b in bitBytes) {
+                                    val byteVal = b.toInt() and 0xFF
+                                    for (i in 0 until 8) {
+                                        ctreBooleans[bitIdx++] = (byteVal and (1 shl i)) != 0
                                     }
                                 }
-                                currents.add(value.toDouble() / 8.0)
-                            }
 
-                            dis.skipBytes(3) // skip extra metadata bytes (25 total CTRE payload size minus 1 CAN ID minus 21 currents)
+                                val currents = mutableListOf<Double>()
+                                for (i in 0 until 16) {
+                                    val readPosition = (i / 6) * 64 + (i % 6) * 10
+                                    var value = 0
+                                    for (j in 0 until 8) {
+                                        if (ctreBooleans[readPosition + j]) {
+                                            value = value or (1 shl j)
+                                        }
+                                    }
+                                    currents.add(value.toDouble() / 8.0)
+                                }
 
-                            for (i in currents.indices) {
-                                batcher.add(TelemetryFrame(timestampMs, sessionId, "/DSLog/PowerDistributionCurrents[$i]", currents[i]))
+                                dis.skipBytes(3) // skip extra metadata bytes (25 total CTRE payload size minus 1 CAN ID minus 21 currents)
+
+                                for (i in currents.indices) {
+                                    batcher.add(TelemetryFrame(timestampMs, sessionId, "/DSLog/PowerDistributionCurrents[$i]", currents[i]))
+                                }
                             }
                         }
 

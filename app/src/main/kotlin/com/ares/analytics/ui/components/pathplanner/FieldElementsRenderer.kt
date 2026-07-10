@@ -64,7 +64,8 @@ fun DrawScope.drawFieldGrid(
     h: Float,
     fieldWidthM: Double,
     fieldHeightM: Double,
-    league: League
+    league: League,
+    showCostmap: Boolean = false
 ) {
     val stepX = if (league == League.FTC) fieldWidthM / 6.0 else 1.0
     val stepY = if (league == League.FTC) fieldHeightM / 6.0 else 1.0
@@ -84,6 +85,21 @@ fun DrawScope.drawFieldGrid(
         curY += stepY
     }
     drawRect(color = AresBorderFocused, style = Stroke(width = 3f))
+
+    if (showCostmap) {
+        val robotRadius = if (league == League.FTC) 0.25 else 0.45
+        val robotRadiusPxX = (robotRadius / fieldWidthM) * w
+        val robotRadiusPxY = (robotRadius / fieldHeightM) * h
+        val insetOffset = Offset(robotRadiusPxX.toFloat(), robotRadiusPxY.toFloat())
+        val insetSize = Size((w - 2.0 * robotRadiusPxX).toFloat(), (h - 2.0 * robotRadiusPxY).toFloat())
+        
+        drawRect(
+            color = AresRed.copy(alpha = 0.25f),
+            topLeft = insetOffset,
+            size = insetSize,
+            style = Stroke(width = 1.5f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f))
+        )
+    }
 }
 
 fun DrawScope.drawFtcAllianceStations(
@@ -128,16 +144,47 @@ fun DrawScope.drawCustomObstacles(
     h: Float,
     fieldWidthM: Double,
     fieldHeightM: Double,
-    league: League
+    league: League,
+    showCostmap: Boolean = false
 ) {
+    val robotRadius = if (league == League.FTC) 0.25 else 0.45
+    val robotRadiusPx = (robotRadius / fieldWidthM) * w
+
     activeObstacles.forEach { obs ->
+        val baseColor = try {
+            val clean = obs.colorHex.removePrefix("#")
+            val colorInt = clean.toLong(16)
+            if (clean.length == 6) {
+                Color(0xFF000000 or colorInt)
+            } else {
+                Color(colorInt)
+            }
+        } catch (e: Exception) {
+            AresRed
+        }
+        val fillColor = baseColor.copy(alpha = 0.3f)
+        val costmapFillColor = baseColor.copy(alpha = 0.08f)
+        val costmapStrokeColor = baseColor.copy(alpha = 0.25f)
+
         when (obs) {
             is Obstacle.Circle -> {
                 val centerWp = Waypoint(obs.centerX, obs.centerY)
                 val centerOffset = getCanvasOffsetBase(centerWp, w, h, fieldWidthM, fieldHeightM, league)
                 val radiusPx = (obs.radius / fieldWidthM) * w
-                drawCircle(color = AresRed.copy(alpha = 0.3f), radius = radiusPx.toFloat(), center = centerOffset)
-                drawCircle(color = AresRed, radius = radiusPx.toFloat(), center = centerOffset, style = Stroke(width = 2f))
+                
+                if (showCostmap) {
+                    val inflatedRadius = radiusPx + robotRadiusPx
+                    drawCircle(color = costmapFillColor, radius = inflatedRadius.toFloat(), center = centerOffset)
+                    drawCircle(
+                        color = costmapStrokeColor,
+                        radius = inflatedRadius.toFloat(),
+                        center = centerOffset,
+                        style = Stroke(width = 1.5f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f))
+                    )
+                }
+
+                drawCircle(color = fillColor, radius = radiusPx.toFloat(), center = centerOffset)
+                drawCircle(color = baseColor, radius = radiusPx.toFloat(), center = centerOffset, style = Stroke(width = 2f))
             }
             is Obstacle.Rectangle -> {
                 val centerWp = Waypoint(obs.centerX, obs.centerY)
@@ -146,29 +193,47 @@ fun DrawScope.drawCustomObstacles(
                 val rw: Double
                 val rh: Double
                 if (league == League.FTC) {
-                    // FTC: Canvas X corresponds to Field Y, Canvas Y corresponds to Field X
                     rw = (obs.height / fieldWidthM) * w
                     rh = (obs.width / fieldHeightM) * h
                 } else {
-                    // FRC: Canvas X corresponds to Field X, Canvas Y corresponds to Field Y
                     rw = (obs.width / fieldWidthM) * w
                     rh = (obs.height / fieldHeightM) * h
                 }
                 
+                if (showCostmap) {
+                    val inflatedRw = rw + 2.0 * robotRadiusPx
+                    val inflatedRh = rh + 2.0 * robotRadiusPx
+                    
+                    drawContext.canvas.save()
+                    val drawRot = -obs.rotation.toFloat() 
+                    drawContext.transform.rotate(drawRot, pivot = centerOffset)
+                    
+                    val rectOffset = Offset((centerOffset.x - inflatedRw / 2).toFloat(), (centerOffset.y - inflatedRh / 2).toFloat())
+                    val roundedCorner = androidx.compose.ui.geometry.CornerRadius(robotRadiusPx.toFloat(), robotRadiusPx.toFloat())
+                    
+                    drawRoundRect(
+                        color = costmapFillColor,
+                        topLeft = rectOffset,
+                        size = Size(inflatedRw.toFloat(), inflatedRh.toFloat()),
+                        cornerRadius = roundedCorner
+                    )
+                    drawRoundRect(
+                        color = costmapStrokeColor,
+                        topLeft = rectOffset,
+                        size = Size(inflatedRw.toFloat(), inflatedRh.toFloat()),
+                        cornerRadius = roundedCorner,
+                        style = Stroke(width = 1.5f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f))
+                    )
+                    drawContext.canvas.restore()
+                }
+
                 drawContext.canvas.save()
-                
-                // Rotation drawing: in FTC, heading 0 is +X (which points UP on screen).
-                // A rectangle with 0 rotation should have its length (obs.width) aligned with +X (UP).
-                // Since we swapped rw and rh above, rh is the visual size along Canvas Y (UP/DOWN).
-                // So rh is already visually the obs.width.
-                // When rotation = 0, we just draw it.
-                // Note: -obs.rotation is used in hit detection. 
-                val drawRot = if (league == League.FTC) -obs.rotation.toFloat() else -obs.rotation.toFloat() 
+                val drawRot = -obs.rotation.toFloat() 
                 drawContext.transform.rotate(drawRot, pivot = centerOffset)
                 
                 val rectOffset = Offset((centerOffset.x - rw / 2).toFloat(), (centerOffset.y - rh / 2).toFloat())
-                drawRect(color = AresRed.copy(alpha = 0.3f), topLeft = rectOffset, size = Size(rw.toFloat(), rh.toFloat()))
-                drawRect(color = AresRed, topLeft = rectOffset, size = Size(rw.toFloat(), rh.toFloat()), style = Stroke(width = 2f))
+                drawRect(color = fillColor, topLeft = rectOffset, size = Size(rw.toFloat(), rh.toFloat()))
+                drawRect(color = baseColor, topLeft = rectOffset, size = Size(rw.toFloat(), rh.toFloat()), style = Stroke(width = 2f))
                 drawContext.canvas.restore()
             }
             is Obstacle.Polygon -> {
@@ -181,8 +246,31 @@ fun DrawScope.drawCustomObstacles(
                         path.lineTo(offset.x, offset.y)
                     }
                     path.close()
-                    drawPath(path = path, color = AresRed.copy(alpha = 0.3f))
-                    drawPath(path = path, color = AresRed, style = Stroke(width = 2f))
+                    
+                    if (showCostmap) {
+                        drawPath(
+                            path = path,
+                            color = costmapFillColor,
+                            style = Stroke(
+                                width = (robotRadiusPx * 2).toFloat(),
+                                cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                                join = androidx.compose.ui.graphics.StrokeJoin.Round
+                            )
+                        )
+                        drawPath(
+                            path = path,
+                            color = costmapStrokeColor,
+                            style = Stroke(
+                                width = (robotRadiusPx * 2).toFloat(),
+                                cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                                join = androidx.compose.ui.graphics.StrokeJoin.Round,
+                                pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
+                            )
+                        )
+                    }
+
+                    drawPath(path = path, color = fillColor)
+                    drawPath(path = path, color = baseColor, style = Stroke(width = 2f))
                 }
             }
         }

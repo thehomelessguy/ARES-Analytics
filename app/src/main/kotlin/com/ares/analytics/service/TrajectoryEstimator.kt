@@ -170,12 +170,11 @@ object TrajectoryEstimator {
         nextPt: SampledPoint?
     ): Double {
         if (rotationTargets.isEmpty()) {
-            if (nextPt != null) {
-                return atan2(nextPt.y - currentPt.y, nextPt.x - currentPt.x)
-            } else if (prevPt != null) {
-                return atan2(currentPt.y - prevPt.y, currentPt.x - prevPt.x)
+            return when {
+                nextPt != null -> atan2(nextPt.y - currentPt.y, nextPt.x - currentPt.x)
+                prevPt != null -> atan2(currentPt.y - prevPt.y, currentPt.x - prevPt.x)
+                else -> 0.0
             }
-            return 0.0
         }
         
         val sortedTargets = rotationTargets.sortedBy { it.waypointRelativePos }
@@ -200,8 +199,10 @@ object TrajectoryEstimator {
                 val rad2 = Math.toRadians(t2.rotationDegrees)
                 
                 var diff = (rad2 - rad1) % (2 * Math.PI)
-                if (diff > Math.PI) diff -= 2 * Math.PI
-                else if (diff <= -Math.PI) diff += 2 * Math.PI
+                when {
+                    diff > Math.PI -> diff -= 2 * Math.PI
+                    diff <= -Math.PI -> diff += 2 * Math.PI
+                }
                 
                 return rad1 + alpha * diff
             }

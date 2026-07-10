@@ -85,37 +85,41 @@ class AlertEngineService(
         val existingAlert = currentMap.values.firstOrNull { it.ruleKey == rule.key && !it.triaged }
 
         if (isViolating) {
-            if (existingAlert == null) {
-                // Trigger new active alert
-                val newAlert = AlertRecord(
-                    alertId = UUID.randomUUID().toString(),
-                    sessionId = frame.sessionId,
-                    ruleKey = rule.key,
-                    triggerTimestampMs = frame.timestampMs,
-                    peakValue = value,
-                    triaged = false
-                )
-                updateAlertState(newAlert)
-                if (rule.audibleAlert) {
-                    triggerAudibleAlert()
+            when {
+                existingAlert == null -> {
+                    // Trigger new active alert
+                    val newAlert = AlertRecord(
+                        alertId = UUID.randomUUID().toString(),
+                        sessionId = frame.sessionId,
+                        ruleKey = rule.key,
+                        triggerTimestampMs = frame.timestampMs,
+                        peakValue = value,
+                        triaged = false
+                    )
+                    updateAlertState(newAlert)
+                    if (rule.audibleAlert) {
+                        triggerAudibleAlert()
+                    }
                 }
-            } else if (existingAlert.resolveTimestampMs != null) {
-                // It was resolved but not triaged, and now it's active again -> re-activate
-                val reActive = existingAlert.copy(
-                    resolveTimestampMs = null,
-                    durationMs = 0L,
-                    peakValue = maxOf(existingAlert.peakValue, value)
-                )
-                updateAlertState(reActive)
-                if (rule.audibleAlert) {
-                    triggerAudibleAlert()
+                existingAlert.resolveTimestampMs != null -> {
+                    // It was resolved but not triaged, and now it's active again -> re-activate
+                    val reActive = existingAlert.copy(
+                        resolveTimestampMs = null,
+                        durationMs = 0L,
+                        peakValue = maxOf(existingAlert.peakValue, value)
+                    )
+                    updateAlertState(reActive)
+                    if (rule.audibleAlert) {
+                        triggerAudibleAlert()
+                    }
                 }
-            } else {
-                // Update peak value of current active alert
-                val updated = existingAlert.copy(
-                    peakValue = if (rule.maxValue != null) maxOf(existingAlert.peakValue, value) else minOf(existingAlert.peakValue, value)
-                )
-                updateAlertState(updated)
+                else -> {
+                    // Update peak value of current active alert
+                    val updated = existingAlert.copy(
+                        peakValue = if (rule.maxValue != null) maxOf(existingAlert.peakValue, value) else minOf(existingAlert.peakValue, value)
+                    )
+                    updateAlertState(updated)
+                }
             }
         } else {
             // Value is normal. If there is an active alert that isn't resolved yet -> mark resolved (but still latched)

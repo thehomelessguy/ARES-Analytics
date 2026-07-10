@@ -352,13 +352,15 @@ sealed class Obstacle {
     abstract val id: String
     abstract val name: String
     abstract val locked: Boolean
+    abstract val colorHex: String
 
     @Serializable
     data class Polygon(
         override val id: String,
         override val name: String,
         val vertices: List<PathPoint>,
-        override val locked: Boolean = false
+        override val locked: Boolean = false,
+        override val colorHex: String = "#E53935"
     ) : Obstacle()
 
     @Serializable
@@ -368,7 +370,8 @@ sealed class Obstacle {
         val centerX: Double,
         val centerY: Double,
         val radius: Double,
-        override val locked: Boolean = false
+        override val locked: Boolean = false,
+        override val colorHex: String = "#E53935"
     ) : Obstacle()
 
     @Serializable
@@ -380,7 +383,8 @@ sealed class Obstacle {
         val width: Double,
         val height: Double,
         val rotation: Double = 0.0,
-        override val locked: Boolean = false
+        override val locked: Boolean = false,
+        override val colorHex: String = "#E53935"
     ) : Obstacle()
 }
 

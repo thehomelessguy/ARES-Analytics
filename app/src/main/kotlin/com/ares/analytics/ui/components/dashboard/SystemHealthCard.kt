@@ -38,12 +38,16 @@ fun SystemHealthCard(
                 val key = frame.key.lowercase()
                 val value = frame.value as? Double ?: return@collect
                 
-                if (key.contains("looptime") || key.contains("loop_time")) {
-                    loopTimeMs = value
-                } else if (key.contains("cpu")) {
-                    cpuUsage = value
-                } else if (key.contains("ram") || key.contains("memory")) {
-                    ramUsage = value
+                when {
+                    key.contains("looptime") || key.contains("loop_time") -> {
+                        loopTimeMs = value
+                    }
+                    key.contains("cpu") -> {
+                        cpuUsage = value
+                    }
+                    key.contains("ram") || key.contains("memory") -> {
+                        ramUsage = value
+                    }
                 }
             }
         }
@@ -79,7 +83,11 @@ fun SystemHealthCard(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("LOOP TIME", color = AresTextTertiary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     val hz = if (loopTimeMs != null && loopTimeMs!! > 0) 1000.0 / loopTimeMs!! else 0.0
-                    val loopColor = if (hz < 35.0) AresError else if (hz < 45.0) AresGold else AresGreen
+                    val loopColor = when {
+                        hz < 35.0 -> AresError
+                        hz < 45.0 -> AresGold
+                        else -> AresGreen
+                    }
                     Text(
                         text = loopTimeMs?.let { String.format("%.1f ms", it) } ?: "--",
                         color = loopColor,

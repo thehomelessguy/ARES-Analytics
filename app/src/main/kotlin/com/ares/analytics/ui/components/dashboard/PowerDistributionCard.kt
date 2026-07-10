@@ -116,7 +116,11 @@ fun PowerDistributionCard(
                             // Visual bar
                             Box(modifier = Modifier.weight(1f).height(12.dp).background(AresSurface, RoundedCornerShape(4.dp))) {
                                 val fraction = (amps / 40.0).coerceIn(0.0, 1.0).toFloat()
-                                val barColor = if (amps > 30.0) AresError else if (amps > 20.0) AresGold else AresCyan
+                                val barColor = when {
+                                    amps > 30.0 -> AresError
+                                    amps > 20.0 -> AresGold
+                                    else -> AresCyan
+                                }
                                 Box(
                                     modifier = Modifier
                                         .fillMaxHeight()

@@ -359,12 +359,16 @@ private fun ReplayTimelineScrubber(
                 modifier = Modifier.size(32.dp)
             ) {
                 Icon(
-                    imageVector = if (isLiveConnection && !isReplayActive) Icons.Default.Pause
-                                  else if (replayState == ReplayState.PLAYING) Icons.Default.Pause
-                                  else Icons.Default.PlayArrow,
-                    contentDescription = if (isLiveConnection && !isReplayActive) "Pause"
-                                         else if (replayState == ReplayState.PLAYING) "Pause"
-                                         else "Play",
+                    imageVector = when {
+                        isLiveConnection && !isReplayActive -> Icons.Default.Pause
+                        replayState == ReplayState.PLAYING -> Icons.Default.Pause
+                        else -> Icons.Default.PlayArrow
+                    },
+                    contentDescription = when {
+                        isLiveConnection && !isReplayActive -> "Pause"
+                        replayState == ReplayState.PLAYING -> "Pause"
+                        else -> "Play"
+                    },
                     tint = modeColor,
                     modifier = Modifier.size(20.dp)
                 )

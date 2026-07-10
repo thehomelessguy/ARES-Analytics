@@ -199,12 +199,16 @@ class FieldViewerViewModel(
                                     val loadedWps = pathFile.waypoints.map { pwp ->
                                         val next = pwp.nextControl
                                         val prev = pwp.prevControl
-                                        val heading = if (next != null) {
-                                            kotlin.math.atan2(next.y - pwp.anchor.y, next.x - pwp.anchor.x)
-                                        } else if (prev != null) {
-                                            kotlin.math.atan2(pwp.anchor.y - prev.y, pwp.anchor.x - prev.x)
-                                        } else {
-                                            0.0
+                                        val heading = when {
+                                            next != null -> {
+                                                kotlin.math.atan2(next.y - pwp.anchor.y, next.x - pwp.anchor.x)
+                                            }
+                                            prev != null -> {
+                                                kotlin.math.atan2(pwp.anchor.y - prev.y, pwp.anchor.x - prev.x)
+                                            }
+                                            else -> {
+                                                0.0
+                                            }
                                         }
                                         Waypoint(pwp.anchor.x, pwp.anchor.y, heading)
                                     }

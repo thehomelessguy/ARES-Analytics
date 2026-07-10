@@ -469,17 +469,21 @@ fun TelemetryChartPanel(
                     }
  
                     // Handle edge cases
-                    if (!hasData) {
-                        tempMinY = 0.0
-                        tempMaxY = 1.0
-                    } else if (tempMinY == tempMaxY) {
-                        tempMinY -= 1.0
-                        tempMaxY += 1.0
-                    } else {
-                        // Add 10% padding
-                        val diff = tempMaxY - tempMinY
-                        tempMinY -= diff * 0.1
-                        tempMaxY += diff * 0.1
+                    when {
+                        !hasData -> {
+                            tempMinY = 0.0
+                            tempMaxY = 1.0
+                        }
+                        tempMinY == tempMaxY -> {
+                            tempMinY -= 1.0
+                            tempMaxY += 1.0
+                        }
+                        else -> {
+                            // Add 10% padding
+                            val diff = tempMaxY - tempMinY
+                            tempMinY -= diff * 0.1
+                            tempMaxY += diff * 0.1
+                        }
                     }
 
                     minY = tempMinY

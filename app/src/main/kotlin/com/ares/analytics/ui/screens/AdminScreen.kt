@@ -153,57 +153,61 @@ fun AdminScreen(
             return
         }
 
-        if (isLoading) {
-            Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = AresCyan)
+        when {
+            isLoading -> {
+                Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = AresCyan)
+                }
             }
-        } else if (errorMessage != null) {
-            Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Text(errorMessage!!, color = AresError)
+            errorMessage != null -> {
+                Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Text(errorMessage!!, color = AresError)
+                }
             }
-        } else if (robotProfiles.isEmpty()) {
-            Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Text(
-                        "No robots registered for Team ${config.teamId} yet.",
-                        color = AresTextTertiary,
-                        fontSize = 12.sp
-                    )
-                    Button(
-                        onClick = {
-                            scope.launch {
-                                try {
-                                    val localRobot = RobotProfile(
-                                        robotId = config.robotId,
-                                        league = config.league,
-                                        seasonId = config.seasonId,
-                                        name = "${config.robotId} (Team ${config.teamId})"
-                                    )
-                                    val success = teamApiService.addRobotProfile(config.teamId, localRobot, token!!)
-                                    if (success) {
-                                        refreshRobots()
-                                    } else {
-                                        errorMessage = "Failed to sync local robot to cloud. Backend might be down."
-                                    }
-                                } catch (e: SecurityException) {
-                                    errorMessage = e.message
-                                } catch (e: Exception) {
-                                    errorMessage = "Error syncing local robot: ${e.message}"
-                                }
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = AresCyan)
+            robotProfiles.isEmpty() -> {
+                Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Icon(imageVector = Icons.Default.Refresh, contentDescription = null, tint = AresBackground)
-                        Spacer(Modifier.width(4.dp))
-                        Text("Sync Local Robot to Cloud", color = AresBackground, fontWeight = FontWeight.Bold)
+                        Text(
+                            "No robots registered for Team ${config.teamId} yet.",
+                            color = AresTextTertiary,
+                            fontSize = 12.sp
+                        )
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    try {
+                                        val localRobot = RobotProfile(
+                                            robotId = config.robotId,
+                                            league = config.league,
+                                            seasonId = config.seasonId,
+                                            name = "${config.robotId} (Team ${config.teamId})"
+                                        )
+                                        val success = teamApiService.addRobotProfile(config.teamId, localRobot, token!!)
+                                        if (success) {
+                                            refreshRobots()
+                                        } else {
+                                            errorMessage = "Failed to sync local robot to cloud. Backend might be down."
+                                        }
+                                    } catch (e: SecurityException) {
+                                        errorMessage = e.message
+                                    } catch (e: Exception) {
+                                        errorMessage = "Error syncing local robot: ${e.message}"
+                                    }
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = AresCyan)
+                        ) {
+                            Icon(imageVector = Icons.Default.Refresh, contentDescription = null, tint = AresBackground)
+                            Spacer(Modifier.width(4.dp))
+                            Text("Sync Local Robot to Cloud", color = AresBackground, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
-        } else {
+            else -> {
             LazyColumn(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -265,6 +269,7 @@ fun AdminScreen(
             }
         }
     }
+}
 
     if (showAddDialog) {
         var robotId by remember { mutableStateOf("") }

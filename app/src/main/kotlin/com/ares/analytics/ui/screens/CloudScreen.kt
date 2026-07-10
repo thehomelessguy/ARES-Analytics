@@ -129,19 +129,23 @@ fun CloudScreen(
                         .border(1.dp, AresBorder, RoundedCornerShape(8.dp))
                         .padding(8.dp)
                 ) {
-                    if (state.isFetchingRobotLogs && state.robotRuns.isEmpty()) {
-                        CircularProgressIndicator(color = AresCyan, modifier = Modifier.align(Alignment.Center))
-                    } else if (state.robotRuns.isEmpty()) {
-                        Text("No logs found on connected robot.", color = AresTextSecondary, modifier = Modifier.align(Alignment.Center))
-                    } else {
-                        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            items(state.robotRuns, key = { it.runId }) { run ->
-                                RobotRunRow(
-                                    run = run,
-                                    isUploading = state.isUploadingRobotLog == run.runId,
-                                    onUpload = { viewModel.onIntent(CloudIntent.UploadRobotRun(run.runId, teamId, seasonId, "robot-1")) },
-                                    onDelete = { viewModel.onIntent(CloudIntent.DeleteRobotRun(run.runId)) }
-                                )
+                    when {
+                        state.isFetchingRobotLogs && state.robotRuns.isEmpty() -> {
+                            CircularProgressIndicator(color = AresCyan, modifier = Modifier.align(Alignment.Center))
+                        }
+                        state.robotRuns.isEmpty() -> {
+                            Text("No logs found on connected robot.", color = AresTextSecondary, modifier = Modifier.align(Alignment.Center))
+                        }
+                        else -> {
+                            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                items(state.robotRuns, key = { it.runId }) { run ->
+                                    RobotRunRow(
+                                        run = run,
+                                        isUploading = state.isUploadingRobotLog == run.runId,
+                                        onUpload = { viewModel.onIntent(CloudIntent.UploadRobotRun(run.runId, teamId, seasonId, "robot-1")) },
+                                        onDelete = { viewModel.onIntent(CloudIntent.DeleteRobotRun(run.runId)) }
+                                    )
+                                }
                             }
                         }
                     }

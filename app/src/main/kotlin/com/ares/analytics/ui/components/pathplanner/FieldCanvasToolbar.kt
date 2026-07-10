@@ -21,6 +21,7 @@ import com.ares.analytics.shared.PathPoint
 import com.ares.analytics.ui.theme.*
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 fun FieldCanvasToolbar(
     showPathControls: Boolean,
     showObstacleControls: Boolean,
@@ -38,6 +39,8 @@ fun FieldCanvasToolbar(
     onResetZoomPan: () -> Unit,
     showHeatmap: Boolean,
     onShowHeatmapChanged: (Boolean) -> Unit,
+    showCostmap: Boolean,
+    onShowCostmapChanged: (Boolean) -> Unit,
     viewRotation: Float,
     onViewRotationChanged: (Float) -> Unit
 ) {
@@ -56,27 +59,30 @@ fun FieldCanvasToolbar(
         ) {
             if (showPathControls || showObstacleControls) {
                 // Select Mode
-                IconButton(
+                TooltipButton(
+                    tooltipText = "Select & Drag Mode",
                     onClick = { onEditorModeChanged(EditorMode.SELECT) },
                     colors = IconButtonDefaults.iconButtonColors(contentColor = if (editorMode == EditorMode.SELECT) AresCyan else AresTextTertiary)
                 ) {
-                    Icon(Icons.Default.PanTool, contentDescription = "Select / Drag")
+                    Icon(Icons.Default.PanTool, contentDescription = "Select & Drag Mode")
                 }
             }
 
             // Add Waypoint Mode
             if (showPathControls) {
-                IconButton(
+                TooltipButton(
+                    tooltipText = "Add Path Waypoint Mode",
                     onClick = { onEditorModeChanged(EditorMode.ADD_WAYPOINT) },
                     colors = IconButtonDefaults.iconButtonColors(contentColor = if (editorMode == EditorMode.ADD_WAYPOINT) AresCyan else AresTextTertiary)
                 ) {
-                    Icon(Icons.Default.AddLocation, contentDescription = "Add Waypoint")
+                    Icon(Icons.Default.AddLocation, contentDescription = "Add Path Waypoint Mode")
                 }
             }
 
             // Draw Polygon Obstacle
             if (showObstacleControls) {
-                IconButton(
+                TooltipButton(
+                    tooltipText = "Draw Free-form Obstacle (Polygon)",
                     onClick = { onEditorModeChanged(EditorMode.DRAW_POLYGON) },
                     colors = IconButtonDefaults.iconButtonColors(contentColor = if (editorMode == EditorMode.DRAW_POLYGON) AresCyan else AresTextTertiary)
                 ) {
@@ -104,7 +110,8 @@ fun FieldCanvasToolbar(
 
             // Draw Circle Obstacle
             if (showObstacleControls) {
-                IconButton(
+                TooltipButton(
+                    tooltipText = "Draw Circle Obstacle",
                     onClick = { onEditorModeChanged(EditorMode.DRAW_CIRCLE) },
                     colors = IconButtonDefaults.iconButtonColors(contentColor = if (editorMode == EditorMode.DRAW_CIRCLE) AresCyan else AresTextTertiary)
                 ) {
@@ -114,7 +121,8 @@ fun FieldCanvasToolbar(
 
             // Draw Rectangle Obstacle
             if (showObstacleControls) {
-                IconButton(
+                TooltipButton(
+                    tooltipText = "Draw Rectangle Obstacle",
                     onClick = { onEditorModeChanged(EditorMode.DRAW_RECTANGLE) },
                     colors = IconButtonDefaults.iconButtonColors(contentColor = if (editorMode == EditorMode.DRAW_RECTANGLE) AresCyan else AresTextTertiary)
                 ) {
@@ -124,7 +132,8 @@ fun FieldCanvasToolbar(
 
             // Place Game Piece Mode
             if (showObstacleControls) {
-                IconButton(
+                TooltipButton(
+                    tooltipText = "Place Game Piece Mode",
                     onClick = { onEditorModeChanged(EditorMode.PLACE_GAME_PIECE) },
                     colors = IconButtonDefaults.iconButtonColors(contentColor = if (editorMode == EditorMode.PLACE_GAME_PIECE) AresCyan else AresTextTertiary)
                 ) {
@@ -176,7 +185,8 @@ fun FieldCanvasToolbar(
 
             // Place AprilTag Mode
             if (showObstacleControls && league == League.FTC) {
-                IconButton(
+                TooltipButton(
+                    tooltipText = "Place AprilTag Mode",
                     onClick = { onEditorModeChanged(EditorMode.PLACE_APRILTAG) },
                     colors = IconButtonDefaults.iconButtonColors(contentColor = if (editorMode == EditorMode.PLACE_APRILTAG) AresCyan else AresTextTertiary)
                 ) {
@@ -186,7 +196,8 @@ fun FieldCanvasToolbar(
 
             // Place Field Waypoint Mode
             if (showObstacleControls) {
-                IconButton(
+                TooltipButton(
+                    tooltipText = "Place Named Waypoint Mode",
                     onClick = { onEditorModeChanged(EditorMode.PLACE_FIELD_WAYPOINT) },
                     colors = IconButtonDefaults.iconButtonColors(contentColor = if (editorMode == EditorMode.PLACE_FIELD_WAYPOINT) AresCyan else AresTextTertiary)
                 ) {
@@ -196,7 +207,8 @@ fun FieldCanvasToolbar(
 
             // Eraser Mode
             if (showPathControls || showObstacleControls) {
-                IconButton(
+                TooltipButton(
+                    tooltipText = "Eraser Mode (Delete Elements)",
                     onClick = { onEditorModeChanged(EditorMode.ERASER) },
                     colors = IconButtonDefaults.iconButtonColors(contentColor = if (editorMode == EditorMode.ERASER) AresCyan else AresTextTertiary)
                 ) {
@@ -209,29 +221,62 @@ fun FieldCanvasToolbar(
             }
 
             // Zoom controls
-            IconButton(onClick = { onZoomScaleChanged((zoomScale + 0.1f).coerceAtMost(3f)) }) {
+            TooltipButton(
+                tooltipText = "Zoom In",
+                onClick = { onZoomScaleChanged((zoomScale + 0.1f).coerceAtMost(3f)) }
+            ) {
                 Icon(Icons.Default.ZoomIn, contentDescription = "Zoom In", tint = AresTextSecondary)
             }
-            IconButton(onClick = { onZoomScaleChanged((zoomScale - 0.1f).coerceAtLeast(0.5f)) }) {
+            TooltipButton(
+                tooltipText = "Zoom Out",
+                onClick = { onZoomScaleChanged((zoomScale - 0.1f).coerceAtLeast(0.5f)) }
+            ) {
                 Icon(Icons.Default.ZoomOut, contentDescription = "Zoom Out", tint = AresTextSecondary)
             }
-            IconButton(onClick = { onResetZoomPan() }) {
+            TooltipButton(
+                tooltipText = "Reset Zoom and Pan",
+                onClick = { onResetZoomPan() }
+            ) {
                 Icon(Icons.Default.Refresh, contentDescription = "Reset Zoom", tint = AresTextSecondary)
             }
-            IconButton(
+            TooltipButton(
+                tooltipText = "Toggle Heatmap View",
                 onClick = { onShowHeatmapChanged(!showHeatmap) },
                 colors = IconButtonDefaults.iconButtonColors(contentColor = if (showHeatmap) AresCyan else AresTextTertiary)
             ) {
                 Icon(Icons.Default.Whatshot, contentDescription = "Toggle Heatmap")
             }
-            IconButton(
-                onClick = { 
-                    onViewRotationChanged((viewRotation - 90f + 360f) % 360f) 
-                    
-                }
+            TooltipButton(
+                tooltipText = "Toggle Bumper Clearance Boundaries",
+                onClick = { onShowCostmapChanged(!showCostmap) },
+                colors = IconButtonDefaults.iconButtonColors(contentColor = if (showCostmap) AresCyan else AresTextTertiary)
+            ) {
+                Icon(Icons.Default.GridOn, contentDescription = "Toggle Costmap clearance visualizer")
+            }
+            TooltipButton(
+                tooltipText = "Rotate Field View 90°",
+                onClick = { onViewRotationChanged((viewRotation - 90f + 360f) % 360f) }
             ) {
                 Icon(Icons.Default.RotateRight, contentDescription = "Rotate View", tint = AresTextSecondary)
             }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TooltipButton(
+    tooltipText: String,
+    onClick: () -> Unit,
+    colors: IconButtonColors = IconButtonDefaults.iconButtonColors(),
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    TooltipBox(
+        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+        tooltip = { PlainTooltip { Text(tooltipText) } },
+        state = rememberTooltipState()
+    ) {
+        IconButton(onClick = onClick, colors = colors, modifier = modifier, content = content)
     }
 }

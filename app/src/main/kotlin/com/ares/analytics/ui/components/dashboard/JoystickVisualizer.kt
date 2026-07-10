@@ -47,9 +47,21 @@ fun JoystickVisualizer(
                     val activeOmega = g1.rightStickX.toDouble() * -4.0
                     Triple(activeVx, activeVy, activeOmega)
                 } else {
-                    val activeVx = if (keyboardState.isWPressed) 4.0 else if (keyboardState.isSPressed) -4.0 else 0.0
-                    val activeVy = if (keyboardState.isAPressed) 4.0 else if (keyboardState.isDPressed) -4.0 else 0.0
-                    val activeOmega = if (keyboardState.isLeftPressed) 4.0 else if (keyboardState.isRightPressed) -4.0 else 0.0
+                    val activeVx = when {
+                        keyboardState.isWPressed -> 4.0
+                        keyboardState.isSPressed -> -4.0
+                        else -> 0.0
+                    }
+                    val activeVy = when {
+                        keyboardState.isAPressed -> 4.0
+                        keyboardState.isDPressed -> -4.0
+                        else -> 0.0
+                    }
+                    val activeOmega = when {
+                        keyboardState.isLeftPressed -> 4.0
+                        keyboardState.isRightPressed -> -4.0
+                        else -> 0.0
+                    }
                     Triple(activeVx, activeVy, activeOmega)
                 }
 
@@ -119,13 +131,17 @@ fun JoystickVisualizer(
                 if (nt4ClientService != null) {
                     Button(
                         onClick = { 
-                            if (!keyboardControlEnabled) {
-                                keyboardState.enabled = true
-                                keyboardState.useGamepad = true
-                            } else if (keyboardState.useGamepad) {
-                                keyboardState.useGamepad = false
-                            } else {
-                                keyboardState.enabled = false
+                            when {
+                                !keyboardControlEnabled -> {
+                                    keyboardState.enabled = true
+                                    keyboardState.useGamepad = true
+                                }
+                                keyboardState.useGamepad -> {
+                                    keyboardState.useGamepad = false
+                                }
+                                else -> {
+                                    keyboardState.enabled = false
+                                }
                             }
                         },
                         colors = ButtonDefaults.buttonColors(
@@ -135,9 +151,11 @@ fun JoystickVisualizer(
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                     ) {
                         Text(
-                            if (!keyboardControlEnabled) "🔌 Live Telemetry" 
-                            else if (keyboardState.useGamepad) "🎮 Local Gamepad" 
-                            else "⌨️ Local Keyboard",
+                            when {
+                                !keyboardControlEnabled -> "🔌 Live Telemetry"
+                                keyboardState.useGamepad -> "🎮 Local Gamepad"
+                                else -> "⌨️ Local Keyboard"
+                            },
                             color = AresBackground,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold
@@ -287,10 +305,26 @@ fun SingleGamepadVisualizer(
                     dpadLeft = g.dpadLeft
                     dpadRight = g.dpadRight
                 } else if (keyboardState != null) {
-                    lx = if (keyboardState.isAPressed) -1.0 else if (keyboardState.isDPressed) 1.0 else 0.0
-                    ly = if (keyboardState.isWPressed) -1.0 else if (keyboardState.isSPressed) 1.0 else 0.0
-                    rx = if (keyboardState.isLeftPressed) -1.0 else if (keyboardState.isRightPressed) 1.0 else 0.0
-                    ry = if (keyboardState.isUpPressed) -1.0 else if (keyboardState.isDownPressed) 1.0 else 0.0
+                    lx = when {
+                        keyboardState.isAPressed -> -1.0
+                        keyboardState.isDPressed -> 1.0
+                        else -> 0.0
+                    }
+                    ly = when {
+                        keyboardState.isWPressed -> -1.0
+                        keyboardState.isSPressed -> 1.0
+                        else -> 0.0
+                    }
+                    rx = when {
+                        keyboardState.isLeftPressed -> -1.0
+                        keyboardState.isRightPressed -> 1.0
+                        else -> 0.0
+                    }
+                    ry = when {
+                        keyboardState.isUpPressed -> -1.0
+                        keyboardState.isDownPressed -> 1.0
+                        else -> 0.0
+                    }
                     lb = keyboardState.isQPressed
                     rb = keyboardState.isEPressed
                     lt = if (keyboardState.isSpacePressed) 1.0 else 0.0

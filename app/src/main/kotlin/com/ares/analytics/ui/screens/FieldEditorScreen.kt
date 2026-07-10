@@ -46,6 +46,10 @@ fun FieldEditorScreen(
     }
 
     var showCropBoundaries by remember { mutableStateOf(false) }
+    var obstaclesCollapsed by remember { mutableStateOf(false) }
+    var gamePiecesCollapsed by remember { mutableStateOf(false) }
+    var aprilTagsCollapsed by remember { mutableStateOf(false) }
+    var waypointsCollapsed by remember { mutableStateOf(false) }
 
     val fieldWidthM = if (state.fieldImageConfig.widthMeters > 0.0) state.fieldImageConfig.widthMeters else (if (league == League.FTC) 3.65 else 16.5)
     val fieldHeightM = if (state.fieldImageConfig.heightMeters > 0.0) state.fieldImageConfig.heightMeters else (if (league == League.FTC) 3.65 else 8.2)
@@ -284,16 +288,32 @@ fun FieldEditorScreen(
                 if (state.obstacles.isNotEmpty()) {
                     HorizontalDivider(color = AresBorder)
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = state.selectedElement == null) { obstaclesCollapsed = !obstaclesCollapsed }
+                            .padding(vertical = 4.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = if (state.selectedElement != null) "Selected Item Properties" else "Drawn Obstacles (${state.obstacles.size})",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = AresTextPrimary
-                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (state.selectedElement == null) {
+                                Icon(
+                                    imageVector = if (obstaclesCollapsed) Icons.Default.ChevronRight else Icons.Default.ExpandMore,
+                                    contentDescription = null,
+                                    tint = AresTextSecondary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                            Text(
+                                text = if (state.selectedElement != null) "Selected Item Properties" else "Drawn Obstacles (${state.obstacles.size})",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = AresTextPrimary
+                            )
+                        }
                         if (state.selectedElement != null) {
                             TextButton(
                                 onClick = { viewModel.onIntent(FieldEditorIntent.SelectElement(null)) },
@@ -348,30 +368,32 @@ fun FieldEditorScreen(
                         }
                     }
                     
-                    state.obstacles.forEachIndexed { index, obs ->
-                        if (state.selectedElement == null || state.selectedElement == obs.id) {
-                            key(obs.id) {
-                                ObstacleRow(
-                                    index = index,
-                                    obs = obs,
-                                    fieldWidthM = fieldWidthM,
-                                    fieldHeightM = fieldHeightM,
-                                    league = league,
-                                    onUpdate = { i, updated ->
-                                        viewModel.onIntent(FieldEditorIntent.UpdateObstacle(i, updated))
-                                        viewModel.onIntent(FieldEditorIntent.SaveObstacles(projectPath, league))
-                                    },
-                                    onDelete = { i ->
-                                        viewModel.onIntent(FieldEditorIntent.DeleteObstacle(i))
-                                        viewModel.onIntent(FieldEditorIntent.SaveObstacles(projectPath, league))
-                                    },
-                                    onAdd = { copy ->
-                                        viewModel.onIntent(FieldEditorIntent.AddObstacle(copy))
-                                        viewModel.onIntent(FieldEditorIntent.SaveObstacles(projectPath, league))
-                                    },
-                                    onMirrorX = ::mirrorObstacleX,
-                                    onMirrorY = ::mirrorObstacleY
-                                )
+                    if (!obstaclesCollapsed || state.selectedElement != null) {
+                        state.obstacles.forEachIndexed { index, obs ->
+                            if (state.selectedElement == null || state.selectedElement == obs.id) {
+                                key(obs.id) {
+                                    ObstacleRow(
+                                        index = index,
+                                        obs = obs,
+                                        fieldWidthM = fieldWidthM,
+                                        fieldHeightM = fieldHeightM,
+                                        league = league,
+                                        onUpdate = { i, updated ->
+                                            viewModel.onIntent(FieldEditorIntent.UpdateObstacle(i, updated))
+                                            viewModel.onIntent(FieldEditorIntent.SaveObstacles(projectPath, league))
+                                        },
+                                        onDelete = { i ->
+                                            viewModel.onIntent(FieldEditorIntent.DeleteObstacle(i))
+                                            viewModel.onIntent(FieldEditorIntent.SaveObstacles(projectPath, league))
+                                        },
+                                        onAdd = { copy ->
+                                            viewModel.onIntent(FieldEditorIntent.AddObstacle(copy))
+                                            viewModel.onIntent(FieldEditorIntent.SaveObstacles(projectPath, league))
+                                        },
+                                        onMirrorX = ::mirrorObstacleX,
+                                        onMirrorY = ::mirrorObstacleY
+                                    )
+                                }
                             }
                         }
                     }
@@ -380,22 +402,44 @@ fun FieldEditorScreen(
                 // Placed Game Pieces Section
                 if (state.gamePieces.isNotEmpty()) {
                     HorizontalDivider(color = AresBorder)
-                    Text("Placed Game Pieces (${state.gamePieces.size})", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = AresTextPrimary)
-                    state.gamePieces.forEachIndexed { index, gp ->
-                        key(gp.id) {
-                            GamePieceRow(
-                                index = index,
-                                gp = gp,
-                                league = league,
-                                onUpdate = { i, updated ->
-                                    viewModel.onIntent(FieldEditorIntent.UpdateGamePiece(i, updated))
-                                    viewModel.onIntent(FieldEditorIntent.SaveGamePieces(projectPath, league))
-                                },
-                                onDelete = { i ->
-                                    viewModel.onIntent(FieldEditorIntent.DeleteGamePiece(i))
-                                    viewModel.onIntent(FieldEditorIntent.SaveGamePieces(projectPath, league))
-                                }
-                            )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { gamePiecesCollapsed = !gamePiecesCollapsed }
+                            .padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = if (gamePiecesCollapsed) Icons.Default.ChevronRight else Icons.Default.ExpandMore,
+                            contentDescription = null,
+                            tint = AresTextSecondary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = "Placed Game Pieces (${state.gamePieces.size})",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = AresTextPrimary
+                        )
+                    }
+                    if (!gamePiecesCollapsed) {
+                        state.gamePieces.forEachIndexed { index, gp ->
+                            key(gp.id) {
+                                GamePieceRow(
+                                    index = index,
+                                    gp = gp,
+                                    league = league,
+                                    onUpdate = { i, updated ->
+                                        viewModel.onIntent(FieldEditorIntent.UpdateGamePiece(i, updated))
+                                        viewModel.onIntent(FieldEditorIntent.SaveGamePieces(projectPath, league))
+                                    },
+                                    onDelete = { i ->
+                                        viewModel.onIntent(FieldEditorIntent.DeleteGamePiece(i))
+                                        viewModel.onIntent(FieldEditorIntent.SaveGamePieces(projectPath, league))
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -403,21 +447,43 @@ fun FieldEditorScreen(
                 // Placed AprilTags Section
                 if (state.aprilTags.isNotEmpty()) {
                     HorizontalDivider(color = AresBorder)
-                    Text("Placed AprilTags (${state.aprilTags.size})", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = AresTextPrimary)
-                    state.aprilTags.forEachIndexed { index, at ->
-                        key(at.id) {
-                            AprilTagRow(
-                                index = index,
-                                at = at,
-                                onUpdate = { i, updated ->
-                                    viewModel.onIntent(FieldEditorIntent.UpdateAprilTag(i, updated))
-                                    viewModel.onIntent(FieldEditorIntent.SaveAprilTags(projectPath, league))
-                                },
-                                onDelete = { i ->
-                                    viewModel.onIntent(FieldEditorIntent.DeleteAprilTag(i))
-                                    viewModel.onIntent(FieldEditorIntent.SaveAprilTags(projectPath, league))
-                                }
-                            )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { aprilTagsCollapsed = !aprilTagsCollapsed }
+                            .padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = if (aprilTagsCollapsed) Icons.Default.ChevronRight else Icons.Default.ExpandMore,
+                            contentDescription = null,
+                            tint = AresTextSecondary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = "Placed AprilTags (${state.aprilTags.size})",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = AresTextPrimary
+                        )
+                    }
+                    if (!aprilTagsCollapsed) {
+                        state.aprilTags.forEachIndexed { index, at ->
+                            key(at.id) {
+                                AprilTagRow(
+                                    index = index,
+                                    at = at,
+                                    onUpdate = { i, updated ->
+                                        viewModel.onIntent(FieldEditorIntent.UpdateAprilTag(i, updated))
+                                        viewModel.onIntent(FieldEditorIntent.SaveAprilTags(projectPath, league))
+                                    },
+                                    onDelete = { i ->
+                                        viewModel.onIntent(FieldEditorIntent.DeleteAprilTag(i))
+                                        viewModel.onIntent(FieldEditorIntent.SaveAprilTags(projectPath, league))
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -425,21 +491,43 @@ fun FieldEditorScreen(
                 // Placed Waypoints Section
                 if (state.fieldWaypoints.isNotEmpty()) {
                     HorizontalDivider(color = AresBorder)
-                    Text("Placed Waypoints (${state.fieldWaypoints.size})", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = AresTextPrimary)
-                    state.fieldWaypoints.forEachIndexed { index, wp ->
-                        key(wp.id) {
-                            FieldWaypointRow(
-                                index = index,
-                                wp = wp,
-                                onUpdate = { i, updated ->
-                                    viewModel.onIntent(FieldEditorIntent.UpdateFieldWaypoint(i, updated))
-                                    viewModel.onIntent(FieldEditorIntent.SaveFieldWaypoints(projectPath, league))
-                                },
-                                onDelete = { i ->
-                                    viewModel.onIntent(FieldEditorIntent.DeleteFieldWaypoint(i))
-                                    viewModel.onIntent(FieldEditorIntent.SaveFieldWaypoints(projectPath, league))
-                                }
-                            )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { waypointsCollapsed = !waypointsCollapsed }
+                            .padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = if (waypointsCollapsed) Icons.Default.ChevronRight else Icons.Default.ExpandMore,
+                            contentDescription = null,
+                            tint = AresTextSecondary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = "Placed Waypoints (${state.fieldWaypoints.size})",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = AresTextPrimary
+                        )
+                    }
+                    if (!waypointsCollapsed) {
+                        state.fieldWaypoints.forEachIndexed { index, wp ->
+                            key(wp.id) {
+                                FieldWaypointRow(
+                                    index = index,
+                                    wp = wp,
+                                    onUpdate = { i, updated ->
+                                        viewModel.onIntent(FieldEditorIntent.UpdateFieldWaypoint(i, updated))
+                                        viewModel.onIntent(FieldEditorIntent.SaveFieldWaypoints(projectPath, league))
+                                    },
+                                    onDelete = { i ->
+                                        viewModel.onIntent(FieldEditorIntent.DeleteFieldWaypoint(i))
+                                        viewModel.onIntent(FieldEditorIntent.SaveFieldWaypoints(projectPath, league))
+                                    }
+                                )
+                            }
                         }
                     }
                 }

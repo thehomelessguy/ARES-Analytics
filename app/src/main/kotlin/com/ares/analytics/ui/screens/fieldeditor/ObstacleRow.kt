@@ -2,7 +2,9 @@ package com.ares.analytics.ui.screens.fieldeditor
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -10,10 +12,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ares.analytics.shared.League
 import com.ares.analytics.shared.Obstacle
+import com.ares.analytics.shared.PathPoint
 import com.ares.analytics.ui.components.forms.AresTextField
 import com.ares.analytics.ui.theme.*
 
@@ -61,6 +67,53 @@ fun ObstacleRow(
                 is Obstacle.Polygon -> "Poly | ${obs.vertices.size} vertices"
             }
             Text(details, fontSize = 10.sp, color = AresTextSecondary)
+            Spacer(modifier = Modifier.height(4.dp))
+            
+            // Color picker dots
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(vertical = 4.dp)
+            ) {
+                Text("Color:", fontSize = 10.sp, color = AresTextSecondary)
+                listOf(
+                    "#E53935", // Red
+                    "#FB8C00", // Orange
+                    "#FDD835", // Yellow
+                    "#43A047", // Green
+                    "#1E88E5", // Blue
+                    "#00ACC1", // Cyan
+                    "#8E24AA", // Purple
+                    "#E91E63"  // Pink
+                ).forEach { colorHex ->
+                    val color = try {
+                        val clean = colorHex.removePrefix("#")
+                        Color(0xFF000000 or clean.toLong(16))
+                    } catch (e: Exception) {
+                        AresRed
+                    }
+                    val isSelected = obs.colorHex.equals(colorHex, ignoreCase = true)
+                    Box(
+                        modifier = Modifier
+                            .size(16.dp)
+                            .clip(CircleShape)
+                            .background(color)
+                            .border(
+                                width = if (isSelected) 1.5.dp else 0.dp,
+                                color = if (isSelected) Color.White else Color.Transparent,
+                                shape = CircleShape
+                            )
+                            .clickable {
+                                val updated = when (obs) {
+                                    is Obstacle.Circle -> obs.copy(colorHex = colorHex)
+                                    is Obstacle.Rectangle -> obs.copy(colorHex = colorHex)
+                                    is Obstacle.Polygon -> obs.copy(colorHex = colorHex)
+                                }
+                                onUpdate(index, updated)
+                            }
+                    )
+                }
+            }
             Spacer(modifier = Modifier.height(4.dp))
             when (obs) {
                 is Obstacle.Circle -> {
@@ -173,7 +226,100 @@ fun ObstacleRow(
                         )
                     }
                 }
-                else -> {}
+                is Obstacle.Polygon -> {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("Vertices:", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = AresTextSecondary)
+                    Spacer(modifier = Modifier.height(2.dp))
+                    
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        obs.vertices.forEachIndexed { vIdx, vertex ->
+                            key(vIdx) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "#${vIdx + 1}",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = AresTextTertiary,
+                                        modifier = Modifier.width(20.dp)
+                                    )
+                                    
+                                    var vxText by remember(obs.id, vIdx, vertex.x) { mutableStateOf(vertex.x.toString()) }
+                                    AresTextField(
+                                        value = vxText,
+                                        onValueChange = { newVal ->
+                                            vxText = newVal
+                                            newVal.toDoubleOrNull()?.let { parsed ->
+                                                val updatedVertices = obs.vertices.toMutableList()
+                                                updatedVertices[vIdx] = PathPoint(parsed, vertex.y)
+                                                onUpdate(index, obs.copy(vertices = updatedVertices))
+                                            }
+                                        },
+                                        label = "X (m)",
+                                        labelFontSize = 8.sp,
+                                        modifier = Modifier.weight(1f),
+                                        textStyle = MaterialTheme.typography.bodySmall.copy(color = AresTextPrimary)
+                                    )
+                                    
+                                    var vyText by remember(obs.id, vIdx, vertex.y) { mutableStateOf(vertex.y.toString()) }
+                                    AresTextField(
+                                        value = vyText,
+                                        onValueChange = { newVal ->
+                                            vyText = newVal
+                                            newVal.toDoubleOrNull()?.let { parsed ->
+                                                val updatedVertices = obs.vertices.toMutableList()
+                                                updatedVertices[vIdx] = PathPoint(vertex.x, parsed)
+                                                onUpdate(index, obs.copy(vertices = updatedVertices))
+                                            }
+                                        },
+                                        label = "Y (m)",
+                                        labelFontSize = 8.sp,
+                                        modifier = Modifier.weight(1f),
+                                        textStyle = MaterialTheme.typography.bodySmall.copy(color = AresTextPrimary)
+                                    )
+                                    
+                                    IconButton(
+                                        onClick = {
+                                            val updatedVertices = obs.vertices.toMutableList()
+                                            updatedVertices.removeAt(vIdx)
+                                            onUpdate(index, obs.copy(vertices = updatedVertices))
+                                        },
+                                        enabled = obs.vertices.size > 3,
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Delete Vertex",
+                                            tint = if (obs.vertices.size > 3) AresError else AresTextTertiary.copy(alpha = 0.5f),
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        
+                        TextButton(
+                            onClick = {
+                                val updatedVertices = obs.vertices.toMutableList()
+                                val last = obs.vertices.lastOrNull() ?: PathPoint(0.0, 0.0)
+                                updatedVertices.add(PathPoint(last.x + 0.2, last.y + 0.2))
+                                onUpdate(index, obs.copy(vertices = updatedVertices))
+                            },
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp),
+                            modifier = Modifier.align(Alignment.Start)
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(12.dp), tint = AresCyan)
+                            Spacer(Modifier.width(2.dp))
+                            Text("Add Vertex", fontSize = 10.sp, color = AresCyan)
+                        }
+                    }
+                }
             }
         }
         var flipMenuExpanded by remember { mutableStateOf(false) }

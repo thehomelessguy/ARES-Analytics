@@ -89,53 +89,57 @@ fun CameraStreamCard(
                 modifier = Modifier.fillMaxSize().background(AresBackground),
                 contentAlignment = Alignment.Center
             ) {
-                if (state.isConfiguring) {
-                    // Config Panel
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text("MJPEG Stream URL", color = AresTextSecondary, fontSize = 12.sp)
-                        OutlinedTextField(
-                            value = state.streamUrl,
-                            onValueChange = { viewModel.onIntent(CameraStreamIntent.UpdateStreamUrl(it)) },
-                            modifier = Modifier.fillMaxWidth(),
-                            textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = AresCyan,
-                                unfocusedBorderColor = AresBorder,
-                                focusedContainerColor = AresSurfaceElevated,
-                                unfocusedContainerColor = AresSurfaceElevated
-                            ),
-                            placeholder = { Text("http://10.0.0.2:1181/stream.mjpg", color = AresTextTertiary) }
-                        )
-                        Button(
-                            onClick = {
-                                viewModel.onIntent(CameraStreamIntent.Connect)
-                                onPropertiesChanged(mapOf("streamUrl" to state.streamUrl))
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = AresCyan),
-                            modifier = Modifier.align(Alignment.End)
+                when {
+                    state.isConfiguring -> {
+                        // Config Panel
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Text("Connect", color = AresBackground, fontWeight = FontWeight.Bold)
+                            Text("MJPEG Stream URL", color = AresTextSecondary, fontSize = 12.sp)
+                            OutlinedTextField(
+                                value = state.streamUrl,
+                                onValueChange = { viewModel.onIntent(CameraStreamIntent.UpdateStreamUrl(it)) },
+                                modifier = Modifier.fillMaxWidth(),
+                                textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = AresCyan,
+                                    unfocusedBorderColor = AresBorder,
+                                    focusedContainerColor = AresSurfaceElevated,
+                                    unfocusedContainerColor = AresSurfaceElevated
+                                ),
+                                placeholder = { Text("http://10.0.0.2:1181/stream.mjpg", color = AresTextTertiary) }
+                            )
+                            Button(
+                                onClick = {
+                                    viewModel.onIntent(CameraStreamIntent.Connect)
+                                    onPropertiesChanged(mapOf("streamUrl" to state.streamUrl))
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = AresCyan),
+                                modifier = Modifier.align(Alignment.End)
+                            ) {
+                                Text("Connect", color = AresBackground, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
-                } else if (state.currentFrame != null) {
-                    // Video Feed
-                    Image(
-                        bitmap = state.currentFrame!!,
-                        contentDescription = "Live Video",
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    // Loading or Error State
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (state.errorMessage != null) {
-                            Icon(Icons.Default.VideocamOff, contentDescription = null, tint = AresRed, modifier = Modifier.size(32.dp))
-                            Text(state.errorMessage!!, color = AresRed, fontSize = 12.sp)
-                        } else {
-                            CircularProgressIndicator(color = AresCyan, modifier = Modifier.size(32.dp))
-                            Text("Connecting to stream...", color = AresTextSecondary, fontSize = 12.sp)
+                    state.currentFrame != null -> {
+                        // Video Feed
+                        Image(
+                            bitmap = state.currentFrame!!,
+                            contentDescription = "Live Video",
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                    else -> {
+                        // Loading or Error State
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (state.errorMessage != null) {
+                                Icon(Icons.Default.VideocamOff, contentDescription = null, tint = AresRed, modifier = Modifier.size(32.dp))
+                                Text(state.errorMessage!!, color = AresRed, fontSize = 12.sp)
+                            } else {
+                                CircularProgressIndicator(color = AresCyan, modifier = Modifier.size(32.dp))
+                                Text("Connecting to stream...", color = AresTextSecondary, fontSize = 12.sp)
+                            }
                         }
                     }
                 }

@@ -169,6 +169,7 @@ fun FieldCanvas(
     var zoomScale by remember { mutableStateOf(1f) }
     var panOffset by remember { mutableStateOf(Offset.Zero) }
     var showHeatmap by remember { mutableStateOf(false) }
+    var showCostmap by remember { mutableStateOf(false) }
     val windowInfo = LocalWindowInfo.current
     val isShiftPressed = windowInfo.keyboardModifiers.isShiftPressed
     var viewRotation by remember(initialViewRotation) { mutableStateOf(initialViewRotation) }
@@ -294,6 +295,8 @@ fun FieldCanvas(
                 onResetZoomPan = { zoomScale = 1f; panOffset = Offset.Zero },
                 showHeatmap = showHeatmap,
                 onShowHeatmapChanged = { showHeatmap = it },
+                showCostmap = showCostmap,
+                onShowCostmapChanged = { showCostmap = it },
                 viewRotation = viewRotation,
                 onViewRotationChanged = { 
                     viewRotation = it
@@ -379,62 +382,66 @@ fun FieldCanvas(
                                     isDraggingFieldWaypoint = hitFieldWpId != null && hitFieldWpCenter
                                     isDraggingFieldWaypointHeading = hitFieldWpId != null && hitFieldWpHeading
 
-                                    if (hitFieldWpId != null) {
-                                        selectedObstacleId = null; selectedAprilTagId = null; selectedGamePieceId = null
-                                        onItemSelected?.invoke(hitFieldWpId, "FieldWaypoint")
-                                        if (hitFieldWpCenter) {
-                                            val wp = currentActiveFieldWaypoints.find { it.id == hitFieldWpId }!!
-                                            dragInitialPos = Waypoint(wp.x, wp.y)
-                                        }
-                                    } else if (hitIdx != -1 || hitEventIdx != -1) {
-                                        selectedObstacleId = null; selectedAprilTagId = null; selectedGamePieceId = null; selectedFieldWaypointId = null
-                                    } else {
-                                        val clickCoord = getRobotCoordFromScreen(pressOffset, w, h, fieldWidthM, fieldHeightM, league, zoomScale, panOffset)
-                                        val hitObs = currentActiveObstacles.minByOrNull { obs ->
-                                            when (obs) {
-                                                is Obstacle.Circle -> sqrt((clickCoord.x - obs.centerX).pow(2) + (clickCoord.y - obs.centerY).pow(2)) - obs.radius
-                                                is Obstacle.Rectangle -> {
-                                                    val dx = clickCoord.x - obs.centerX; val dy = clickCoord.y - obs.centerY
-                                                    sqrt(dx * dx + dy * dy)
-                                                }
-                                                is Obstacle.Polygon -> obs.vertices.minOf { sqrt((clickCoord.x - it.x).pow(2) + (clickCoord.y - it.y).pow(2)) }
-                                            }
-                                        }?.takeIf { obs ->
-                                            when (obs) {
-                                                is Obstacle.Circle -> sqrt((clickCoord.x - obs.centerX).pow(2) + (clickCoord.y - obs.centerY).pow(2)) <= obs.radius
-                                                is Obstacle.Rectangle -> {
-                                                    val dx = clickCoord.x - obs.centerX; val dy = clickCoord.y - obs.centerY
-                                                    val rad = Math.toRadians(-obs.rotation)
-                                                    kotlin.math.abs(dx * cos(rad) - dy * sin(rad)) <= obs.width / 2.0 && kotlin.math.abs(dx * sin(rad) + dy * cos(rad)) <= obs.height / 2.0
-                                                }
-                                                is Obstacle.Polygon -> obs.vertices.any { sqrt((clickCoord.x - it.x).pow(2) + (clickCoord.y - it.y).pow(2)) < 0.3 }
-                                            }
-                                        }
-                                        selectedObstacleId = hitObs?.id
-                                        if (selectedObstacleId != null) {
-                                            onItemSelected?.invoke(selectedObstacleId, "Obstacle")
-                                            when (hitObs) {
-                                                is Obstacle.Circle -> dragInitialPos = Waypoint(hitObs.centerX, hitObs.centerY)
-                                                is Obstacle.Rectangle -> dragInitialPos = Waypoint(hitObs.centerX, hitObs.centerY)
-                                                is Obstacle.Polygon -> dragInitialVertices = hitObs.vertices.toList()
-                                                else -> {}
-                                            }
-                                        } else {
-                                            val hitAt = currentActiveAprilTags.minByOrNull { sqrt((clickCoord.x - it.x).pow(2) + (clickCoord.y - it.y).pow(2)) }?.takeIf { sqrt((clickCoord.x - it.x).pow(2) + (clickCoord.y - it.y).pow(2)) < 0.3 }
-                                            selectedAprilTagId = hitAt?.id
-                                            if (selectedAprilTagId != null) {
-                                                onItemSelected?.invoke(selectedAprilTagId, "AprilTag")
-                                                dragInitialPos = Waypoint(hitAt!!.x, hitAt.y)
-                                            } else {
-                                                val hitGp = currentActiveGamePieces.minByOrNull { sqrt((clickCoord.x - it.x).pow(2) + (clickCoord.y - it.y).pow(2)) }?.takeIf { sqrt((clickCoord.x - it.x).pow(2) + (clickCoord.y - it.y).pow(2)) < 0.2 }
-                                                selectedGamePieceId = hitGp?.id
-                                                if (selectedGamePieceId != null) {
-                                                    onItemSelected?.invoke(selectedGamePieceId, "GamePiece")
-                                                    dragInitialPos = Waypoint(hitGp!!.x, hitGp.y)
-                                                } else onItemSelected?.invoke(null, null)
-                                            }
-                                        }
-                                    }
+                                     when {
+                                         hitFieldWpId != null -> {
+                                             selectedObstacleId = null; selectedAprilTagId = null; selectedGamePieceId = null
+                                             onItemSelected?.invoke(hitFieldWpId, "FieldWaypoint")
+                                             if (hitFieldWpCenter) {
+                                                 val wp = currentActiveFieldWaypoints.find { it.id == hitFieldWpId }!!
+                                                 dragInitialPos = Waypoint(wp.x, wp.y)
+                                             }
+                                         }
+                                         hitIdx != -1 || hitEventIdx != -1 -> {
+                                             selectedObstacleId = null; selectedAprilTagId = null; selectedGamePieceId = null; selectedFieldWaypointId = null
+                                         }
+                                         else -> {
+                                             val clickCoord = getRobotCoordFromScreen(pressOffset, w, h, fieldWidthM, fieldHeightM, league, zoomScale, panOffset)
+                                             val hitObs = currentActiveObstacles.minByOrNull { obs ->
+                                                 when (obs) {
+                                                     is Obstacle.Circle -> sqrt((clickCoord.x - obs.centerX).pow(2) + (clickCoord.y - obs.centerY).pow(2)) - obs.radius
+                                                     is Obstacle.Rectangle -> {
+                                                         val dx = clickCoord.x - obs.centerX; val dy = clickCoord.y - obs.centerY
+                                                         sqrt(dx * dx + dy * dy)
+                                                     }
+                                                     is Obstacle.Polygon -> obs.vertices.minOf { sqrt((clickCoord.x - it.x).pow(2) + (clickCoord.y - it.y).pow(2)) }
+                                                 }
+                                             }?.takeIf { obs ->
+                                                 when (obs) {
+                                                     is Obstacle.Circle -> sqrt((clickCoord.x - obs.centerX).pow(2) + (clickCoord.y - obs.centerY).pow(2)) <= obs.radius
+                                                     is Obstacle.Rectangle -> {
+                                                         val dx = clickCoord.x - obs.centerX; val dy = clickCoord.y - obs.centerY
+                                                         val rad = Math.toRadians(-obs.rotation)
+                                                         kotlin.math.abs(dx * cos(rad) - dy * sin(rad)) <= obs.width / 2.0 && kotlin.math.abs(dx * sin(rad) + dy * cos(rad)) <= obs.height / 2.0
+                                                     }
+                                                     is Obstacle.Polygon -> obs.vertices.any { sqrt((clickCoord.x - it.x).pow(2) + (clickCoord.y - it.y).pow(2)) < 0.3 }
+                                                 }
+                                             }
+                                             selectedObstacleId = hitObs?.id
+                                             if (selectedObstacleId != null) {
+                                                 onItemSelected?.invoke(selectedObstacleId, "Obstacle")
+                                                 when (hitObs) {
+                                                     is Obstacle.Circle -> dragInitialPos = Waypoint(hitObs.centerX, hitObs.centerY)
+                                                     is Obstacle.Rectangle -> dragInitialPos = Waypoint(hitObs.centerX, hitObs.centerY)
+                                                     is Obstacle.Polygon -> dragInitialVertices = hitObs.vertices.toList()
+                                                     else -> {}
+                                                 }
+                                             } else {
+                                                 val hitAt = currentActiveAprilTags.minByOrNull { sqrt((clickCoord.x - it.x).pow(2) + (clickCoord.y - it.y).pow(2)) }?.takeIf { sqrt((clickCoord.x - it.x).pow(2) + (clickCoord.y - it.y).pow(2)) < 0.3 }
+                                                 selectedAprilTagId = hitAt?.id
+                                                 if (selectedAprilTagId != null) {
+                                                     onItemSelected?.invoke(selectedAprilTagId, "AprilTag")
+                                                     dragInitialPos = Waypoint(hitAt!!.x, hitAt.y)
+                                                 } else {
+                                                     val hitGp = currentActiveGamePieces.minByOrNull { sqrt((clickCoord.x - it.x).pow(2) + (clickCoord.y - it.y).pow(2)) }?.takeIf { sqrt((clickCoord.x - it.x).pow(2) + (clickCoord.y - it.y).pow(2)) < 0.2 }
+                                                     selectedGamePieceId = hitGp?.id
+                                                     if (selectedGamePieceId != null) {
+                                                         onItemSelected?.invoke(selectedGamePieceId, "GamePiece")
+                                                         dragInitialPos = Waypoint(hitGp!!.x, hitGp.y)
+                                                     } else onItemSelected?.invoke(null, null)
+                                                 }
+                                             }
+                                         }
+                                     }
                                 }
                                 else -> { /* Placement handled on release when !hasDragged */ }
                             }
@@ -455,80 +462,93 @@ fun FieldCanvas(
                                     change.consume()
                                     fun snap(v: Double) = if (isShiftPressed) kotlin.math.round(v * 10.0) / 10.0 else v
                                     val totalDelta = getDragDeltaInFieldCoords(accumulatedDragPx, w, h, fieldWidthM, fieldHeightM, league, zoomScale)
-
-                                    if (selectedEventMarkerIndex != -1 && onEventMarkersChanged != null) {
-                                        val bestPos = getClosestSplinePosition(change.position, currentWaypoints, w, h, fieldWidthM, fieldHeightM, league)
-                                        onEventMarkersChanged(currentEventMarkers.toMutableList().apply { set(selectedEventMarkerIndex, this[selectedEventMarkerIndex].copy(waypointRelativePos = bestPos)) })
-                                    } else if (selectedWaypointIndex != -1) {
-                                        if (isDraggingHeading) {
-                                            val wp = currentWaypoints[selectedWaypointIndex]
-                                            val posMeters = getRobotCoordFromScreen(change.position, w, h, fieldWidthM, fieldHeightM, league, zoomScale, panOffset)
-                                            val dx = posMeters.x - wp.x
-                                            val dy = posMeters.y - wp.y
-                                            val angle = kotlin.math.atan2(dy, dx)
-                                            val mag = kotlin.math.sqrt(dx * dx + dy * dy)
-                                            onWaypointsChanged(currentWaypoints.toMutableList().apply { set(selectedWaypointIndex, wp.copy(headingRad = angle, tangentMagnitude = if (isShiftPressed) snap(mag) else mag)) })
-                                        } else if (isDraggingRotation && onRotationTargetsChanged != null) {
-                                            val wp = currentWaypoints[selectedWaypointIndex]
-                                            val posMeters = getRobotCoordFromScreen(change.position, w, h, fieldWidthM, fieldHeightM, league, zoomScale, panOffset)
-                                            val angle = kotlin.math.atan2(posMeters.y - wp.y, posMeters.x - wp.x)
-                                            val degrees = Math.toDegrees(angle)
-                                            val existingIdx = currentRotationTargets.indexOfFirst { kotlin.math.abs(it.waypointRelativePos - selectedWaypointIndex) < 1e-3 }
-                                            if (existingIdx != -1) {
-                                                val newList = currentRotationTargets.toMutableList()
-                                                newList[existingIdx] = newList[existingIdx].copy(rotationDegrees = if (isShiftPressed) snap(degrees).toDouble() else degrees)
-                                                onRotationTargetsChanged(newList)
-                                            } else {
-                                                val newList = currentRotationTargets.toMutableList()
-                                                newList.add(RotationTarget(waypointRelativePos = selectedWaypointIndex.toDouble(), rotationDegrees = if (isShiftPressed) snap(degrees).toDouble() else degrees))
-                                                onRotationTargetsChanged(newList)
-                                            }
-                                        } else {
-                                            val wp = getRobotCoordFromScreen(change.position, w, h, fieldWidthM, fieldHeightM, league, zoomScale, panOffset)
-                                            onWaypointsChanged(currentWaypoints.toMutableList().apply { set(selectedWaypointIndex, Waypoint(snap(wp.x), snap(wp.y), this[selectedWaypointIndex].headingRad)) })
-                                        }
-                                    } else if (selectedObstacleId != null && showObstacleControls) {
-                                        val targetObs = currentActiveObstacles.find { it.id == selectedObstacleId }
-                                        if (targetObs != null && !targetObs.locked) {
-                                            updateObstacles(currentActiveObstacles.map { obs ->
-                                                if (obs.id == selectedObstacleId) {
-                                                    when (obs) {
-                                                        is Obstacle.Circle -> obs.copy(centerX = snap(dragInitialPos.x + totalDelta.x), centerY = snap(dragInitialPos.y + totalDelta.y))
-                                                        is Obstacle.Rectangle -> obs.copy(centerX = snap(dragInitialPos.x + totalDelta.x), centerY = snap(dragInitialPos.y + totalDelta.y))
-                                                        is Obstacle.Polygon -> obs.copy(vertices = dragInitialVertices.mapIndexed { idx, v -> PathPoint(snap(v.x + totalDelta.x), snap(v.y + totalDelta.y)) })
-                                                    }
-                                                } else obs
-                                            })
-                                        }
-                                    } else if (selectedAprilTagId != null && showObstacleControls) {
-                                        val targetAt = currentActiveAprilTags.find { it.id == selectedAprilTagId }
-                                        if (targetAt != null && !targetAt.locked) {
-                                            updateAprilTags(currentActiveAprilTags.map { at -> if (at.id == selectedAprilTagId) at.copy(x = snap(dragInitialPos.x + totalDelta.x), y = snap(dragInitialPos.y + totalDelta.y)) else at })
-                                        }
-                                    } else if (selectedGamePieceId != null && showObstacleControls) {
-                                        val targetGp = currentActiveGamePieces.find { it.id == selectedGamePieceId }
-                                        if (targetGp != null && !targetGp.locked) {
-                                            updateGamePieces(currentActiveGamePieces.map { gp -> if (gp.id == selectedGamePieceId) gp.copy(x = snap(dragInitialPos.x + totalDelta.x), y = snap(dragInitialPos.y + totalDelta.y)) else gp })
-                                        }
-                                    } else if (selectedFieldWaypointId != null && showObstacleControls) {
-                                        val targetWp = currentActiveFieldWaypoints.find { it.id == selectedFieldWaypointId }
-                                        if (targetWp != null && !targetWp.locked) {
-                                            if (isDraggingFieldWaypointHeading) {
-                                                val posMeters = getRobotCoordFromScreen(change.position, w, h, fieldWidthM, fieldHeightM, league, zoomScale, panOffset)
-                                                val angle = kotlin.math.atan2(posMeters.y - targetWp.y, posMeters.x - targetWp.x)
-                                                val degrees = Math.toDegrees(angle)
-                                                val targetHeading = -degrees - 90.0
-                                                val normalizedHeading = ((targetHeading + 180.0) % 360.0 + 360.0) % 360.0 - 180.0
-                                                updateFieldWaypoints(currentActiveFieldWaypoints.map { wp ->
-                                                    if (wp.id == selectedFieldWaypointId) wp.copy(headingDegrees = if (isShiftPressed) snap(normalizedHeading) else normalizedHeading) else wp
-                                                })
-                                            } else if (isDraggingFieldWaypoint) {
-                                                updateFieldWaypoints(currentActiveFieldWaypoints.map { wp ->
-                                                    if (wp.id == selectedFieldWaypointId) wp.copy(x = snap(dragInitialPos.x + totalDelta.x), y = snap(dragInitialPos.y + totalDelta.y)) else wp
-                                                })
-                                            }
-                                        }
-                                    }
+                                     when {
+                                         selectedEventMarkerIndex != -1 && onEventMarkersChanged != null -> {
+                                             val bestPos = getClosestSplinePosition(change.position, currentWaypoints, w, h, fieldWidthM, fieldHeightM, league)
+                                             onEventMarkersChanged(currentEventMarkers.toMutableList().apply { set(selectedEventMarkerIndex, this[selectedEventMarkerIndex].copy(waypointRelativePos = bestPos)) })
+                                         }
+                                         selectedWaypointIndex != -1 -> {
+                                             when {
+                                                 isDraggingHeading -> {
+                                                     val wp = currentWaypoints[selectedWaypointIndex]
+                                                     val posMeters = getRobotCoordFromScreen(change.position, w, h, fieldWidthM, fieldHeightM, league, zoomScale, panOffset)
+                                                     val dx = posMeters.x - wp.x
+                                                     val dy = posMeters.y - wp.y
+                                                     val angle = kotlin.math.atan2(dy, dx)
+                                                     val mag = kotlin.math.sqrt(dx * dx + dy * dy)
+                                                     onWaypointsChanged(currentWaypoints.toMutableList().apply { set(selectedWaypointIndex, wp.copy(headingRad = angle, tangentMagnitude = if (isShiftPressed) snap(mag) else mag)) })
+                                                 }
+                                                 isDraggingRotation && onRotationTargetsChanged != null -> {
+                                                     val wp = currentWaypoints[selectedWaypointIndex]
+                                                     val posMeters = getRobotCoordFromScreen(change.position, w, h, fieldWidthM, fieldHeightM, league, zoomScale, panOffset)
+                                                     val angle = kotlin.math.atan2(posMeters.y - wp.y, posMeters.x - wp.x)
+                                                     val degrees = Math.toDegrees(angle)
+                                                     val existingIdx = currentRotationTargets.indexOfFirst { kotlin.math.abs(it.waypointRelativePos - selectedWaypointIndex) < 1e-3 }
+                                                     if (existingIdx != -1) {
+                                                         val newList = currentRotationTargets.toMutableList()
+                                                         newList[existingIdx] = newList[existingIdx].copy(rotationDegrees = if (isShiftPressed) snap(degrees).toDouble() else degrees)
+                                                         onRotationTargetsChanged(newList)
+                                                     } else {
+                                                         val newList = currentRotationTargets.toMutableList()
+                                                         newList.add(RotationTarget(waypointRelativePos = selectedWaypointIndex.toDouble(), rotationDegrees = if (isShiftPressed) snap(degrees).toDouble() else degrees))
+                                                         onRotationTargetsChanged(newList)
+                                                     }
+                                                 }
+                                                 else -> {
+                                                     val wp = getRobotCoordFromScreen(change.position, w, h, fieldWidthM, fieldHeightM, league, zoomScale, panOffset)
+                                                     onWaypointsChanged(currentWaypoints.toMutableList().apply { set(selectedWaypointIndex, Waypoint(snap(wp.x), snap(wp.y), this[selectedWaypointIndex].headingRad)) })
+                                                 }
+                                             }
+                                         }
+                                         selectedObstacleId != null && showObstacleControls -> {
+                                             val targetObs = currentActiveObstacles.find { it.id == selectedObstacleId }
+                                             if (targetObs != null && !targetObs.locked) {
+                                                 updateObstacles(currentActiveObstacles.map { obs ->
+                                                     if (obs.id == selectedObstacleId) {
+                                                         when (obs) {
+                                                             is Obstacle.Circle -> obs.copy(centerX = snap(dragInitialPos.x + totalDelta.x), centerY = snap(dragInitialPos.y + totalDelta.y))
+                                                             is Obstacle.Rectangle -> obs.copy(centerX = snap(dragInitialPos.x + totalDelta.x), centerY = snap(dragInitialPos.y + totalDelta.y))
+                                                             is Obstacle.Polygon -> obs.copy(vertices = dragInitialVertices.mapIndexed { idx, v -> PathPoint(snap(v.x + totalDelta.x), snap(v.y + totalDelta.y)) })
+                                                         }
+                                                     } else obs
+                                                 })
+                                             }
+                                         }
+                                         selectedAprilTagId != null && showObstacleControls -> {
+                                             val targetAt = currentActiveAprilTags.find { it.id == selectedAprilTagId }
+                                             if (targetAt != null && !targetAt.locked) {
+                                                 updateAprilTags(currentActiveAprilTags.map { at -> if (at.id == selectedAprilTagId) at.copy(x = snap(dragInitialPos.x + totalDelta.x), y = snap(dragInitialPos.y + totalDelta.y)) else at })
+                                             }
+                                         }
+                                         selectedGamePieceId != null && showObstacleControls -> {
+                                             val targetGp = currentActiveGamePieces.find { it.id == selectedGamePieceId }
+                                             if (targetGp != null && !targetGp.locked) {
+                                                 updateGamePieces(currentActiveGamePieces.map { gp -> if (gp.id == selectedGamePieceId) gp.copy(x = snap(dragInitialPos.x + totalDelta.x), y = snap(dragInitialPos.y + totalDelta.y)) else gp })
+                                             }
+                                         }
+                                         selectedFieldWaypointId != null && showObstacleControls -> {
+                                             val targetWp = currentActiveFieldWaypoints.find { it.id == selectedFieldWaypointId }
+                                             if (targetWp != null && !targetWp.locked) {
+                                                 when {
+                                                     isDraggingFieldWaypointHeading -> {
+                                                         val posMeters = getRobotCoordFromScreen(change.position, w, h, fieldWidthM, fieldHeightM, league, zoomScale, panOffset)
+                                                         val angle = kotlin.math.atan2(posMeters.y - targetWp.y, posMeters.x - targetWp.x)
+                                                         val degrees = Math.toDegrees(angle)
+                                                         val targetHeading = -degrees - 90.0
+                                                         val normalizedHeading = ((targetHeading + 180.0) % 360.0 + 360.0) % 360.0 - 180.0
+                                                         updateFieldWaypoints(currentActiveFieldWaypoints.map { wp ->
+                                                             if (wp.id == selectedFieldWaypointId) wp.copy(headingDegrees = if (isShiftPressed) snap(normalizedHeading) else normalizedHeading) else wp
+                                                         })
+                                                     }
+                                                     isDraggingFieldWaypoint -> {
+                                                         updateFieldWaypoints(currentActiveFieldWaypoints.map { wp ->
+                                                             if (wp.id == selectedFieldWaypointId) wp.copy(x = snap(dragInitialPos.x + totalDelta.x), y = snap(dragInitialPos.y + totalDelta.y)) else wp
+                                                         })
+                                                     }
+                                                 }
+                                             }
+                                         }
+                                     }
                                 }
                             }
 
@@ -684,11 +704,11 @@ fun FieldCanvas(
                 drawFieldBackground(activeImage, activeConfig, w, h)
                 if (showHeatmap) HeatmapOverlay.drawHeatmap(this, actualPath, fieldWidthM, fieldHeightM, league)
                 
-                drawFieldGrid(w, h, fieldWidthM, fieldHeightM, league)
+                drawFieldGrid(w, h, fieldWidthM, fieldHeightM, league, showCostmap = showCostmap)
                 drawFtcAllianceStations(w, h, fieldWidthM, fieldHeightM, league, activeConfig)
                 if (league == League.FTC) drawCoordinateAxes(w, h, fieldWidthM, fieldHeightM, league, textMeasurer)
 
-                drawCustomObstacles(currentActiveObstacles, w, h, fieldWidthM, fieldHeightM, league)
+                drawCustomObstacles(currentActiveObstacles, w, h, fieldWidthM, fieldHeightM, league, showCostmap = showCostmap)
                 drawGamePieces(currentActiveGamePieces, w, h, fieldWidthM, fieldHeightM, league)
                 drawAprilTags(currentActiveAprilTags, w, h, fieldWidthM, fieldHeightM, league)
                 drawFieldWaypoints(currentActiveFieldWaypoints, selectedFieldWaypointId, w, h, fieldWidthM, fieldHeightM, league)
@@ -714,47 +734,55 @@ fun FieldCanvas(
                 offset = contextMenuOffset,
                 modifier = Modifier.background(AresSurfaceElevated).border(1.dp, AresBorder, RoundedCornerShape(4.dp))
             ) {
-                if (contextTargetType == "Waypoint" && contextTargetIndex in waypoints.indices) {
-                    DropdownMenuItem(onClick = { contextMenuExpanded = false }) { Text("Edit Waypoint...", color = AresTextPrimary) }
-                    DropdownMenuItem(onClick = {
-                        onWaypointsChanged(waypoints.toMutableList().apply { removeAt(contextTargetIndex) })
-                        contextMenuExpanded = false; selectedWaypointIndex = -1
-                    }) { Text("Delete Waypoint", color = AresRed) }
-                } else if (contextTargetType == "Obstacle" && contextTargetId != null) {
-                    DropdownMenuItem(onClick = {
-                        updateObstacles(currentActiveObstacles.filter { it.id != contextTargetId })
-                        contextMenuExpanded = false; selectedObstacleId = null
-                    }) { Text("Delete Obstacle", color = AresRed) }
-                } else if (contextTargetType == "AprilTag" && contextTargetId != null) {
-                    DropdownMenuItem(onClick = {
-                        updateAprilTags(currentActiveAprilTags.filter { it.id != contextTargetId })
-                        contextMenuExpanded = false; selectedAprilTagId = null
-                    }) { Text("Delete AprilTag", color = AresRed) }
-                } else if (contextTargetType == "GamePiece" && contextTargetId != null) {
-                    val gp = currentActiveGamePieces.find { it.id == contextTargetId }
-                    if (gp != null) {
+                when {
+                    contextTargetType == "Waypoint" && contextTargetIndex in waypoints.indices -> {
+                        DropdownMenuItem(onClick = { contextMenuExpanded = false }) { Text("Edit Waypoint...", color = AresTextPrimary) }
                         DropdownMenuItem(onClick = {
-                            val nextType = if (gp.type == "Sample") "Specimen" else "Sample"
-                            updateGamePieces(currentActiveGamePieces.map { if (it.id == contextTargetId) it.copy(type = nextType) else it })
-                            contextMenuExpanded = false
-                        }) { Text("Toggle Type: ${if (gp.type == "Sample") "Specimen" else "Sample"}", color = AresTextPrimary) }
+                            onWaypointsChanged(waypoints.toMutableList().apply { removeAt(contextTargetIndex) })
+                            contextMenuExpanded = false; selectedWaypointIndex = -1
+                        }) { Text("Delete Waypoint", color = AresRed) }
                     }
-                    DropdownMenuItem(onClick = {
-                        updateGamePieces(currentActiveGamePieces.filter { it.id != contextTargetId })
-                        contextMenuExpanded = false; selectedGamePieceId = null
-                    }) { Text("Delete Game Piece", color = AresRed) }
-                } else if (contextTargetType == "FieldWaypoint" && contextTargetId != null) {
-                    DropdownMenuItem(onClick = {
-                        updateFieldWaypoints(currentActiveFieldWaypoints.filter { it.id != contextTargetId })
-                        contextMenuExpanded = false; selectedFieldWaypointId = null
-                    }) { Text("Delete Field Waypoint", color = AresRed) }
-                } else if (contextTargetType == "EventMarker" && contextTargetIndex in currentEventMarkers.indices) {
-                    DropdownMenuItem(onClick = {
-                        onEventMarkersChanged?.invoke(currentEventMarkers.toMutableList().apply { removeAt(contextTargetIndex) })
-                        contextMenuExpanded = false; selectedEventMarkerIndex = -1
-                    }) { Text("Delete Event Marker", color = AresRed) }
-                } else {
-                    DropdownMenuItem(onClick = { contextMenuExpanded = false }) { Text("Cancel", color = AresTextSecondary) }
+                    contextTargetType == "Obstacle" && contextTargetId != null -> {
+                        DropdownMenuItem(onClick = {
+                            updateObstacles(currentActiveObstacles.filter { it.id != contextTargetId })
+                            contextMenuExpanded = false; selectedObstacleId = null
+                        }) { Text("Delete Obstacle", color = AresRed) }
+                    }
+                    contextTargetType == "AprilTag" && contextTargetId != null -> {
+                        DropdownMenuItem(onClick = {
+                            updateAprilTags(currentActiveAprilTags.filter { it.id != contextTargetId })
+                            contextMenuExpanded = false; selectedAprilTagId = null
+                        }) { Text("Delete AprilTag", color = AresRed) }
+                    }
+                    contextTargetType == "GamePiece" && contextTargetId != null -> {
+                        val gp = currentActiveGamePieces.find { it.id == contextTargetId }
+                        if (gp != null) {
+                            DropdownMenuItem(onClick = {
+                                val nextType = if (gp.type == "Sample") "Specimen" else "Sample"
+                                updateGamePieces(currentActiveGamePieces.map { if (it.id == contextTargetId) it.copy(type = nextType) else it })
+                                contextMenuExpanded = false
+                            }) { Text("Toggle Type: ${if (gp.type == "Sample") "Specimen" else "Sample"}", color = AresTextPrimary) }
+                        }
+                        DropdownMenuItem(onClick = {
+                            updateGamePieces(currentActiveGamePieces.filter { it.id != contextTargetId })
+                            contextMenuExpanded = false; selectedGamePieceId = null
+                        }) { Text("Delete Game Piece", color = AresRed) }
+                    }
+                    contextTargetType == "FieldWaypoint" && contextTargetId != null -> {
+                        DropdownMenuItem(onClick = {
+                            updateFieldWaypoints(currentActiveFieldWaypoints.filter { it.id != contextTargetId })
+                            contextMenuExpanded = false; selectedFieldWaypointId = null
+                        }) { Text("Delete Field Waypoint", color = AresRed) }
+                    }
+                    contextTargetType == "EventMarker" && contextTargetIndex in currentEventMarkers.indices -> {
+                        DropdownMenuItem(onClick = {
+                            onEventMarkersChanged?.invoke(currentEventMarkers.toMutableList().apply { removeAt(contextTargetIndex) })
+                            contextMenuExpanded = false; selectedEventMarkerIndex = -1
+                        }) { Text("Delete Event Marker", color = AresRed) }
+                    }
+                    else -> {
+                        DropdownMenuItem(onClick = { contextMenuExpanded = false }) { Text("Cancel", color = AresTextSecondary) }
+                    }
                 }
             }
 

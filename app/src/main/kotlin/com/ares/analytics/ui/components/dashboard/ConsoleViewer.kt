@@ -107,12 +107,10 @@ fun ConsoleViewer(
                 "ERROR" -> showError
                 else -> true
             }
-            val matchesSearch = if (searchText.isEmpty()) {
-                true
-            } else if (regex != null) {
-                regex.containsMatchIn(msg.text)
-            } else {
-                msg.text.contains(searchText, ignoreCase = true)
+            val matchesSearch = when {
+                searchText.isEmpty() -> true
+                regex != null -> regex.containsMatchIn(msg.text)
+                else -> msg.text.contains(searchText, ignoreCase = true)
             }
             matchesSeverity && matchesSearch
         }

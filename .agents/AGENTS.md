@@ -62,3 +62,15 @@ The `PoseViewerCard` converts to degrees for display only: `Math.toDegrees(headi
 - Compile: `.\gradlew.bat :app:compileKotlin`
 - Run: `.\gradlew.bat :app:run`
 - The app depends on `ARESLib-Kotlin` via local Maven. After changing ARESLib, always run `.\gradlew.bat publishToMavenLocal` in that repo first.
+
+## Kotlin Code Style & Nested If-Else Avoidance
+- **Avoid Nested If Statements**: Do not use deeply nested or chained `if-else` blocks for conditional control flow in Kotlin.
+- **Prefer `when` Expressions**: Use clean, argument-less `when` expressions to handle multiple condition branches:
+  ```kotlin
+  when {
+      conditionA -> { ... }
+      conditionB -> { ... }
+      else -> { ... }
+  }
+  ```
+  This is more idiomatic, highly readable, and maintains zero heap allocations (Zero-GC compliance).

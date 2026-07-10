@@ -69,41 +69,44 @@ fun SessionSummaryCard(
 
         Divider(color = AresBorder, thickness = 1.dp)
 
-        if (isLoading) {
-            Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Text("Loading summary...", color = AresTextTertiary, fontSize = 12.sp)
-            }
-        } else if (summary == null) {
-            Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Text("Select a session to view aggregate stats.", color = AresTextTertiary, fontSize = 12.sp)
-            }
-        } else {
-            val s = summary!!
-            
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.weight(1f).fillMaxWidth()
-            ) {
-                item { StatItem("Avg Loop Time", String.format("%.2f ms", s.avgLoopTimeMs)) }
-                item { StatItem("P95 Loop Time", String.format("%.2f ms", s.p95LoopTimeMs)) }
-                item { StatItem("Min Battery", String.format("%.1f V", s.minBatteryVoltage)) }
-                item { StatItem("Battery Resistance", String.format("%.3f Ω", s.avgBatteryResistance)) }
-                item { StatItem("Max EKF Drift", String.format("%.3f m", s.maxEkfDrift)) }
-                item { StatItem("Avg Cross-Track Err", String.format("%.3f m", s.avgCrossTrackError)) }
-                item { StatItem("Vision Acc. Rate", String.format("%.1f %%", s.visionAcceptanceRate * 100)) }
-                item { StatItem("Avg Vision Latency", String.format("%.1f ms", s.avgVisionLatencyMs)) }
-                
-                s.motorCurrentAverages.forEach { (motor, avgAmp) ->
-                    item {
-                        StatItem("Avg $motor Curr.", String.format("%.2f A", avgAmp))
-                    }
+        when {
+            isLoading -> {
+                Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Text("Loading summary...", color = AresTextTertiary, fontSize = 12.sp)
                 }
-                
-                s.maxMotorTemps.forEach { (motor, maxTemp) ->
-                    item {
-                        StatItem("Max $motor Temp", String.format("%.1f °C", maxTemp))
+            }
+            summary == null -> {
+                Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Text("Select a session to view aggregate stats.", color = AresTextTertiary, fontSize = 12.sp)
+                }
+            }
+            else -> {
+                val s = summary!!
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.weight(1f).fillMaxWidth()
+                ) {
+                    item { StatItem("Avg Loop Time", String.format("%.2f ms", s.avgLoopTimeMs)) }
+                    item { StatItem("P95 Loop Time", String.format("%.2f ms", s.p95LoopTimeMs)) }
+                    item { StatItem("Min Battery", String.format("%.1f V", s.minBatteryVoltage)) }
+                    item { StatItem("Battery Resistance", String.format("%.3f Ω", s.avgBatteryResistance)) }
+                    item { StatItem("Max EKF Drift", String.format("%.3f m", s.maxEkfDrift)) }
+                    item { StatItem("Avg Cross-Track Err", String.format("%.3f m", s.avgCrossTrackError)) }
+                    item { StatItem("Vision Acc. Rate", String.format("%.1f %%", s.visionAcceptanceRate * 100)) }
+                    item { StatItem("Avg Vision Latency", String.format("%.1f ms", s.avgVisionLatencyMs)) }
+
+                    s.motorCurrentAverages.forEach { (motor, avgAmp) ->
+                        item {
+                            StatItem("Avg $motor Curr.", String.format("%.2f A", avgAmp))
+                        }
+                    }
+
+                    s.maxMotorTemps.forEach { (motor, maxTemp) ->
+                        item {
+                            StatItem("Max $motor Temp", String.format("%.1f °C", maxTemp))
+                        }
                     }
                 }
             }

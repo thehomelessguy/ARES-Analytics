@@ -41,6 +41,7 @@ enum class NavigationTarget(val label: String, val icon: ImageVector) {
 }
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 internal fun Sidebar(
     activeTarget: NavigationTarget,
     isConnected: Boolean,
@@ -98,21 +99,39 @@ internal fun Sidebar(
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             // Toggle terminal button
-            IconButton(onClick = onToggleTerminal, modifier = Modifier.size(36.dp)) {
-                Icon(imageVector = Icons.Default.Terminal, contentDescription = "Terminal Console", tint = AresTextSecondary, modifier = Modifier.size(20.dp))
+            TooltipBox(
+                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                tooltip = { PlainTooltip { Text("Toggle Terminal Console & Logs (Ctrl+`)") } },
+                state = rememberTooltipState()
+            ) {
+                IconButton(onClick = onToggleTerminal, modifier = Modifier.size(36.dp)) {
+                    Icon(imageVector = Icons.Default.Terminal, contentDescription = "Terminal Console", tint = AresTextSecondary, modifier = Modifier.size(20.dp))
+                }
             }
 
             // Connection status indicators
             Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // NT4 Connection status indicator
-                ConnectionIndicator(connected = isConnected, label = "NT4")
+                TooltipBox(
+                    positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                    tooltip = { PlainTooltip { Text("NT4 Telemetry Connection: ${if (isConnected) "Connected" else "Disconnected"}") } },
+                    state = rememberTooltipState()
+                ) {
+                    ConnectionIndicator(connected = isConnected, label = "NT4")
+                }
                 
                 // ADB Connection status indicator (FTC only)
                 if (league == League.FTC) {
-                    ConnectionIndicator(connected = adbConnected, label = "ADB", activeColor = AresCyan)
+                    TooltipBox(
+                        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                        tooltip = { PlainTooltip { Text("Android ADB Connection: ${if (adbConnected) "Active" else "Inactive"}") } },
+                        state = rememberTooltipState()
+                    ) {
+                        ConnectionIndicator(connected = adbConnected, label = "ADB", activeColor = AresCyan)
+                    }
                 }
             }
 

@@ -340,14 +340,19 @@ class LogParserService(
                                 val strValue = tokens[j]
                                 val key = headers[j]
                                 val doubleVal = strValue.toDoubleOrNull()
-                                if (doubleVal != null) {
-                                    batcher.add(TelemetryFrame(timestampMs, sessionId, key, doubleVal))
-                                } else if (strValue.equals("true", ignoreCase = true)) {
-                                    batcher.add(TelemetryFrame(timestampMs, sessionId, key, 1.0))
-                                } else if (strValue.equals("false", ignoreCase = true)) {
-                                    batcher.add(TelemetryFrame(timestampMs, sessionId, key, 0.0))
-                                } else if (strValue.isNotEmpty()) {
-                                    batcher.add(TelemetryFrame(timestampMs, sessionId, key, 0.0, strValue))
+                                when {
+                                    doubleVal != null -> {
+                                        batcher.add(TelemetryFrame(timestampMs, sessionId, key, doubleVal))
+                                    }
+                                    strValue.equals("true", ignoreCase = true) -> {
+                                        batcher.add(TelemetryFrame(timestampMs, sessionId, key, 1.0))
+                                    }
+                                    strValue.equals("false", ignoreCase = true) -> {
+                                        batcher.add(TelemetryFrame(timestampMs, sessionId, key, 0.0))
+                                    }
+                                    strValue.isNotEmpty() -> {
+                                        batcher.add(TelemetryFrame(timestampMs, sessionId, key, 0.0, strValue))
+                                    }
                                 }
                             }
                         }

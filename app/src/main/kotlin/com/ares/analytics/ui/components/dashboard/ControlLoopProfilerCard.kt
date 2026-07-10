@@ -62,10 +62,13 @@ fun ControlLoopProfilerCard(
         if (selectedMotor != "Select Motor") {
             scope.launch {
                 nt4ClientService.telemetryFlow.collect { frame ->
-                    if (frame.key == "$selectedMotor/TargetPosition" || frame.key == "$selectedMotor/TargetVelocity") {
-                        targetValue = frame.value as? Double
-                    } else if (frame.key == "$selectedMotor/ActualPosition" || frame.key == "$selectedMotor/ActualVelocity") {
-                        actualValue = frame.value as? Double
+                    when {
+                        frame.key == "$selectedMotor/TargetPosition" || frame.key == "$selectedMotor/TargetVelocity" -> {
+                            targetValue = frame.value as? Double
+                        }
+                        frame.key == "$selectedMotor/ActualPosition" || frame.key == "$selectedMotor/ActualVelocity" -> {
+                            actualValue = frame.value as? Double
+                        }
                     }
                 }
             }
