@@ -294,11 +294,14 @@ class LogParserService(
                 CAST("$escapedTimeCol" AS BIGINT) AS timestamp_ms,
                 '$escapedSessionId' AS session_id,
                 key,
-                CASE 
-                    WHEN LOWER(CAST(value AS VARCHAR)) = 'true' THEN 1.0
-                    WHEN LOWER(CAST(value AS VARCHAR)) = 'false' THEN 0.0
-                    ELSE TRY_CAST(value AS DOUBLE) 
-                END AS value,
+                COALESCE(
+                    CASE 
+                        WHEN LOWER(CAST(value AS VARCHAR)) = 'true' THEN 1.0
+                        WHEN LOWER(CAST(value AS VARCHAR)) = 'false' THEN 0.0
+                        ELSE TRY_CAST(value AS DOUBLE) 
+                    END,
+                    0.0
+                ) AS value,
                 CASE 
                     WHEN LOWER(CAST(value AS VARCHAR)) IN ('true', 'false') THEN NULL
                     WHEN TRY_CAST(value AS DOUBLE) IS NULL THEN CAST(value AS VARCHAR) 
