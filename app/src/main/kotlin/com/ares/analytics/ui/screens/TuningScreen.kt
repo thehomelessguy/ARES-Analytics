@@ -3,9 +3,9 @@ package com.ares.analytics.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
+import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.ui.graphics.SolidColor
@@ -57,11 +57,11 @@ fun TuningScreen(
             }
         } else {
             val grouped = state.constants.groupBy { getCategory(it.name) }
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = 340.dp),
+            LazyVerticalStaggeredGrid(
+                columns = StaggeredGridCells.Adaptive(minSize = 320.dp),
                 modifier = Modifier.weight(1f).fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalItemSpacing = 12.dp
             ) {
                 items(grouped.entries.toList()) { (category, constants) ->
                     Column(
@@ -69,17 +69,17 @@ fun TuningScreen(
                             .fillMaxWidth()
                             .background(AresSurfaceElevated, RoundedCornerShape(8.dp))
                             .border(1.dp, AresBorder, RoundedCornerShape(8.dp))
-                            .padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                            .padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Text(
                             text = category,
-                            fontSize = 14.sp,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             color = AresCyan
                         )
                         Column(
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             constants.forEach { const ->
                                 Row(
@@ -95,7 +95,9 @@ fun TuningScreen(
                                             .replace("MOTOR_", "")
                                             .replace("VISION_", "")
                                             .replace("HEADING_", "")
-                                        Text(displayName, fontSize = 12.sp, color = AresTextPrimary, fontWeight = FontWeight.Bold)
+                                            .split("_")
+                                            .joinToString(" ") { it.lowercase().replaceFirstChar { char -> char.uppercase() } }
+                                        Text(displayName, fontSize = 12.sp, color = AresTextPrimary, fontWeight = FontWeight.SemiBold)
                                         Text(const.filePath.split(java.io.File.separator).last(), fontSize = 9.sp, color = AresTextTertiary)
                                     }
 
