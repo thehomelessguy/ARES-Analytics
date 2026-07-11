@@ -184,10 +184,10 @@ class SummaryEngineService(
             framesToInsert.add(TelemetryFrame(session.createdAt, session.sessionId, "Diagnostics/System/CommsLosses", commsLosses.toDouble()))
 
             // CANbus status, motor faults, and brownout calculations
-            val canFrames = allFrames.filter { it.key.startsWith("Diagnostics/CAN/") }
-            val maxBusUtil = canFrames.filter { it.key.endsWith("BusUtilization") }.maxOfOrNull { it.value } ?: 0.0
+            val canFrames = allFrames.filter { it.key.startsWith("Diagnostics/CAN/") || it.key.startsWith("Diagnostics/CANBus/") }
+            val maxBusUtil = canFrames.filter { it.key.endsWith("BusUtilization") || it.key.endsWith("Utilization") }.maxOfOrNull { it.value } ?: 0.0
             val totalErrorCount = canFrames.filter { it.key.endsWith("ErrorCount") }.maxOfOrNull { it.value } ?: 0.0
-            val totalBusOffs = canFrames.filter { it.key.endsWith("BusOffs") }.maxOfOrNull { it.value } ?: 0.0
+            val totalBusOffs = canFrames.filter { it.key.endsWith("BusOffs") || it.key.endsWith("BusOffCount") }.maxOfOrNull { it.value } ?: 0.0
             val maxSignalLatency = canFrames.filter { it.key.endsWith("SignalLatencyMs") }.maxOfOrNull { it.value } ?: 0.0
 
             val brownoutCount = allFrames.filter { it.key == "Diagnostics/Power/BrownoutCount" }.maxOfOrNull { it.value } ?: 0.0
