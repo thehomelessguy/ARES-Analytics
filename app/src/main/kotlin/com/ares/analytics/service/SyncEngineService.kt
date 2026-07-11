@@ -402,6 +402,98 @@ class SyncEngineService(
         }
     }
 
+    suspend fun requestChatCoach(
+        request: ForensicsRequest,
+        userQuestion: String,
+        chatHistory: List<Pair<String, String>> = emptyList()
+    ): String = withContext(Dispatchers.IO) {
+        val config = environmentService.loadConfig()
+            ?: throw IllegalStateException("No active workspace configuration loaded")
+
+        val aiMode = config.aiMode ?: "STUDIO"
+        val modelName = config.geminiModel ?: "gemini-1.5-flash"
+
+        val historyStr = chatHistory.joinToString("\n") { (role, text) ->
+            if (role == "user") "User: $text" else "Coach: $text"
+        }
+
+        val prompt = """
+            You are ARES Pit Coach AI, a diagnostic copilot for FTC/FRC robotics teams.
+            You are helping the team debug their robot using the following telemetry, alerts, and forensics context.
+            
+            Diagnostics Context:
+            - Team: ${request.teamId}
+            - Session: ${request.sessionId}
+            - Alerts: ${request.alerts.joinToString { it.ruleKey }}
+            
+            Conversation History:
+            $historyStr
+            
+            Analyze the context and answer the user's question. Provide specific, concise, actionable advice (e.g. recommend PID tuning changes, check specific cables, calibrate sensors) for a robotics student. Use markdown formatting.
+            
+            User's Question: $userQuestion
+        """.trimIndent()
+
+        val jsonResponse = if (aiMode == "STUDIO") {
+            val apiKey = config.geminiApiKey ?: throw IllegalStateException("Gemini API key is not configured in settings")
+            val url = "https://generativelanguage.googleapis.com/v1beta/models/$modelName:generateContent?key=$apiKey"
+            
+            val response = httpClient.post(url) {
+                contentType(ContentType.Application.Json)
+                setBody(
+                    buildJsonObject {
+                        put("contents", buildJsonArray {
+                            add(buildJsonObject {
+                                put("parts", buildJsonArray {
+                                    add(buildJsonObject {
+                                        put("text", prompt)
+                                    })
+                                })
+                            })
+                        })
+                    }
+                )
+            }
+            if (response.status != HttpStatusCode.OK) {
+                throw Exception("Google AI Studio request failed: ${response.bodyAsText()}")
+            }
+            val resObj = response.body<JsonObject>()
+            resObj["candidates"]?.jsonArray?.get(0)?.jsonObject?.get("content")?.jsonObject?.get("parts")?.jsonArray?.get(0)?.jsonObject?.get("text")?.jsonPrimitive?.content ?: ""
+        } else {
+            val saPath = config.vertexServiceAccountPath ?: throw IllegalStateException("GCP Service Account path is not configured in settings")
+            val projectId = config.vertexProjectId ?: throw IllegalStateException("GCP Project ID is not configured in settings")
+            val location = config.vertexLocation ?: "us-central1"
+            
+            val accessToken = getVertexAccessToken(saPath)
+            val url = "https://$location-aiplatform.googleapis.com/v1/projects/$projectId/locations/$location/publishers/google/models/$modelName:generateContent"
+            
+            val response = httpClient.post(url) {
+                header(HttpHeaders.Authorization, "Bearer $accessToken")
+                contentType(ContentType.Application.Json)
+                setBody(
+                    buildJsonObject {
+                        put("contents", buildJsonArray {
+                            add(buildJsonObject {
+                                put("role", "user")
+                                put("parts", buildJsonArray {
+                                    add(buildJsonObject {
+                                        put("text", prompt)
+                                    })
+                                })
+                            })
+                        })
+                    }
+                )
+            }
+            if (response.status != HttpStatusCode.OK) {
+                throw Exception("Vertex AI request failed: ${response.bodyAsText()}")
+            }
+            val resObj = response.body<JsonObject>()
+            resObj["candidates"]?.jsonArray?.get(0)?.jsonObject?.get("content")?.jsonObject?.get("parts")?.jsonArray?.get(0)?.jsonObject?.get("text")?.jsonPrimitive?.content ?: ""
+        }
+        jsonResponse
+    }
+
     /**
      * Deletes a cloud session and removes it locally.
      */
