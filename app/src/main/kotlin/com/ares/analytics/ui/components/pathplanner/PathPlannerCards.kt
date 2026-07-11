@@ -127,15 +127,80 @@ fun EventMarkerCard(
     onChanged: (PathPlannerEventMarker) -> Unit,
     onDelete: () -> Unit
 ) {
-    var nameText by remember { mutableStateOf(marker.name) }
     var posSliderVal by remember { mutableStateOf(marker.waypointRelativePos.toFloat()) }
+    var dropdownExpanded by remember { mutableStateOf(false) }
+
+    // Parse current marker.name into structured state
+    val (initialAction, initialBool, initialDouble) = remember(marker.name) {
+        when {
+            marker.name.startsWith("SetIntakeActive(") -> {
+                val v = marker.name.removePrefix("SetIntakeActive(").removeSuffix(")").toBoolean()
+                Triple("Set Intake Active", v, null)
+            }
+            marker.name.startsWith("SetFlywheelActive(") -> {
+                val v = marker.name.removePrefix("SetFlywheelActive(").removeSuffix(")").toBoolean()
+                Triple("Set Flywheel Active", v, null)
+            }
+            marker.name.startsWith("SetTransferActive(") -> {
+                val v = marker.name.removePrefix("SetTransferActive(").removeSuffix(")").toBoolean()
+                Triple("Set Transfer Active", v, null)
+            }
+            marker.name.startsWith("SetFlywheelTargetRPM(") -> {
+                val v = marker.name.removePrefix("SetFlywheelTargetRPM(").removeSuffix(")").toDoubleOrNull() ?: 0.0
+                Triple("Set Flywheel Target RPM", null, v)
+            }
+            else -> Triple("Custom Command", null, null)
+        }
+    }
+
+    var selectedAction by remember { mutableStateOf(initialAction) }
+    var boolValue by remember { mutableStateOf(initialBool ?: true) }
+    var doubleValue by remember { mutableStateOf(initialDouble ?: 2000.0) }
+    var customName by remember { mutableStateOf(if (initialAction == "Custom Command") marker.name else "") }
 
     LaunchedEffect(marker.name) {
-        if (nameText != marker.name) nameText = marker.name
+        val (act, b, d) = when {
+            marker.name.startsWith("SetIntakeActive(") -> {
+                val v = marker.name.removePrefix("SetIntakeActive(").removeSuffix(")").toBoolean()
+                Triple("Set Intake Active", v, null)
+            }
+            marker.name.startsWith("SetFlywheelActive(") -> {
+                val v = marker.name.removePrefix("SetFlywheelActive(").removeSuffix(")").toBoolean()
+                Triple("Set Flywheel Active", v, null)
+            }
+            marker.name.startsWith("SetTransferActive(") -> {
+                val v = marker.name.removePrefix("SetTransferActive(").removeSuffix(")").toBoolean()
+                Triple("Set Transfer Active", v, null)
+            }
+            marker.name.startsWith("SetFlywheelTargetRPM(") -> {
+                val v = marker.name.removePrefix("SetFlywheelTargetRPM(").removeSuffix(")").toDoubleOrNull() ?: 0.0
+                Triple("Set Flywheel Target RPM", null, v)
+            }
+            else -> Triple("Custom Command", null, null)
+        }
+        selectedAction = act
+        if (b != null) boolValue = b
+        if (d != null) doubleValue = d
+        if (act == "Custom Command") customName = marker.name
     }
+
     LaunchedEffect(marker.waypointRelativePos) {
         if (kotlin.math.abs(posSliderVal - marker.waypointRelativePos.toFloat()) > 0.01f) {
             posSliderVal = marker.waypointRelativePos.toFloat()
+        }
+    }
+
+    // Helper to format name and trigger change
+    fun updateMarkerName(action: String, bVal: Boolean, dVal: Double, cName: String) {
+        val newName = when (action) {
+            "Set Intake Active" -> "SetIntakeActive($bVal)"
+            "Set Flywheel Active" -> "SetFlywheelActive($bVal)"
+            "Set Transfer Active" -> "SetTransferActive($bVal)"
+            "Set Flywheel Target RPM" -> "SetFlywheelTargetRPM($dVal)"
+            else -> cName
+        }
+        if (newName != marker.name) {
+            onChanged(marker.copy(name = newName, command = PathPlannerCommand(name = newName)))
         }
     }
 
@@ -152,7 +217,7 @@ fun EventMarkerCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Marker #${idx + 1}: ${marker.name}", fontSize = 12.sp, color = AresTextSecondary, fontWeight = FontWeight.Bold)
+            Text("Marker #${idx + 1}: ${marker.name}", fontSize = 11.sp, color = AresTextSecondary, fontWeight = FontWeight.Bold)
             IconButton(
                 onClick = onDelete,
                 modifier = Modifier.size(24.dp)
@@ -161,18 +226,106 @@ fun EventMarkerCard(
             }
         }
 
-        OutlinedTextField(
-            value = nameText,
-            onValueChange = { newValue ->
-                nameText = newValue
-                onChanged(marker.copy(name = newValue, command = PathPlannerCommand(name = newValue)))
-            },
-            label = { Text("Event Name", fontSize = 10.sp) },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
-            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder)
-        )
+        // Action Type Dropdown
+        Box(modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(
+                onClick = { dropdownExpanded = true },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = AresTextPrimary),
+                border = ButtonDefaults.outlinedButtonBorder.copy(width = 1.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(selectedAction, fontSize = 13.sp)
+                    Icon(imageVector = Icons.Default.ExpandMore, contentDescription = "Expand")
+                }
+            }
+            DropdownMenu(
+                expanded = dropdownExpanded,
+                onDismissRequest = { dropdownExpanded = false },
+                modifier = Modifier.background(AresSurfaceElevated).border(1.dp, AresBorder)
+            ) {
+                listOf(
+                    "Set Intake Active",
+                    "Set Flywheel Active",
+                    "Set Transfer Active",
+                    "Set Flywheel Target RPM",
+                    "Custom Command"
+                ).forEach { actionOption ->
+                    DropdownMenuItem(
+                        text = { Text(actionOption, color = AresTextPrimary) },
+                        onClick = {
+                            selectedAction = actionOption
+                            dropdownExpanded = false
+                            // Default values for new actions
+                            if (actionOption == "Custom Command" && customName.isEmpty()) {
+                                customName = "custom_event"
+                            }
+                            updateMarkerName(actionOption, boolValue, doubleValue, customName)
+                        }
+                    )
+                }
+            }
+        }
+
+        // Dynamic Parameter Inputs
+        when (selectedAction) {
+            "Set Intake Active", "Set Flywheel Active", "Set Transfer Active" -> {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("State (Active):", fontSize = 12.sp, color = AresTextPrimary)
+                    Switch(
+                        checked = boolValue,
+                        onCheckedChange = { checked ->
+                            boolValue = checked
+                            updateMarkerName(selectedAction, checked, doubleValue, customName)
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = AresCyan,
+                            checkedTrackColor = AresCyan.copy(alpha = 0.5f),
+                            uncheckedThumbColor = AresTextSecondary,
+                            uncheckedTrackColor = AresBorder
+                        )
+                    )
+                }
+            }
+            "Set Flywheel Target RPM" -> {
+                OutlinedTextField(
+                    value = if (doubleValue == 0.0) "" else doubleValue.toString(),
+                    onValueChange = { newValue ->
+                        newValue.toDoubleOrNull()?.let { d ->
+                            doubleValue = d
+                            updateMarkerName(selectedAction, boolValue, d, customName)
+                        }
+                    },
+                    label = { Text("Target RPM", fontSize = 10.sp) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder)
+                )
+            }
+            "Custom Command" -> {
+                OutlinedTextField(
+                    value = customName,
+                    onValueChange = { newValue ->
+                        customName = newValue
+                        updateMarkerName(selectedAction, boolValue, doubleValue, newValue)
+                    },
+                    label = { Text("Event Name", fontSize = 10.sp) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder)
+                )
+            }
+        }
 
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(
