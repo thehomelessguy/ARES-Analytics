@@ -30,14 +30,12 @@ import com.ares.analytics.ui.theme.*
 enum class NavigationTarget(val label: String, val icon: ImageVector) {
     DASHBOARD("Dashboard", Icons.Default.Speed),
     CLOUD("Cloud Sync", Icons.Default.Cloud),
-    REPLAY("What-If Replay", Icons.Default.VideogameAsset),
     PATH_PLANNER("Path Planner", Icons.Default.Route),
     FIELD_EDITOR("Field Editor", Icons.Default.Layers),
     SYSID("SysId", Icons.Default.Analytics),
     RUN_HISTORY("Run History", Icons.Default.TableChart),
     DATABASE_VIEWER("Database", Icons.Default.Storage),
     TUNING("Tuning", Icons.Default.Tune),
-    TRIAGE("Pit Triage", Icons.Default.Build),
     PROFILE("Profile", Icons.Default.Person),
     ADMIN("Admin Panel", Icons.Default.SupervisorAccount)
 }

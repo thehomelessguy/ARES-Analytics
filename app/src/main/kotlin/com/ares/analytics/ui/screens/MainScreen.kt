@@ -147,12 +147,6 @@ fun MainScreen(services: ServiceRegistry) {
         )
     }
 
-    val triageViewModel = remember {
-        TriageViewModel(
-            databaseService = services.databaseService,
-            scope = scope
-        )
-    }
 
     val tuningViewModel = remember {
         TuningViewModel(
@@ -615,12 +609,7 @@ fun MainScreen(services: ServiceRegistry) {
                             NavigationTarget.DATABASE_VIEWER -> DatabaseViewerScreen(
                                 databaseService = services.databaseService
                             )
-                            NavigationTarget.TRIAGE -> TriageScreen(
-                                viewModel = triageViewModel,
-                                league = currentConfig.league,
-                                diagnosticsResponse = diagnosticsResponse,
-                                robotId = currentConfig.robotId
-                            )
+
                             NavigationTarget.TUNING -> TuningScreen(
                                 viewModel = tuningViewModel,
                                 projectPath = currentConfig.projectPath ?: ""
@@ -632,7 +621,6 @@ fun MainScreen(services: ServiceRegistry) {
                                     mainViewModel.onIntent(MainIntent.SaveConfig(newConfig))
                                 }
                             )
-                            NavigationTarget.REPLAY -> ReplayScreen()
                             NavigationTarget.ADMIN -> AdminScreen(
                                 syncEngineService = services.syncEngineService,
                                 oauthService = services.oauthService,
