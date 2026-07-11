@@ -6,6 +6,8 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -470,19 +472,36 @@ fun MainScreen(services: ServiceRegistry) {
                                 }
                                 
                                 // Save Layout Input
-                                OutlinedTextField(
+                                BasicTextField(
                                     value = newLayoutName,
                                     onValueChange = { newLayoutName = it },
-                                    placeholder = { Text("Layout Name", fontSize = 11.sp, color = AresTextTertiary) },
                                     singleLine = true,
                                     textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
-                                    modifier = Modifier.width(130.dp).height(38.dp),
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedBorderColor = AresCyan,
-                                        unfocusedBorderColor = AresBorder,
-                                        focusedContainerColor = AresSurfaceElevated,
-                                        unfocusedContainerColor = AresSurfaceElevated
-                                    )
+                                    cursorBrush = SolidColor(AresCyan),
+                                    modifier = Modifier
+                                        .width(130.dp)
+                                        .height(38.dp)
+                                        .background(AresSurfaceElevated, RoundedCornerShape(6.dp))
+                                        .border(1.dp, if (newLayoutName.isNotEmpty()) AresCyan else AresBorder, RoundedCornerShape(6.dp)),
+                                    decorationBox = { innerTextField ->
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .padding(horizontal = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Box(modifier = Modifier.weight(1f)) {
+                                                if (newLayoutName.isEmpty()) {
+                                                    Text(
+                                                        text = "Layout Name",
+                                                        fontSize = 11.sp,
+                                                        color = AresTextTertiary
+                                                    )
+                                                }
+                                                innerTextField()
+                                            }
+                                        }
+                                    }
                                 )
 
                                 // Save Button
