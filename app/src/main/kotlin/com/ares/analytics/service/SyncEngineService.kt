@@ -494,6 +494,218 @@ class SyncEngineService(
         jsonResponse
     }
 
+    suspend fun requestSqlAnalysis(
+        userQuestion: String,
+        databaseService: DatabaseService
+    ): String = withContext(Dispatchers.IO) {
+        val config = environmentService.loadConfig()
+            ?: throw IllegalStateException("No active workspace configuration loaded")
+
+        val aiMode = config.aiMode ?: "STUDIO"
+        val modelName = config.geminiModel ?: "gemini-1.5-flash"
+
+        val schemaPrompt = """
+            You are ARES SQL Data Analyst, a diagnostic agent for a robotics team telemetry database.
+            We run on DuckDB.
+            
+            Database Tables:
+            1. `sessions`:
+               - `session_id` VARCHAR (PRIMARY KEY)
+               - `team_id` VARCHAR
+               - `season_id` VARCHAR
+               - `robot_id` VARCHAR
+               - `created_at` BIGINT (epoch ms)
+               - `duration_ms` BIGINT
+               - `tags` VARCHAR (json array of strings)
+               - `match_number` BIGINT
+               - `alliance_color` VARCHAR
+            2. `session_summaries`:
+               - `session_id` VARCHAR (PRIMARY KEY)
+               - `team_id` VARCHAR
+               - `season_id` VARCHAR
+               - `robot_id` VARCHAR
+               - `created_at` BIGINT
+               - `duration_ms` BIGINT
+               - `min_battery_voltage` DOUBLE
+               - `max_ekf_drift` DOUBLE
+               - `avg_loop_time_ms` DOUBLE
+               - `p95_loop_time_ms` DOUBLE
+               - `motor_current_averages` VARCHAR (json map of motor names to averages, e.g. '{"fl": 2.5, "fr": 2.3}')
+               - `vision_acceptance_rate` DOUBLE
+               - `avg_cross_track_error` DOUBLE
+               - `avg_battery_resistance` DOUBLE
+               - `max_motor_temps` VARCHAR (json map)
+               - `avg_vision_latency_ms` DOUBLE
+            3. `alerts`:
+               - `alert_id` VARCHAR (PRIMARY KEY)
+               - `session_id` VARCHAR
+               - `rule_key` VARCHAR
+               - `trigger_timestamp_ms` BIGINT
+               - `resolve_timestamp_ms` BIGINT
+               - `duration_ms` BIGINT
+               - `peak_value` DOUBLE
+               - `triaged` BIGINT (0 or 1)
+
+            Task: Generate a single read-only SQL SELECT statement to extract the data needed to answer this user question.
+            Provide ONLY a JSON object matching this schema:
+            {
+              "sql": "SELECT ... FROM session_summaries ..."
+            }
+            Do NOT run modifying queries (INSERT, UPDATE, DELETE, DROP). Keep it strictly read-only.
+            
+            User's Question: $userQuestion
+        """.trimIndent()
+
+        val jsonResponse = if (aiMode == "STUDIO") {
+            val apiKey = config.geminiApiKey ?: throw IllegalStateException("Gemini API key is not configured in settings")
+            val url = "https://generativelanguage.googleapis.com/v1beta/models/$modelName:generateContent?key=$apiKey"
+            
+            val response = httpClient.post(url) {
+                contentType(ContentType.Application.Json)
+                setBody(
+                    buildJsonObject {
+                        put("contents", buildJsonArray {
+                            add(buildJsonObject {
+                                put("parts", buildJsonArray {
+                                    add(buildJsonObject {
+                                        put("text", schemaPrompt)
+                                    })
+                                })
+                            })
+                        })
+                    }
+                )
+            }
+            if (response.status != HttpStatusCode.OK) {
+                throw Exception("Google AI Studio request failed: ${response.bodyAsText()}")
+            }
+            val resObj = response.body<JsonObject>()
+            resObj["candidates"]?.jsonArray?.get(0)?.jsonObject?.get("content")?.jsonObject?.get("parts")?.jsonArray?.get(0)?.jsonObject?.get("text")?.jsonPrimitive?.content ?: "{}"
+        } else {
+            val saPath = config.vertexServiceAccountPath ?: throw IllegalStateException("GCP Service Account path is not configured in settings")
+            val projectId = config.vertexProjectId ?: throw IllegalStateException("GCP Project ID is not configured in settings")
+            val location = config.vertexLocation ?: "us-central1"
+            
+            val accessToken = getVertexAccessToken(saPath)
+            val url = "https://$location-aiplatform.googleapis.com/v1/projects/$projectId/locations/$location/publishers/google/models/$modelName:generateContent"
+            
+            val response = httpClient.post(url) {
+                header(HttpHeaders.Authorization, "Bearer $accessToken")
+                contentType(ContentType.Application.Json)
+                setBody(
+                    buildJsonObject {
+                        put("contents", buildJsonArray {
+                            add(buildJsonObject {
+                                put("role", "user")
+                                put("parts", buildJsonArray {
+                                    add(buildJsonObject {
+                                        put("text", schemaPrompt)
+                                    })
+                                })
+                            })
+                        })
+                    }
+                )
+            }
+            if (response.status != HttpStatusCode.OK) {
+                throw Exception("Vertex AI request failed: ${response.bodyAsText()}")
+            }
+            val resObj = response.body<JsonObject>()
+            resObj["candidates"]?.jsonArray?.get(0)?.jsonObject?.get("content")?.jsonObject?.get("parts")?.jsonArray?.get(0)?.jsonObject?.get("text")?.jsonPrimitive?.content ?: "{}"
+        }
+
+        val sanitizedJson = jsonResponse.replace(Regex("```(?:json)?\\n?(.*?)\\n?```", RegexOption.DOT_MATCHES_ALL), "$1").trim()
+        val sqlQuery = try {
+            val parsed = Json { ignoreUnknownKeys = true }.parseToJsonElement(sanitizedJson).jsonObject
+            parsed["sql"]?.jsonPrimitive?.content ?: throw IllegalArgumentException("No SQL generated")
+        } catch (e: Exception) {
+            return@withContext "I was unable to formulate a SQL query to extract the data. Details: $sanitizedJson"
+        }
+
+        val queryResult = try {
+            databaseService.executeQueryRaw(sqlQuery)
+        } catch (e: Exception) {
+            return@withContext "Failed to execute generated SQL query:\n```sql\n$sqlQuery\n```\nError: ${e.message}"
+        }
+
+        val summaryPrompt = """
+            You are ARES SQL Data Analyst. 
+            The user asked: "$userQuestion"
+            
+            To answer it, we ran this SQL query:
+            ```sql
+            $sqlQuery
+            ```
+            
+            And got these results:
+            Columns: ${queryResult.columns.joinToString(", ")}
+            Rows:
+            ${queryResult.rows.joinToString("\n") { it.joinToString(", ") }}
+            
+            Write a clear, concise, and helpful summary answering the user's question based on the retrieved data. Use markdown formatting. Mention match numbers or averages clearly.
+        """.trimIndent()
+
+        val finalResponse = if (aiMode == "STUDIO") {
+            val apiKey = config.geminiApiKey ?: throw IllegalStateException("Gemini API key is not configured in settings")
+            val url = "https://generativelanguage.googleapis.com/v1beta/models/$modelName:generateContent?key=$apiKey"
+            
+            val response = httpClient.post(url) {
+                contentType(ContentType.Application.Json)
+                setBody(
+                    buildJsonObject {
+                        put("contents", buildJsonArray {
+                            add(buildJsonObject {
+                                put("parts", buildJsonArray {
+                                    add(buildJsonObject {
+                                        put("text", summaryPrompt)
+                                    })
+                                })
+                            })
+                        })
+                    }
+                )
+            }
+            if (response.status != HttpStatusCode.OK) {
+                throw Exception("Google AI Studio request failed: ${response.bodyAsText()}")
+            }
+            val resObj = response.body<JsonObject>()
+            resObj["candidates"]?.jsonArray?.get(0)?.jsonObject?.get("content")?.jsonObject?.get("parts")?.jsonArray?.get(0)?.jsonObject?.get("text")?.jsonPrimitive?.content ?: ""
+        } else {
+            val saPath = config.vertexServiceAccountPath ?: throw IllegalStateException("GCP Service Account path is not configured in settings")
+            val projectId = config.vertexProjectId ?: throw IllegalStateException("GCP Project ID is not configured in settings")
+            val location = config.vertexLocation ?: "us-central1"
+            
+            val accessToken = getVertexAccessToken(saPath)
+            val url = "https://$location-aiplatform.googleapis.com/v1/projects/$projectId/locations/$location/publishers/google/models/$modelName:generateContent"
+            
+            val response = httpClient.post(url) {
+                header(HttpHeaders.Authorization, "Bearer $accessToken")
+                contentType(ContentType.Application.Json)
+                setBody(
+                    buildJsonObject {
+                        put("contents", buildJsonArray {
+                            add(buildJsonObject {
+                                put("role", "user")
+                                put("parts", buildJsonArray {
+                                    add(buildJsonObject {
+                                        put("text", summaryPrompt)
+                                    })
+                                })
+                            })
+                        })
+                    }
+                )
+            }
+            if (response.status != HttpStatusCode.OK) {
+                throw Exception("Vertex AI request failed: ${response.bodyAsText()}")
+            }
+            val resObj = response.body<JsonObject>()
+            resObj["candidates"]?.jsonArray?.get(0)?.jsonObject?.get("content")?.jsonObject?.get("parts")?.jsonArray?.get(0)?.jsonObject?.get("text")?.jsonPrimitive?.content ?: ""
+        }
+        
+        finalResponse
+    }
+
     /**
      * Deletes a cloud session and removes it locally.
      */

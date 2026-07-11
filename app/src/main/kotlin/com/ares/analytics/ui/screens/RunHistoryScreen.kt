@@ -3,6 +3,10 @@ package com.ares.analytics.ui.screens
 import androidx.compose.animation.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -27,12 +31,19 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Chat
+import androidx.compose.ui.graphics.SolidColor
 import com.ares.analytics.service.DatabaseService
+import com.ares.analytics.service.SyncEngineService
 import com.ares.analytics.shared.Session
 import com.ares.analytics.shared.SessionSummary
 import com.ares.analytics.shared.TelemetryFrame
 import com.ares.analytics.ui.theme.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.awt.Cursor
 import java.time.Instant
@@ -80,11 +91,20 @@ data class RowDefinition(
 )
 
 @Composable
-fun RunHistoryScreen(databaseService: DatabaseService) {
+fun RunHistoryScreen(
+    databaseService: DatabaseService,
+    syncEngineService: SyncEngineService
+) {
+    val scope = rememberCoroutineScope()
     var sessions by remember { mutableStateOf<List<Session>>(emptyList()) }
     var summaries by remember { mutableStateOf<Map<String, SessionSummary>>(emptyMap()) }
     var diagnosticsMap by remember { mutableStateOf<Map<String, Map<String, Double>>>(emptyMap()) }
     var isLoading by remember { mutableStateOf(true) }
+
+    var isAiAnalystOpen by remember { mutableStateOf(false) }
+    val analystChatHistory = remember { mutableStateListOf<Pair<String, String>>() }
+    var userQueryText by remember { mutableStateOf("") }
+    var isAnalystLoading by remember { mutableStateOf(false) }
 
     var selectedRowForGraph by remember { mutableStateOf<RowDefinition?>(null) }
 
@@ -226,30 +246,53 @@ fun RunHistoryScreen(databaseService: DatabaseService) {
         allRows.groupBy { it.category }
     }
 
-    Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        // Title Row
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+    Row(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier.weight(1f).fillMaxHeight().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    "Robot Run History Spreadsheet",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = AresTextPrimary
-                )
-                Text(
-                    "Interactive matrix of session telemetry & control constants. Click any row header to chart its values.",
-                    fontSize = 13.sp,
-                    color = AresTextSecondary
-                )
+            // Title Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        "Robot Run History Spreadsheet",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = AresTextPrimary
+                    )
+                    Text(
+                        "Interactive matrix of session telemetry & control constants. Click any row header to chart its values.",
+                        fontSize = 13.sp,
+                        color = AresTextSecondary
+                    )
+                }
+
+                Button(
+                    onClick = { isAiAnalystOpen = !isAiAnalystOpen },
+                    colors = ButtonDefaults.buttonColors(containerColor = if (isAiAnalystOpen) AresCyan.copy(alpha = 0.2f) else AresCyan),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, AresCyan),
+                    contentPadding = PaddingValues(horizontal = 12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AutoAwesome,
+                        contentDescription = null,
+                        tint = if (isAiAnalystOpen) AresCyan else AresBackground,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = "AI Run Analyst",
+                        color = if (isAiAnalystOpen) AresCyan else AresBackground,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
-        }
 
         // Spreadsheet Container
         Surface(
@@ -416,6 +459,171 @@ fun RunHistoryScreen(databaseService: DatabaseService) {
                 }
             }
         }
+    }
+
+    // Collapsible AI Analyst side panel!
+    AnimatedVisibility(
+        visible = isAiAnalystOpen,
+        enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(),
+        exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut()
+    ) {
+        Column(
+            modifier = Modifier
+                .width(360.dp)
+                .fillMaxHeight()
+                .background(AresSurfaceElevated)
+                .border(1.dp, AresBorder)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = AresCyan)
+                    Text("AI Telemetry SQL Analyst", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AresTextPrimary)
+                }
+                IconButton(
+                    onClick = { isAiAnalystOpen = false },
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(Icons.Default.Close, contentDescription = "Close", tint = AresTextSecondary, modifier = Modifier.size(16.dp))
+                }
+            }
+
+            HorizontalDivider(color = AresBorder)
+
+            val listState = rememberLazyListState()
+            LaunchedEffect(analystChatHistory.size) {
+                if (analystChatHistory.isNotEmpty()) {
+                    listState.animateScrollToItem(analystChatHistory.size - 1)
+                }
+            }
+
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .background(AresSurface, RoundedCornerShape(8.dp))
+                    .border(1.dp, AresBorder, RoundedCornerShape(8.dp))
+                    .padding(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                item {
+                    Text(
+                        text = "Ask me to generate SQL queries and summarize cross-session telemetry trends (e.g., 'What is our average EKF drift?' or 'List matches where battery fell below 9.5V').",
+                        fontSize = 11.sp,
+                        color = AresTextSecondary
+                    )
+                }
+
+                items(analystChatHistory) { (role, msg) ->
+                    val isUser = role == "user"
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth(0.85f)
+                                .background(
+                                    color = if (isUser) AresCyan.copy(alpha = 0.15f) else AresSurfaceElevated,
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .border(1.dp, if (isUser) AresCyan else AresBorder, RoundedCornerShape(8.dp))
+                                .padding(8.dp)
+                        ) {
+                            Text(
+                                text = if (isUser) "You" else "SQL Analyst",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isUser) AresCyan else AresTextSecondary
+                            )
+                            Text(text = msg, fontSize = 11.sp, color = AresTextPrimary)
+                        }
+                    }
+                }
+
+                if (isAnalystLoading) {
+                    item {
+                        CircularProgressIndicator(
+                            color = AresCyan,
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                BasicTextField(
+                    value = userQueryText,
+                    onValueChange = { userQueryText = it },
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
+                    cursorBrush = SolidColor(AresCyan),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(36.dp)
+                        .background(AresSurface, RoundedCornerShape(6.dp))
+                        .border(1.dp, AresBorder, RoundedCornerShape(6.dp)),
+                    decorationBox = { innerTextField ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(modifier = Modifier.weight(1f)) {
+                                if (userQueryText.isEmpty()) {
+                                    Text("Ask database analyst...", fontSize = 11.sp, color = AresTextTertiary)
+                                }
+                                innerTextField()
+                            }
+                        }
+                    }
+                )
+
+                Button(
+                    onClick = {
+                        if (userQueryText.trim().isNotEmpty() && !isAnalystLoading) {
+                            val queryCopy = userQueryText.trim()
+                            analystChatHistory.add(Pair("user", queryCopy))
+                            userQueryText = ""
+                            isAnalystLoading = true
+                            scope.launch {
+                                try {
+                                    val reply = syncEngineService.requestSqlAnalysis(queryCopy, databaseService)
+                                    analystChatHistory.add(Pair("analyst", reply))
+                                } catch (e: Exception) {
+                                    analystChatHistory.add(Pair("analyst", "Error: ${e.message ?: "Failed to analyze query."}"))
+                                } finally {
+                                    isAnalystLoading = false
+                                }
+                            }
+                        }
+                    },
+                    enabled = userQueryText.trim().isNotEmpty() && !isAnalystLoading,
+                    modifier = Modifier.height(36.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = AresCyan),
+                    shape = RoundedCornerShape(6.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp)
+                ) {
+                    Icon(Icons.Default.Send, contentDescription = null, tint = AresBackground, modifier = Modifier.size(16.dp))
+                }
+            }
+        }
+    }
     }
 
     // Row Graphing overlay Modal

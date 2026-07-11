@@ -604,7 +604,8 @@ fun MainScreen(services: ServiceRegistry) {
                                 sessionId = primarySessionId
                             )
                             NavigationTarget.RUN_HISTORY -> RunHistoryScreen(
-                                databaseService = services.databaseService
+                                databaseService = services.databaseService,
+                                syncEngineService = services.syncEngineService
                             )
                             NavigationTarget.DATABASE_VIEWER -> DatabaseViewerScreen(
                                 databaseService = services.databaseService
