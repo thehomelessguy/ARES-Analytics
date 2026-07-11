@@ -56,84 +56,113 @@ fun TuningScreen(
                 Text("No tunable constants found in project workspace. (Scans TunerConstants.kt/Constants.kt/RobotConfig.java)", color = AresTextTertiary, fontSize = 12.sp)
             }
         } else {
+            val grouped = state.constants.groupBy { getCategory(it.name) }
             LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = 280.dp),
+                columns = GridCells.Adaptive(minSize = 340.dp),
                 modifier = Modifier.weight(1f).fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                items(state.constants) { const ->
+                items(grouped.entries.toList()) { (category, constants) ->
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(AresSurfaceElevated, RoundedCornerShape(8.dp))
                             .border(1.dp, AresBorder, RoundedCornerShape(8.dp))
-                            .padding(12.dp),
+                            .padding(14.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Column {
-                            Text(
-                                text = const.name,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = AresTextPrimary,
-                                maxLines = 1
-                            )
-                            Text(
-                                text = const.filePath.split(java.io.File.separator).last(),
-                                fontSize = 10.sp,
-                                color = AresTextSecondary
-                            )
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        Text(
+                            text = category,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AresCyan
+                        )
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            var textValue by remember(const.value) { mutableStateOf(const.value.toString()) }
-                            BasicTextField(
-                                value = textValue,
-                                onValueChange = { textValue = it },
-                                singleLine = true,
-                                textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
-                                cursorBrush = SolidColor(AresCyan),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(36.dp)
-                                    .background(AresSurface, RoundedCornerShape(6.dp))
-                                    .border(1.dp, AresBorder, RoundedCornerShape(6.dp)),
-                                decorationBox = { innerTextField ->
-                                    Row(
+                            constants.forEach { const ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        val displayName = const.name
+                                            .replace("PATH_TRANSLATION_", "")
+                                            .replace("PATH_ROTATION_", "")
+                                            .replace("PINPOINT_", "")
+                                            .replace("MOTOR_", "")
+                                            .replace("VISION_", "")
+                                            .replace("HEADING_", "")
+                                            .split("_")
+                                            .joinToString(" ") { it.lowercase().replaceFirstChar { char -> char.uppercase() } }
+                                        Text(displayName, fontSize = 12.sp, color = AresTextPrimary, fontWeight = FontWeight.SemiBold)
+                                        Text(const.filePath.split(java.io.File.separator).last(), fontSize = 9.sp, color = AresTextTertiary)
+                                    }
+
+                                    var textValue by remember(const.value) { mutableStateOf(const.value?.toString() ?: "") }
+                                    BasicTextField(
+                                        value = textValue,
+                                        onValueChange = { textValue = it },
+                                        singleLine = true,
+                                        textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
+                                        cursorBrush = SolidColor(AresCyan),
                                         modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(horizontal = 8.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Box(modifier = Modifier.weight(1f)) {
-                                            innerTextField()
+                                            .width(90.dp)
+                                            .height(32.dp)
+                                            .background(AresSurface, RoundedCornerShape(6.dp))
+                                            .border(1.dp, AresBorder, RoundedCornerShape(6.dp)),
+                                        decorationBox = { innerTextField ->
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .padding(horizontal = 8.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Box(modifier = Modifier.weight(1f)) {
+                                                    if (textValue.isEmpty()) {
+                                                        Text("null", fontSize = 11.sp, color = AresTextTertiary)
+                                                    }
+                                                    innerTextField()
+                                                }
+                                            }
                                         }
+                                    )
+                                    Button(
+                                        onClick = {
+                                            val newVal = textValue.toDoubleOrNull()
+                                            if (newVal != null) {
+                                                viewModel.onIntent(TuningIntent.SaveConstant(const, newVal))
+                                            }
+                                        },
+                                        modifier = Modifier.height(32.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = AresCyan),
+                                        shape = RoundedCornerShape(6.dp),
+                                        contentPadding = PaddingValues(horizontal = 10.dp)
+                                    ) {
+                                        Text("Save", color = AresBackground, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                     }
                                 }
-                            )
-                            Button(
-                                onClick = {
-                                    val newVal = textValue.toDoubleOrNull()
-                                    if (newVal != null) {
-                                        viewModel.onIntent(TuningIntent.SaveConstant(const, newVal))
-                                    }
-                                },
-                                modifier = Modifier.height(36.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = AresCyan),
-                                shape = RoundedCornerShape(6.dp),
-                                contentPadding = PaddingValues(horizontal = 14.dp)
-                            ) {
-                                Text("Save", color = AresBackground, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
                 }
             }
         }
+    }
+}
+
+private fun getCategory(name: String): String {
+    return when {
+        name.startsWith("PATH_TRANSLATION_") -> "Path Translation PID"
+        name.startsWith("PATH_ROTATION_") -> "Path Rotation PID"
+        name.startsWith("HEADING_") -> "Heading Lock PID"
+        name.startsWith("DRIVE_") || name.startsWith("TRACK_") || name.startsWith("WHEEL_") -> "Drivetrain Config"
+        name.startsWith("ODOM_") -> "EKF Process Noise (Q)"
+        name.startsWith("PINPOINT_") -> "GoBilda Pinpoint Odometry"
+        name.startsWith("MOTOR_") -> "Motor Coefficients"
+        name.startsWith("VISION_") -> "Limelight Vision Rejection"
+        else -> "General Constants"
     }
 }

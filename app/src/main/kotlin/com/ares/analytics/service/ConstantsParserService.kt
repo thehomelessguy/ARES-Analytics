@@ -6,7 +6,7 @@ import java.io.File
 
 data class TunableConstant(
     val name: String,
-    val value: Double,
+    val value: Double?,
     val filePath: String,
     val lineIndex: Int, // 0-indexed line number in file
     val isKotlin: Boolean
@@ -14,8 +14,8 @@ data class TunableConstant(
 
 class ConstantsParserService {
 
-    private val kotlinRegex = Regex("""(?:val|var)\s+([A-Z_0-9]+)\s*=\s*(-?\d+\.?\d*)""")
-    private val javaRegex = Regex("""double\s+([A-Z_0-9]+)\s*=\s*(-?\d+\.?\d*);""")
+    private val kotlinRegex = Regex("""(?:val|var)\s+([A-Z_0-9]+)(?:\s*:\s*[a-zA-Z0-9\?]+)?\s*=\s*(-?\d+\.?\d*|null)""")
+    private val javaRegex = Regex("""double\s+([A-Z_0-9]+)\s*=\s*(-?\d+\.?\d*|null);""")
 
     suspend fun loadTunableConstants(projectPath: String): List<TunableConstant> = withContext(Dispatchers.IO) {
         val root = File(projectPath)
@@ -33,7 +33,8 @@ class ConstantsParserService {
                 val match = if (isKotlin) kotlinRegex.find(line) else javaRegex.find(line)
                 if (match != null) {
                     val name = match.groupValues[1]
-                    val value = match.groupValues[2].toDoubleOrNull() ?: continue
+                    val valueStr = match.groupValues[2]
+                    val value = if (valueStr == "null") null else valueStr.toDoubleOrNull()
                     list.add(
                         TunableConstant(
                             name = name,
@@ -58,11 +59,9 @@ class ConstantsParserService {
 
         val originalLine = lines[constant.lineIndex]
         val newLine = if (constant.isKotlin) {
-            // Replace value in e.g. "val MY_CONST = 1.2"
-            originalLine.replace(Regex("""=\s*(-?\d+\.?\d*)"""), "= $newValue")
+            originalLine.replace(Regex("""=\s*(-?\d+\.?\d*|null)"""), "= $newValue")
         } else {
-            // Replace value in e.g. "double MY_CONST = 1.2;"
-            originalLine.replace(Regex("""=\s*(-?\d+\.?\d*);"""), "= $newValue;")
+            originalLine.replace(Regex("""=\s*(-?\d+\.?\d*|null);"""), "= $newValue;")
         }
 
         lines[constant.lineIndex] = newLine
