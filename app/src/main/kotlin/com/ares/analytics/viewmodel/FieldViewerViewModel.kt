@@ -32,6 +32,7 @@ data class FieldViewerState(
     val visionY: Double? = null,
     val visionHeading: Double? = null,
     val visionPoses: Map<Int, Double> = emptyMap(),
+    val visionHasTarget: Boolean = false,
     val poseHistory: List<Waypoint> = emptyList(),
     val liveGamePieces: Map<Int, GamePiece> = emptyMap(),
     val isConnected: Boolean = false,
@@ -56,7 +57,16 @@ class FieldViewerViewModel(
     init {
         scope.launch {
             nt4ClientService.isConnected.collect { connected ->
-                _state.update { it.copy(isConnected = connected) }
+                _state.update { currentState ->
+                    currentState.copy(
+                        isConnected = connected,
+                        visionHasTarget = if (connected) currentState.visionHasTarget else false,
+                        visionX = if (connected && currentState.visionHasTarget) currentState.visionX else null,
+                        visionY = if (connected && currentState.visionHasTarget) currentState.visionY else null,
+                        visionHeading = if (connected && currentState.visionHasTarget) currentState.visionHeading else null,
+                        visionPoses = if (connected && currentState.visionHasTarget) currentState.visionPoses else emptyMap()
+                    )
+                }
             }
         }
         scope.launch {
@@ -76,17 +86,31 @@ class FieldViewerViewModel(
                         "Drive/Odom_X", "pinpoint_x", "pinpoint/x" -> newState = newState.copy(odomX = value)
                         "Drive/Odom_Y", "pinpoint_y", "pinpoint/y" -> newState = newState.copy(odomY = value)
                         "Drive/Odom_Heading", "pinpoint_heading", "pinpoint/heading" -> newState = newState.copy(odomHeading = value)
-                        "Vision/Pose_X", "Vision/Pose/X" -> newState = newState.copy(visionX = value)
-                        "Vision/Pose_Y", "Vision/Pose/Y" -> newState = newState.copy(visionY = value)
-                        "Vision/Pose_Heading", "Vision/Pose/Heading" -> newState = newState.copy(visionHeading = value)
+                        "Vision/HasTarget" -> {
+                            val hasTarget = value > 0.5
+                            newState = newState.copy(
+                                visionHasTarget = hasTarget,
+                                visionX = if (hasTarget) newState.visionX else null,
+                                visionY = if (hasTarget) newState.visionY else null,
+                                visionHeading = if (hasTarget) newState.visionHeading else null,
+                                visionPoses = if (hasTarget) newState.visionPoses else emptyMap()
+                            )
+                        }
+                        "Vision/Pose_X", "Vision/Pose/X" -> newState = newState.copy(visionX = if (newState.visionHasTarget) value else null)
+                        "Vision/Pose_Y", "Vision/Pose/Y" -> newState = newState.copy(visionY = if (newState.visionHasTarget) value else null)
+                        "Vision/Pose_Heading", "Vision/Pose/Heading" -> newState = newState.copy(visionHeading = if (newState.visionHasTarget) value else null)
                     }
 
                     if (key.startsWith("Vision/PoseArray/") || key.startsWith("AdvantageScope/VisionPose/")) {
-                        val idx = key.substringAfterLast("/").toIntOrNull()
-                        if (idx != null) {
-                            val newMap = newState.visionPoses.toMutableMap()
-                            newMap[idx] = value
-                            newState = newState.copy(visionPoses = newMap)
+                        if (newState.visionHasTarget) {
+                            val idx = key.substringAfterLast("/").toIntOrNull()
+                            if (idx != null) {
+                                val newMap = newState.visionPoses.toMutableMap()
+                                newMap[idx] = value
+                                newState = newState.copy(visionPoses = newMap)
+                            }
+                        } else {
+                            newState = newState.copy(visionPoses = emptyMap())
                         }
                     }
 

@@ -290,6 +290,30 @@ fun DrawScope.drawRobotRepresentations(
         
         drawContext.canvas.save()
         drawContext.transform.rotate(degrees = -Math.toDegrees(estimatedPose.headingRad).toFloat() - 90f, pivot = robotOffset)
+
+        // Draw Limelight FOV Cone projecting forward (+X robot-relative points RIGHT in this rotated context)
+        val cameraOffsetPx = ((0.18 / fieldWidthM) * w).toFloat()
+        val rangePx = ((4.0 / fieldWidthM) * w).toFloat()
+        val fovCenter = Offset(robotOffset.x + cameraOffsetPx, robotOffset.y)
+        
+        drawArc(
+            color = AresGold.copy(alpha = 0.08f),
+            startAngle = -30f,
+            sweepAngle = 60f,
+            useCenter = true,
+            topLeft = Offset(fovCenter.x - rangePx, fovCenter.y - rangePx),
+            size = Size(rangePx * 2f, rangePx * 2f)
+        )
+        drawArc(
+            color = AresGold.copy(alpha = 0.25f),
+            startAngle = -30f,
+            sweepAngle = 60f,
+            useCenter = true,
+            topLeft = Offset(fovCenter.x - rangePx, fovCenter.y - rangePx),
+            size = Size(rangePx * 2f, rangePx * 2f),
+            style = Stroke(width = 1.dp.toPx(), pathEffect = pathCache.dashEffect4)
+        )
+
         drawRect(color = AresAmber.copy(alpha = 0.15f), topLeft = Offset(robotOffset.x - robotSizePx / 2, robotOffset.y - robotSizePx / 2), size = Size(robotSizePx, robotSizePx))
         drawRect(color = AresAmber, topLeft = Offset(robotOffset.x - robotSizePx / 2, robotOffset.y - robotSizePx / 2), size = Size(robotSizePx, robotSizePx), style = Stroke(width = 1.5.dp.toPx(), pathEffect = pathCache.dashEffect10))
         drawLine(color = AresAmber, start = Offset(robotOffset.x + robotSizePx / 2, robotOffset.y - robotSizePx / 2), end = Offset(robotOffset.x + robotSizePx / 2, robotOffset.y + robotSizePx / 2), strokeWidth = 2.dp.toPx())

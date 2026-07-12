@@ -53,19 +53,21 @@ fun FieldViewerCard(
     var showVisionPoses by remember { mutableStateOf(true) }
     var layersMenuExpanded by remember { mutableStateOf(false) }
 
-    val activeVisionPoses = remember(state.visionPoses.size, state.visionX, state.visionY, state.visionHeading) {
+    val activeVisionPoses = remember(state.visionPoses.size, state.visionX, state.visionY, state.visionHeading, state.visionHasTarget) {
         val list = mutableListOf<Waypoint>()
-        val maxIndex = state.visionPoses.keys.maxOrNull() ?: -1
-        for (i in 0..maxIndex step 3) {
-            val vx = state.visionPoses[i]
-            val vy = state.visionPoses[i + 1]
-            val vh = state.visionPoses[i + 2]
-            if (vx != null && vy != null && vh != null) {
-                list.add(Waypoint(vx, vy, vh))
+        if (state.visionHasTarget) {
+            val maxIndex = state.visionPoses.keys.maxOrNull() ?: -1
+            for (i in 0..maxIndex step 3) {
+                val vx = state.visionPoses[i]
+                val vy = state.visionPoses[i + 1]
+                val vh = state.visionPoses[i + 2]
+                if (vx != null && vy != null && vh != null) {
+                    list.add(Waypoint(vx, vy, vh))
+                }
             }
-        }
-        if (list.isEmpty() && state.visionX != null && state.visionY != null && state.visionHeading != null) {
-            list.add(Waypoint(state.visionX!!, state.visionY!!, state.visionHeading!!))
+            if (list.isEmpty() && state.visionX != null && state.visionY != null && state.visionHeading != null) {
+                list.add(Waypoint(state.visionX!!, state.visionY!!, state.visionHeading!!))
+            }
         }
         list
     }
