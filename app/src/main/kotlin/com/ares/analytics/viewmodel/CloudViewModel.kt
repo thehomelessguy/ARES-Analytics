@@ -357,10 +357,13 @@ class CloudViewModel(
 
             val runs = logs.groupBy {
                 val nameWithoutExt = it.name.substringBeforeLast(".")
-                if (nameWithoutExt.length > 15 && nameWithoutExt.takeLast(15).matches(Regex("\\d{8}_\\d{6}"))) {
-                    nameWithoutExt.takeLast(15)
-                } else {
-                    it.name
+                when {
+                    nameWithoutExt.startsWith("action_log_") -> nameWithoutExt.substringAfter("action_log_")
+                    nameWithoutExt.startsWith("ares_log_") -> nameWithoutExt.substringAfter("ares_log_")
+                    nameWithoutExt.length > 15 && nameWithoutExt.takeLast(15).matches(Regex("\\d{8}_\\d{6}")) -> {
+                        nameWithoutExt.takeLast(15)
+                    }
+                    else -> it.name
                 }
             }.map { (runId, files) ->
                 RobotRun(
