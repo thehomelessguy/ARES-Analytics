@@ -69,6 +69,11 @@ fun JoystickVisualizer(
                 val ePressed = if (keyboardState.useGamepad && g1 != null && g1.connected) g1.rightBumper else keyboardState.isEPressed
                 val shiftPressed = if (keyboardState.useGamepad && g1 != null && g1.connected) g1.rightTrigger > 0.5f else keyboardState.isShiftPressed
 
+                val aPressed = if (keyboardState.useGamepad && g1 != null && g1.connected) g1.a else keyboardState.isJPressed
+                val bPressed = if (keyboardState.useGamepad && g1 != null && g1.connected) g1.b else keyboardState.isLPressed
+                val xPressed = if (keyboardState.useGamepad && g1 != null && g1.connected) g1.x else keyboardState.isUPressed
+                val yPressed = if (keyboardState.useGamepad && g1 != null && g1.connected) g1.y else keyboardState.isIPressed
+
                 nt4ClientService.publishInputDouble(1001, vx)
                 nt4ClientService.publishInputDouble(1002, vy)
                 nt4ClientService.publishInputDouble(1003, omega)
@@ -79,6 +84,11 @@ fun JoystickVisualizer(
                 nt4ClientService.publishInputBoolean(1008, false) // isFieldCentric
                 nt4ClientService.publishInputBoolean(1009, false) // isRedAlliance
                 nt4ClientService.publishInputLong(1010, heartbeat++)
+                
+                nt4ClientService.publishInputBoolean(1016, aPressed)
+                nt4ClientService.publishInputBoolean(1017, bPressed)
+                nt4ClientService.publishInputBoolean(1018, xPressed)
+                nt4ClientService.publishInputBoolean(1019, yPressed)
 
                 kotlinx.coroutines.delay(20)
             }
