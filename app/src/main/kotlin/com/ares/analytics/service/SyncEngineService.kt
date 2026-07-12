@@ -61,7 +61,21 @@ class SyncEngineService(
         // 1. Export local session to temporary Parquet file
         val tempDir = File(System.getProperty("java.io.tmpdir"), "ares-sync")
         tempDir.mkdirs()
-        val tempFile = File(tempDir, "$sessionId.parquet")
+
+        val dateStr = java.text.SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", java.util.Locale.getDefault()).format(java.util.Date(summary.createdAt))
+        val robotStr = "_${summary.robotId}"
+        val matchStr = if (summary.matchNumber != null) "_Match_${summary.matchNumber}" else ""
+        val allianceStr = if (!summary.allianceColor.isNullOrEmpty()) "_${summary.allianceColor}" else ""
+        val mode = when {
+            summary.tags.contains("Auto") -> "Auto"
+            summary.tags.contains("TeleOp") -> "TeleOp"
+            summary.tags.contains("Init") -> "Init"
+            else -> "Init"
+        }
+        val modeStr = "_$mode"
+        val descriptiveName = "ARES_Telemetry_${dateStr}${robotStr}${matchStr}${allianceStr}${modeStr}_$sessionId.parquet"
+
+        val tempFile = File(tempDir, descriptiveName)
         parquetExporterService.exportSessionToParquet(sessionId, tempFile)
 
         val updatedSummary = summary.copy(fileSizeBytes = tempFile.length())
@@ -72,10 +86,10 @@ class SyncEngineService(
             val sessionsFolderId = googleDriveService.findOrCreateFolder("sessions", rootFolderId)
 
             // 3. Upload Parquet file to sessions/ folder
-            val existingParquetId = googleDriveService.findFile("$sessionId.parquet", sessionsFolderId)
+            val existingParquetId = googleDriveService.findFileContaining(sessionId, sessionsFolderId)
             val fileBytes = tempFile.readBytes()
             googleDriveService.writeFile(
-                name = "$sessionId.parquet",
+                name = descriptiveName,
                 bytes = fileBytes,
                 parentId = sessionsFolderId,
                 mimeType = "application/octet-stream",
@@ -177,9 +191,8 @@ class SyncEngineService(
     suspend fun downloadSession(summary: SessionSummary) = withContext(Dispatchers.IO) {
         val rootFolderId = googleDriveService.findOrCreateFolder("ARES-Analytics")
         val sessionsFolderId = googleDriveService.findOrCreateFolder("sessions", rootFolderId)
-        val parquetFileName = "${summary.sessionId}.parquet"
-        val parquetFileId = googleDriveService.findFile(parquetFileName, sessionsFolderId)
-            ?: throw Exception("Session Parquet file not found on Google Drive: $parquetFileName")
+        val parquetFileId = googleDriveService.findFileContaining(summary.sessionId, sessionsFolderId)
+            ?: throw Exception("Session Parquet file not found on Google Drive for session: ${summary.sessionId}")
 
         val fileBytes = googleDriveService.readFile(parquetFileId)
         val tempFile = File.createTempFile("cloud_sync_${summary.sessionId}_", ".parquet")
@@ -713,7 +726,7 @@ class SyncEngineService(
         try {
             val rootFolderId = googleDriveService.findOrCreateFolder("ARES-Analytics")
             val sessionsFolderId = googleDriveService.findOrCreateFolder("sessions", rootFolderId)
-            val parquetFileId = googleDriveService.findFile("$sessionId.parquet", sessionsFolderId)
+            val parquetFileId = googleDriveService.findFileContaining(sessionId, sessionsFolderId)
             if (parquetFileId != null) {
                 googleDriveService.deleteFile(parquetFileId)
             }

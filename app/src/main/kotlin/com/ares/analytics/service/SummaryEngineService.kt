@@ -118,6 +118,18 @@ class SummaryEngineService(
         val avgResistance = if (resistanceEstimates.isNotEmpty()) resistanceEstimates.average() else 0.0
         val avgVisionLat = if (visionLatencies.isNotEmpty()) visionLatencies.average() else 0.0
 
+        // Detect any OpModes recorded during telemetry
+        val detectedModes = mutableSetOf<String>()
+        for (offset in 0L until totalFrames step batchSize) {
+            val frames = databaseService.getTelemetryRangeBatched(session.sessionId, 0L, Long.MAX_VALUE, batchSize, offset)
+            for (frame in frames) {
+                if (frame.key.lowercase() == "opmode") {
+                    frame.stringValue?.let { detectedModes.add(it) }
+                }
+            }
+        }
+        val finalTags = (session.tags + detectedModes).distinct()
+
         val summary = SessionSummary(
             sessionId = session.sessionId,
             teamId = session.teamId,
@@ -135,7 +147,7 @@ class SummaryEngineService(
             avgBatteryResistance = avgResistance,
             maxMotorTemps = maxMotorTemps,
             avgVisionLatencyMs = avgVisionLat,
-            tags = session.tags,
+            tags = finalTags,
             matchNumber = session.matchNumber,
             allianceColor = session.allianceColor
         )

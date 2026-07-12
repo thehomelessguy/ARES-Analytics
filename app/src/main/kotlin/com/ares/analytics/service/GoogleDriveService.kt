@@ -108,6 +108,29 @@ class GoogleDriveService(
         }
     }
 
+    suspend fun findFileContaining(substring: String, parentId: String): String? = withContext(Dispatchers.IO) {
+        val token = getAccessToken()
+        val query = "name contains '$substring' and '$parentId' in parents and trashed = false"
+
+        val response = httpClient.get("https://www.googleapis.com/drive/v3/files") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            parameter("q", query)
+            parameter("fields", "files(id)")
+        }
+
+        if (response.status != HttpStatusCode.OK) {
+            throw Exception("Failed to search file: ${response.bodyAsText()}")
+        }
+
+        val searchResult = response.body<JsonObject>()
+        val files = searchResult["files"]?.jsonArray
+        if (files != null && files.isNotEmpty()) {
+            files[0].jsonObject["id"]!!.jsonPrimitive.content
+        } else {
+            null
+        }
+    }
+
     suspend fun readFile(fileId: String): ByteArray = withContext(Dispatchers.IO) {
         val token = getAccessToken()
         val response = httpClient.get("https://www.googleapis.com/drive/v3/files/$fileId") {
