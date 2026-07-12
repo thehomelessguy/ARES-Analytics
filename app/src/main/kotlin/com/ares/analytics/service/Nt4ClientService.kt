@@ -415,50 +415,56 @@ open class Nt4ClientService(
     ) {
         try {
             var offset = 0
-            while (offset < bytes.size) {
-                val marker = bytes[offset].toInt() and 0xFF
-                val (arrayLen, arrayHeaderSize) = Nt4Decoder.getArrayLengthAndHeader(marker, bytes, offset)
-
-                // Each NT4 message is an array of 4 elements: [topicId, timestampUs, typeId, value]
-                if (arrayLen != 4) {
-                    val size = Nt4Decoder.getMsgPackValueLength(bytes, offset)
+            if (offset >= bytes.size) return
+            
+            val outerMarker = bytes[offset].toInt() and 0xFF
+            val (outerArrayLen, outerHeaderSize) = Nt4Decoder.getArrayLengthAndHeader(outerMarker, bytes, offset)
+            
+            if (outerArrayLen < 0) return
+            
+            var currentOffset = offset + outerHeaderSize
+            
+            for (i in 0 until outerArrayLen) {
+                if (currentOffset >= bytes.size) break
+                
+                val innerMarker = bytes[currentOffset].toInt() and 0xFF
+                val (innerArrayLen, innerHeaderSize) = Nt4Decoder.getArrayLengthAndHeader(innerMarker, bytes, currentOffset)
+                
+                if (innerArrayLen != 4) {
+                    val size = Nt4Decoder.getMsgPackValueLength(bytes, currentOffset)
                     if (size == 0) break
-                    offset += size
+                    currentOffset += size
                     continue
                 }
-
-                var currentOffset = offset + arrayHeaderSize
-
+                
+                var elementOffset = currentOffset + innerHeaderSize
+                
                 // 1. Topic ID
-                val (topicIdJson, topicIdSize) = Nt4Decoder.parseMsgPackValue(bytes, currentOffset, 2)
+                val (topicIdJson, topicIdSize) = Nt4Decoder.parseMsgPackValue(bytes, elementOffset, 2)
                 val topicId = topicIdJson.jsonPrimitive.intOrNull ?: -1
-                currentOffset += topicIdSize
-
+                elementOffset += topicIdSize
+                
                 // 2. Timestamp (us)
-                val (timestampJson, timestampSize) = Nt4Decoder.parseMsgPackValue(bytes, currentOffset, 2)
+                val (timestampJson, timestampSize) = Nt4Decoder.parseMsgPackValue(bytes, elementOffset, 2)
                 val timestampUs = timestampJson.jsonPrimitive.longOrNull ?: 0L
-                currentOffset += timestampSize
-
+                elementOffset += timestampSize
+                
                 // 3. Type ID
-                val (typeIdJson, typeIdSize) = Nt4Decoder.parseMsgPackValue(bytes, currentOffset, 2)
+                val (typeIdJson, typeIdSize) = Nt4Decoder.parseMsgPackValue(bytes, elementOffset, 2)
                 val typeId = typeIdJson.jsonPrimitive.intOrNull ?: 0
-                currentOffset += typeIdSize
-
+                elementOffset += typeIdSize
+                
                 // 4. Value
-                val (valueElement, valueSize) = Nt4Decoder.parseMsgPackValue(bytes, currentOffset, typeId)
-                currentOffset += valueSize
-
+                val (valueElement, valueSize) = Nt4Decoder.parseMsgPackValue(bytes, elementOffset, typeId)
+                elementOffset += valueSize
+                
                 val timestampMs = timestampUs / 1000
                 val ntTopic = topicMap[topicId]
-
                 if (ntTopic != null) {
-                    if (ntTopic.name.contains("TeleOpList")) {
-                        println("[Nt4ClientService] Received binary update for TeleOpList! Value size is $valueSize, String? = ${valueElement.jsonPrimitive.contentOrNull}")
-                    }
                     dispatchValue(ntTopic, valueElement, timestampMs, teamId, seasonId, robotId)
                 }
-
-                offset = currentOffset
+                
+                currentOffset = elementOffset
             }
         } catch (e: Exception) {
             println("[Nt4ClientService] Error handling incoming binary: ${e.message}")
