@@ -173,11 +173,12 @@ open class Nt4ClientService(
                               {
                                 "method": "subscribe",
                                 "params": {
-                                  "topics": ["/", "ARES", "Drive", "Robot", "Superstructure", "Vision", "Gamepad1", "Gamepad2", "Hardware", "Diagnostics", "SysId", "Path"],
+                                  "topics": ["/"],
                                   "subuid": 1,
                                   "options": {
                                     "prefix": true,
-                                    "logging": true
+                                    "logging": true,
+                                    "periodic": 0.02
                                   }
                                 }
                               }
