@@ -13,11 +13,11 @@ import kotlinx.serialization.json.*
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
-import io.ktor.client.engine.java.Java
+import io.ktor.client.engine.okhttp.OkHttp
 
 open class Nt4ClientService(
     private val databaseService: DatabaseService,
-    private val client: HttpClient = HttpClient(Java) { install(WebSockets) }
+    private val client: HttpClient = HttpClient(OkHttp) { install(WebSockets) }
 ) {
     var serverIp: String = "127.0.0.1"
 
@@ -173,7 +173,7 @@ open class Nt4ClientService(
                               {
                                 "method": "subscribe",
                                 "params": {
-                                  "topics": ["/Drive", "/Robot", "/Superstructure", "/Vision", "/Gamepad1", "/Gamepad2", "/Hardware", "/Diagnostics", "/SysId", "/Path", "/ARES"],
+                                  "topics": ["/", "ARES", "Drive", "Robot", "Superstructure", "Vision", "Gamepad1", "Gamepad2", "Hardware", "Diagnostics", "SysId", "Path"],
                                   "subuid": 1,
                                   "options": {
                                     "prefix": true,
