@@ -173,7 +173,7 @@ open class Nt4ClientService(
                               {
                                 "method": "subscribe",
                                 "params": {
-                                  "topics": ["/"],
+                                  "topics": ["/", "ARES"],
                                   "subuid": 1,
                                   "options": {
                                     "prefix": true,
