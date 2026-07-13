@@ -16,9 +16,19 @@ import java.util.concurrent.ConcurrentHashMap
 import io.ktor.client.engine.okhttp.OkHttp
 
 open class Nt4ClientService(
-    private val databaseService: DatabaseService,
-    private val client: HttpClient = HttpClient(OkHttp) { install(WebSockets) }
+    private val databaseService: DatabaseService
 ) {
+    /** CIO engine for localhost (native coroutines, zero bridging overhead) */
+    private val localClient: HttpClient = HttpClient { install(WebSockets) }
+    /** OkHttp engine for remote robot connections (clean WebSocket frames, no RSV bit crashes) */
+    private val remoteClient: HttpClient = HttpClient(OkHttp) { install(WebSockets) }
+
+    /** Select the appropriate engine based on target host */
+    private fun clientFor(host: String): HttpClient = when (host) {
+        "127.0.0.1", "localhost" -> localClient
+        else -> remoteClient
+    }
+
     var serverIp: String = "127.0.0.1"
 
     private val _isConnected = MutableStateFlow(false)
@@ -28,6 +38,7 @@ open class Nt4ClientService(
 
     private val _telemetryFlow = MutableSharedFlow<TelemetryFrame>(
         replay = 100,
+
         extraBufferCapacity = 65536,
         onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST
     )
@@ -88,7 +99,6 @@ open class Nt4ClientService(
 
     fun start(host: String, teamId: String, seasonId: String, robotId: String) {
         println("[Nt4ClientService] start() called with host=$host, teamId=$teamId, seasonId=$seasonId, robotId=$robotId")
-        Thread.dumpStack()
         clientJob?.cancel()
         clientJob = CoroutineScope(Dispatchers.IO + SupervisorJob() + CoroutineExceptionHandler { _, e -> e.printStackTrace() }).launch {
             try {
@@ -126,8 +136,9 @@ open class Nt4ClientService(
                 val url = "ws://$activeHost:5810$path"
                 this@Nt4ClientService.serverIp = activeHost
                 try {
-                    println("[Nt4ClientService] Attempting to connect to $url")
-                    client.webSocket(
+                    val activeEngine = if (activeHost == "127.0.0.1" || activeHost == "localhost") "CIO" else "OkHttp"
+                    println("[Nt4ClientService] Attempting to connect to $url (engine=$activeEngine)")
+                    clientFor(activeHost).webSocket(
                         method = HttpMethod.Get,
                         host = activeHost,
                         port = 5810,
@@ -167,18 +178,17 @@ open class Nt4ClientService(
                         """.trimIndent()
                         send(Frame.Text(announceInputsMsg))
 
-                        // 2. Subscribe to all topics using explicit category prefixes (prevents empty/slash prefix matching bugs in NT4Server)
+                        // 2. Subscribe to all topics (using empty string to match all topics as a prefix)
                         val subMsg = """
                             [
                               {
                                 "method": "subscribe",
                                 "params": {
-                                  "topics": ["/", "ARES"],
+                                  "topics": [""],
                                   "subuid": 1,
                                   "options": {
                                     "prefix": true,
-                                    "logging": true,
-                                    "periodic": 0.02
+                                    "logging": true
                                   }
                                 }
                               }
@@ -316,7 +326,8 @@ open class Nt4ClientService(
         CoroutineScope(Dispatchers.IO + SupervisorJob() + CoroutineExceptionHandler { _, e -> e.printStackTrace() }).launch {
             flushPendingFrames()
         }
-        client.close()
+        localClient.close()
+        remoteClient.close()
     }
 
     suspend fun publishFrame(frame: TelemetryFrame) {
