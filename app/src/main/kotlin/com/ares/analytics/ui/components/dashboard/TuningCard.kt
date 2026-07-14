@@ -18,41 +18,23 @@ import com.ares.analytics.ui.theme.AresTextPrimary
 import com.ares.analytics.ui.theme.AresTextSecondary
 import com.ares.analytics.ui.theme.AresSurface
 import com.ares.analytics.ui.theme.AresBorder
+import com.ares.analytics.ui.theme.AresCyan
 
 @Composable
 fun TuningCard(
     nt4ClientService: Nt4ClientService,
     modifier: Modifier = Modifier
 ) {
-    val tuningVariables = listOf(
-        "trackWidthMeters",
-        "wheelBaseMeters",
-        "pathTranslationGains/kP",
-        "pathTranslationGains/kI",
-        "pathTranslationGains/kD",
-        "pathRotationGains/kP",
-        "pathRotationGains/kI",
-        "pathRotationGains/kD",
-        "headingGains/kP",
-        "headingGains/kI",
-        "headingGains/kD",
-        "headingDeadzoneDeg",
-        "driveFeedforward/kS",
-        "driveFeedforward/kV",
-        "driveFeedforward/kA",
-        "driveSlewRateLimit",
-        "motorGains/kP",
-        "motorGains/kI",
-        "motorGains/kD",
-        "motorGains/kF",
-        "visionStdDevsX",
-        "visionStdDevsY",
-        "visionStdDevsHeading",
-        "visionMaxDistanceMeters",
-        "visionMaxAmbiguity",
-        "visionMahalanobisThreshold",
-        "driverDeadbandExponent",
-        "driverSlewRateLimit"
+    val groups = listOf(
+        TuningGroup("Drivetrain Kinematics", listOf("trackWidthMeters", "wheelBaseMeters", "ticksPerMeter")),
+        TuningGroup("Path Translation PID", listOf("pathTranslationGains/kP", "pathTranslationGains/kI", "pathTranslationGains/kD")),
+        TuningGroup("Path Rotation PID", listOf("pathRotationGains/kP", "pathRotationGains/kI", "pathRotationGains/kD")),
+        TuningGroup("Heading Lock PID", listOf("headingGains/kP", "headingGains/kI", "headingGains/kD", "headingDeadzoneDeg")),
+        TuningGroup("Drivetrain Feedforward", listOf("driveFeedforward/kS", "driveFeedforward/kV", "driveFeedforward/kA", "driveSlewRateLimit")),
+        TuningGroup("Motor Closed-Loop PIDF", listOf("motorGains/kP", "motorGains/kI", "motorGains/kD", "motorGains/kF")),
+        TuningGroup("Odometry & EKF Localization", listOf("odomQx", "odomQy", "odomQtheta", "pinpointXOffsetMm", "pinpointYOffsetMm", "pinpointEncoderResolution")),
+        TuningGroup("Vision Filtering & Thresholds", listOf("visionStdDevsX", "visionStdDevsY", "visionStdDevsHeading", "visionMaxDistanceMeters", "visionMaxAmbiguity", "visionMahalanobisThreshold")),
+        TuningGroup("Driver Profile Configuration", listOf("driverDeadbandExponent", "driverSlewRateLimit"))
     )
 
     Card(
@@ -80,15 +62,34 @@ fun TuningCard(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                tuningVariables.forEach { varName ->
-                    TuningRow(nt4ClientService, varName)
+                groups.forEach { group ->
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = group.title,
+                            color = AresCyan,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        group.variables.forEach { varName ->
+                            TuningRow(nt4ClientService, varName)
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        HorizontalDivider(color = AresBorder.copy(alpha = 0.5f))
+                    }
                 }
             }
         }
     }
 }
+
+private data class TuningGroup(
+    val title: String,
+    val variables: List<String>
+)
 
 @Composable
 private fun TuningRow(nt4ClientService: Nt4ClientService, name: String) {
