@@ -60,13 +60,13 @@ fun MecanumVisualizer(
                     when (key) {
                         "Drive/MotorVelocity_fl", "Drive/MotorPower_fl", "Hardware/Motors/fl/Velocity", "Hardware/Motors/fl/Power" -> velocities[0] = value
                         "Drive/MotorVelocity_fr", "Drive/MotorPower_fr", "Hardware/Motors/fr/Velocity", "Hardware/Motors/fr/Power" -> velocities[1] = value
-                        "Drive/MotorVelocity_bl", "Drive/MotorPower_bl", "Hardware/Motors/bl/Velocity", "Hardware/Motors/bl/Power", "Hardware/Motors/rl/Velocity", "Hardware/Motors/rl/Power" -> velocities[2] = value
-                        "Drive/MotorVelocity_br", "Drive/MotorPower_br", "Hardware/Motors/br/Velocity", "Hardware/Motors/br/Power", "Hardware/Motors/rr/Velocity", "Hardware/Motors/rr/Power" -> velocities[3] = value
+                        "Drive/MotorVelocity_bl", "Drive/MotorPower_bl", "Drive/MotorVelocity_rl", "Drive/MotorPower_rl", "Hardware/Motors/bl/Velocity", "Hardware/Motors/bl/Power", "Hardware/Motors/rl/Velocity", "Hardware/Motors/rl/Power" -> velocities[2] = value
+                        "Drive/MotorVelocity_br", "Drive/MotorPower_br", "Drive/MotorVelocity_rr", "Drive/MotorPower_rr", "Hardware/Motors/br/Velocity", "Hardware/Motors/br/Power", "Hardware/Motors/rr/Velocity", "Hardware/Motors/rr/Power" -> velocities[3] = value
                         
                         "Drive/MotorCurrent_fl", "Hardware/Motors/fl/CurrentAmps" -> currents[0] = value
                         "Drive/MotorCurrent_fr", "Hardware/Motors/fr/CurrentAmps" -> currents[1] = value
-                        "Drive/MotorCurrent_bl", "Hardware/Motors/bl/CurrentAmps", "Hardware/Motors/rl/CurrentAmps" -> currents[2] = value
-                        "Drive/MotorCurrent_br", "Hardware/Motors/br/CurrentAmps", "Hardware/Motors/rr/CurrentAmps" -> currents[3] = value
+                        "Drive/MotorCurrent_bl", "Drive/MotorCurrent_rl", "Hardware/Motors/bl/CurrentAmps", "Hardware/Motors/rl/CurrentAmps" -> currents[2] = value
+                        "Drive/MotorCurrent_br", "Drive/MotorCurrent_rr", "Hardware/Motors/br/CurrentAmps", "Hardware/Motors/rr/CurrentAmps" -> currents[3] = value
                     }
                 }
             }
