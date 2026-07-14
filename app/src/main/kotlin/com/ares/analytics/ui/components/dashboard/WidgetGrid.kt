@@ -26,6 +26,7 @@ import com.ares.analytics.ui.theme.*
 import kotlin.math.roundToInt
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.ui.platform.LocalDensity
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -46,6 +47,9 @@ fun WidgetGrid(
     val maxRow = widgets.maxOfOrNull { it.row + it.rowSpan } ?: 0
     val gridHeight = rowHeight * maxRow + spacing * (maxRow - 1).coerceAtLeast(0) + 120.dp
 
+    val maxCol = widgets.maxOfOrNull { it.col + it.colSpan } ?: 12
+    val gridWidth = colWidth * maxCol + spacing * (maxCol - 1).coerceAtLeast(0) + 64.dp
+
     val currentWidgets by rememberUpdatedState(widgets)
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -53,10 +57,11 @@ fun WidgetGrid(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
+                .horizontalScroll(rememberScrollState())
         ) {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .width(gridWidth)
                     .height(gridHeight)
                     .padding(bottom = 80.dp)
             ) {

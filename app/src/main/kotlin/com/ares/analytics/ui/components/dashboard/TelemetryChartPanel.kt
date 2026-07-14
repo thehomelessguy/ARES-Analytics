@@ -120,6 +120,15 @@ fun TelemetryChartPanel(
     // In-memory data store for live plotting: key -> ArrayDeque of points (circular buffer)
     val telemetryData = remember { ConcurrentHashMap<String, ArrayDeque<TelemetryPoint>>() }
     var lastUpdateTick by remember { mutableStateOf(0L) }
+    var liveTime by remember { mutableStateOf(System.currentTimeMillis()) }
+
+    // Live clock ticker to keep the chart scrolling smoothly even when stationary
+    LaunchedEffect(Unit) {
+        while (true) {
+            liveTime = System.currentTimeMillis()
+            kotlinx.coroutines.delay(100)
+        }
+    }
 
     // Selected target unit for each key
     val targetUnits = remember { mutableStateMapOf<String, RobotUnit>() }
@@ -148,7 +157,7 @@ fun TelemetryChartPanel(
                 val cutoff = now - (selectedWindowSec * 1000)
                 
                 queue.add(TelemetryPoint(frame.timestampMs, frame.value))
-                while (queue.isNotEmpty() && queue.first().timestampMs < cutoff) {
+                while (queue.size > 1 && queue[1].timestampMs < cutoff) {
                     queue.removeFirst()
                 }
                 lastUpdateTick = frame.timestampMs
@@ -469,7 +478,7 @@ fun TelemetryChartPanel(
                     }
                 } else {
                     Canvas(modifier = Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 12.dp)) {
-                        val _tick = lastUpdateTick
+                        val _tick = liveTime
                         val width = size.width
                         val height = size.height
  
@@ -534,29 +543,56 @@ fun TelemetryChartPanel(
                         val points = telemetryData[key] ?: emptyList()
                         val detectedUnit = UnitConversion.detectUnitFromKey(key)
                         val targetUnit = targetUnits[key] ?: detectedUnit
-                        if (points.size >= 2) {
+                        if (points.isNotEmpty()) {
                             val color = channelColors[channelIdx % channelColors.size]
-                            val now = System.currentTimeMillis()
+                            val now = liveTime
                             val minX = now - (selectedWindowSec * 1000)
                             val maxX = now
  
                             val path = Path()
-                            points.forEachIndexed { ptIdx, pt ->
-                                val xPct = (pt.timestampMs - minX).toFloat() / (maxX - minX)
-                                val value = if (detectedUnit != null && targetUnit != null) {
-                                    UnitConversion.convert(pt.value, detectedUnit, targetUnit)
+
+                            fun getPy(value: Double): Float {
+                                val converted = if (detectedUnit != null && targetUnit != null) {
+                                    UnitConversion.convert(value, detectedUnit, targetUnit)
                                 } else {
-                                    pt.value
+                                    value
                                 }
-                                val yPct = ((value - minY) / (maxY - minY)).toFloat()
-                                 
+                                val yPct = ((converted - minY) / (maxY - minY)).toFloat()
+                                return height - (yPct * height)
+                            }
+
+                            var isFirst = true
+
+                            // 1. Prepend virtual point at minX if the first point is older than minX
+                            val firstPt = points.first()
+                            if (firstPt.timestampMs < minX) {
+                                val py = getPy(firstPt.value)
+                                path.moveTo(0f, py)
+                                isFirst = false
+                            }
+
+                            // 2. Draw all points inside or after minX
+                            points.forEach { pt ->
+                                val xPct = (pt.timestampMs - minX).toFloat() / (maxX - minX)
                                 val px = xPct * width
-                                val py = height - (yPct * height) // Invert Y-axis
- 
-                                if (ptIdx == 0) {
+                                val py = getPy(pt.value)
+                                
+                                if (isFirst) {
                                     path.moveTo(px, py)
+                                    isFirst = false
                                 } else {
                                     path.lineTo(px, py)
+                                }
+                            }
+
+                            // 3. Append virtual point at maxX if the last point is older than maxX
+                            val lastPt = points.last()
+                            if (lastPt.timestampMs < maxX) {
+                                val py = getPy(lastPt.value)
+                                if (isFirst) {
+                                    path.moveTo(width, py)
+                                } else {
+                                    path.lineTo(width, py)
                                 }
                             }
  
