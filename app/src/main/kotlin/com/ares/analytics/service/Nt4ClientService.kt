@@ -184,7 +184,7 @@ open class Nt4ClientService(
                               {
                                 "method": "subscribe",
                                 "params": {
-                                  "topics": ["/", "ARES"],
+                                  "topics": ["/", "ARES", "Tuning"],
                                   "subuid": 1,
                                   "options": {
                                     "prefix": true,
