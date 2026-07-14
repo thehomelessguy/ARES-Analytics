@@ -93,7 +93,7 @@ fun RunsIndex(
             )
         }
 
-        Divider(color = AresBorder, thickness = 1.dp)
+        HorizontalDivider(color = AresBorder, thickness = 1.dp)
 
         if (sessions.isEmpty()) {
             Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {

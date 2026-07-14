@@ -15,7 +15,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.ArrowRight
+import androidx.compose.material.icons.automirrored.filled.ArrowRight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.ui.input.pointer.pointerInput
@@ -218,7 +218,7 @@ fun TelemetryChartPanel(
             }
         }
 
-        Divider(color = AresBorder, thickness = 1.dp)
+        HorizontalDivider(color = AresBorder, thickness = 1.dp)
 
         // Dropdown Search / Add Channel controls
         Row(
@@ -641,7 +641,7 @@ fun SignalTreeExplorer(
                     ) {
                         if (!isLeaf) {
                             Icon(
-                                imageVector = if (isExpanded) Icons.Default.ArrowDropDown else Icons.Default.ArrowRight,
+                                imageVector = if (isExpanded) Icons.Default.ArrowDropDown else Icons.AutoMirrored.Filled.ArrowRight,
                                 contentDescription = null,
                                 tint = AresTextSecondary,
                                 modifier = Modifier.size(16.dp)

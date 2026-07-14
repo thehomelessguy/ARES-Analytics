@@ -1,7 +1,7 @@
 package com.ares.analytics.viewmodel
 
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.res.loadImageBitmap
+import androidx.compose.ui.graphics.toComposeImageBitmap
 import com.ares.analytics.shared.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -117,7 +117,7 @@ class FieldEditorViewModel(
                                 val targetDir = File(projectPath, relativeDir)
                                 val imgFile = File(targetDir, "field_image.png")
                                 val loadedBitmap = if (imgFile.exists()) {
-                                    imgFile.inputStream().use { loadImageBitmap(it) }
+                                    org.jetbrains.skia.Image.makeFromEncoded(imgFile.readBytes()).toComposeImageBitmap()
                                 } else {
                                     null
                                 }
@@ -217,7 +217,7 @@ class FieldEditorViewModel(
                                 val targetFile = File(targetDir, "field_image.png")
                                 intent.imageFile.copyTo(targetFile, overwrite = true)
 
-                                val bitmap = targetFile.inputStream().use { loadImageBitmap(it) }
+                                val bitmap = org.jetbrains.skia.Image.makeFromEncoded(targetFile.readBytes()).toComposeImageBitmap()
                                 _state.update { it.copy(fieldImage = bitmap, saveStatus = "Field image imported successfully!") }
                             }
                         } catch (e: Exception) {

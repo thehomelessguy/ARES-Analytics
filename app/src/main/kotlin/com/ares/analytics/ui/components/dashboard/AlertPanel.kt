@@ -76,7 +76,7 @@ fun AlertPanel(
             }
         }
 
-        Divider(color = AresBorder, thickness = 1.dp)
+        HorizontalDivider(color = AresBorder, thickness = 1.dp)
 
         if (alerts.isEmpty()) {
             Box(

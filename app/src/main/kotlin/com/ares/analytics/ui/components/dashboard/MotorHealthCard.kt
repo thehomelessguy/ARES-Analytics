@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ElectricBolt
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -17,6 +17,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -39,10 +41,12 @@ fun MotorHealthCard(
     
     LaunchedEffect(sessionId) {
         if (sessionId != null) {
-            scope.launch {
+            while (isActive) {
                 // Fetch motor current telemetry keys
                 val allTelemetry = databaseService.getTelemetryRange(sessionId, 0L, Long.MAX_VALUE)
                 currentFrames = allTelemetry.filter { it.key.lowercase().contains("current") }
+                if (sessionId != "live-telemetry") break
+                delay(1000)
             }
         } else {
             currentFrames = emptyList()
@@ -70,7 +74,7 @@ fun MotorHealthCard(
             )
         }
 
-        Divider(color = AresBorder, thickness = 1.dp)
+        HorizontalDivider(color = AresBorder, thickness = 1.dp)
 
         if (currentFrames.isEmpty()) {
             Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {

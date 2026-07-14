@@ -27,7 +27,7 @@ import androidx.compose.ui.input.pointer.isShiftPressed
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
-import androidx.compose.ui.res.loadImageBitmap
+import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
@@ -41,6 +41,8 @@ import kotlin.math.cos
 import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.math.sqrt
+
+private val jsonFormatter: Json = Json { prettyPrint = true }
 
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -198,7 +200,7 @@ fun FieldCanvas(
                     if (File(projectPath, "TeamCode/src/main/assets").exists()) "TeamCode/src/main/assets/paths" else "src/main/assets/paths"
                 } else "src/main/deploy/paths")
                 targetDir.mkdirs()
-                File(targetDir, "obstacles.json").writeText(Json { prettyPrint = true }.encodeToString(newObstacles))
+                File(targetDir, "obstacles.json").writeText(jsonFormatter.encodeToString(newObstacles))
             } catch (e: Exception) { e.printStackTrace() }
         }
     }
@@ -212,7 +214,7 @@ fun FieldCanvas(
                     if (File(projectPath, "TeamCode/src/main/assets").exists()) "TeamCode/src/main/assets/paths" else "src/main/assets/paths"
                 } else "src/main/deploy/paths")
                 targetDir.mkdirs()
-                File(targetDir, "game_pieces.json").writeText(Json { prettyPrint = true }.encodeToString(newPieces))
+                File(targetDir, "game_pieces.json").writeText(jsonFormatter.encodeToString(newPieces))
             } catch (e: Exception) { e.printStackTrace() }
         }
     }
@@ -226,7 +228,7 @@ fun FieldCanvas(
                     if (File(projectPath, "TeamCode/src/main/assets").exists()) "TeamCode/src/main/assets/paths" else "src/main/assets/paths"
                 } else "src/main/deploy/paths")
                 targetDir.mkdirs()
-                File(targetDir, "apriltags.json").writeText(Json { prettyPrint = true }.encodeToString(newTags))
+                File(targetDir, "apriltags.json").writeText(jsonFormatter.encodeToString(newTags))
             } catch (e: Exception) { e.printStackTrace() }
         }
     }
@@ -240,7 +242,7 @@ fun FieldCanvas(
                     if (File(projectPath, "TeamCode/src/main/assets").exists()) "TeamCode/src/main/assets/paths" else "src/main/assets/paths"
                 } else "src/main/deploy/paths")
                 targetDir.mkdirs()
-                File(targetDir, "field_waypoints.json").writeText(Json { prettyPrint = true }.encodeToString(newWps))
+                File(targetDir, "field_waypoints.json").writeText(jsonFormatter.encodeToString(newWps))
             } catch (e: Exception) { e.printStackTrace() }
         }
     }
@@ -273,7 +275,7 @@ fun FieldCanvas(
                     if (File(projectPath, "TeamCode/src/main/assets").exists()) "TeamCode/src/main/assets" else "src/main/assets"
                 } else "src/main/deploy"
                 val imgFile = File(File(projectPath, imgDir), "field_image.png")
-                localFieldImage = if (imgFile.exists()) imgFile.inputStream().use { loadImageBitmap(it) } else null
+                localFieldImage = if (imgFile.exists()) org.jetbrains.skia.Image.makeFromEncoded(imgFile.readBytes()).toComposeImageBitmap() else null
                 
                 val confFile = File(File(projectPath, imgDir), "field_image_config.json")
                 localFieldImageConfig = if (confFile.exists()) Json.decodeFromString(confFile.readText()) else FieldImageConfig()

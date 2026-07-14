@@ -37,7 +37,7 @@ fun PlannerActionBar(
             OutlinedTextField(
                 value = pathName,
                 onValueChange = onPathNameChange,
-                modifier = Modifier.fillMaxWidth().menuAnchor(),
+                modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryEditable),
                 singleLine = true,
                 textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
                 colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder),

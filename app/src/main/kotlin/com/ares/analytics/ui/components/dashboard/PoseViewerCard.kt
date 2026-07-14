@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MyLocation
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -133,18 +133,18 @@ fun PoseViewerCard(
             }
         }
 
-        Divider(color = AresBorder, thickness = 1.dp)
+        HorizontalDivider(color = AresBorder, thickness = 1.dp)
 
         Column(
             verticalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier.weight(1f)
         ) {
             PoseRow("True (Actual)", trueX, trueY, trueHeading, AresCyan)
-            Divider(color = AresBorder.copy(alpha = 0.5f), thickness = 0.5.dp)
+            HorizontalDivider(color = AresBorder.copy(alpha = 0.5f), thickness = 0.5.dp)
             PoseRow("Estimated (EKF)", ekfX, ekfY, ekfHeading, AresAmber)
-            Divider(color = AresBorder.copy(alpha = 0.5f), thickness = 0.5.dp)
+            HorizontalDivider(color = AresBorder.copy(alpha = 0.5f), thickness = 0.5.dp)
             PoseRow("Pinpoint (Odom)", pinpointX, pinpointY, pinpointHeading, AresGreen)
-            Divider(color = AresBorder.copy(alpha = 0.5f), thickness = 0.5.dp)
+            HorizontalDivider(color = AresBorder.copy(alpha = 0.5f), thickness = 0.5.dp)
             PoseRow("Vision (Limelight)", visionX, visionY, visionHeading, AresGold)
         }
     }

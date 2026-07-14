@@ -1,6 +1,6 @@
 package com.ares.analytics.viewmodel
 
-import com.ares.analytics.service.ConstantsParserService
+
 import com.ares.analytics.service.DatabaseService
 import com.ares.analytics.service.DriverAnalysisService
 import com.ares.analytics.service.DriverProfileAnalysisResult
@@ -8,8 +8,8 @@ import com.ares.analytics.service.SysIdService
 import com.ares.analytics.service.Nt4ClientService
 import com.ares.analytics.service.AlignedDataRow
 import com.ares.analytics.shared.CalculatedSummary
-import com.areslib.control.SysIdMechanism
-import com.areslib.control.SysIdRoutine
+import com.areslib.control.assist.SysIdMechanism
+import com.areslib.control.assist.SysIdRoutine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -62,7 +62,6 @@ class SysIdViewModel(
     private val databaseService: DatabaseService,
     private val sysIdService: SysIdService,
     private val driverAnalysisService: DriverAnalysisService,
-    private val constantsParserService: ConstantsParserService,
     private val nt4ClientService: Nt4ClientService,
     private val scope: CoroutineScope
 ) {
@@ -150,18 +149,15 @@ class SysIdViewModel(
                     }
                 }
                 is SysIdIntent.ApplyToRobotCode -> {
-                    _state.update { it.copy(exportStatus = "Applying to robot code...") }
+                    _state.update { it.copy(exportStatus = "Applying to robot over NT4...") }
                     try {
-                        val success = withContext(Dispatchers.IO) {
-                            driverAnalysisService.exportToConstants(
-                                recommendedExponent = intent.recommendedExponent,
-                                recommendedSlewRate = intent.recommendedSlewRate,
-                                constantsService = constantsParserService,
-                                projectPath = intent.projectPath
-                            )
-                        }
+                        nt4ClientService.publishDouble("Tuning/driverDeadbandExponent", intent.recommendedExponent)
+                        
+                        val slewVal = if (intent.recommendedSlewRate == Double.MAX_VALUE) 999.0 else intent.recommendedSlewRate
+                        nt4ClientService.publishDouble("Tuning/driverSlewRateLimit", slewVal)
+                        
                         _state.update {
-                            it.copy(exportStatus = if (success) "Successfully applied! 🎉" else "Failed to apply.")
+                            it.copy(exportStatus = "Successfully applied! 🎉")
                         }
                     } catch (e: Exception) {
                         _state.update { it.copy(exportStatus = "Failed to apply: ${e.message}") }

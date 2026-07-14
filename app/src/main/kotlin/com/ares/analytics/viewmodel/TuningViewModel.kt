@@ -1,68 +1,83 @@
 package com.ares.analytics.viewmodel
 
-import com.ares.analytics.service.ConstantsParserService
-import com.ares.analytics.service.TunableConstant
+import com.ares.analytics.service.Nt4ClientService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 data class TuningState(
-    val constants: List<TunableConstant> = emptyList(),
-    val projectPath: String? = null,
+    val variables: Map<String, Double> = emptyMap(),
     val isLoading: Boolean = false,
     val saveStatus: String = "",
     val errorMessage: String? = null
 )
 
 sealed class TuningIntent {
-    data class LoadConstants(val projectPath: String) : TuningIntent()
-    data class SaveConstant(val constant: TunableConstant, val newValue: Double) : TuningIntent()
+    data class LoadConstants(val projectPath: String) : TuningIntent() // Kept for compatibility with existing UI if it passes projectPath
+    data class SaveConstant(val key: String, val newValue: Double) : TuningIntent()
     object ClearSaveStatus : TuningIntent()
 }
 
 class TuningViewModel(
-    private val constantsParserService: ConstantsParserService,
+    private val nt4ClientService: Nt4ClientService,
     private val scope: CoroutineScope
 ) {
     private val _state = MutableStateFlow(TuningState())
     val state: StateFlow<TuningState> = _state.asStateFlow()
 
+    init {
+        scope.launch {
+            while (isActive) {
+                val topics = nt4ClientService.getActiveTopics().filter { it.startsWith("Tuning/") }
+                val currentMap = _state.value.variables.toMutableMap()
+                var changed = false
+                
+                // Track missing keys to remove them if a new session starts
+                val activeKeys = mutableSetOf<String>()
+
+                for (topic in topics) {
+                    activeKeys.add(topic)
+                    val value = nt4ClientService.latestValues[topic]?.value ?: 0.0
+                    if (currentMap[topic] != value) {
+                        currentMap[topic] = value
+                        changed = true
+                    }
+                }
+                
+                val keysToRemove = currentMap.keys - activeKeys
+                if (keysToRemove.isNotEmpty()) {
+                    keysToRemove.forEach { currentMap.remove(it) }
+                    changed = true
+                }
+
+                if (changed) {
+                    _state.update { it.copy(variables = currentMap) }
+                }
+                
+                delay(200) // Poll at 5Hz
+            }
+        }
+    }
+
     fun onIntent(intent: TuningIntent) {
         scope.launch {
             when (intent) {
                 is TuningIntent.LoadConstants -> {
-                    val path = intent.projectPath
-                    _state.update { it.copy(projectPath = path, isLoading = true, errorMessage = null) }
-                    try {
-                        val list = withContext(Dispatchers.IO) {
-                            constantsParserService.loadTunableConstants(path)
-                        }
-                        _state.update { it.copy(constants = list, isLoading = false) }
-                    } catch (e: Exception) {
-                        _state.update { it.copy(isLoading = false, errorMessage = e.message ?: "Failed to load tunable constants") }
-                    }
+                    // No-op. Data streams live from NT4 automatically.
                 }
                 is TuningIntent.SaveConstant -> {
-                    _state.update { it.copy(isLoading = true, saveStatus = "", errorMessage = null) }
+                    _state.update { it.copy(saveStatus = "") }
                     try {
-                        withContext(Dispatchers.IO) {
-                            constantsParserService.saveConstant(intent.constant, intent.newValue)
-                            // Re-load constants after saving
-                            val path = _state.value.projectPath
-                            if (path != null) {
-                                val list = constantsParserService.loadTunableConstants(path)
-                                _state.update { it.copy(constants = list, saveStatus = "Successfully saved ${intent.constant.name}!") }
-                            }
-                        }
+                        nt4ClientService.publishDouble(intent.key, intent.newValue)
+                        _state.update { it.copy(saveStatus = "Updated ${intent.key.removePrefix("Tuning/")}") }
                     } catch (e: Exception) {
                         _state.update { it.copy(errorMessage = e.message ?: "Failed to save constant") }
-                    } finally {
-                        _state.update { it.copy(isLoading = false) }
                     }
                 }
                 is TuningIntent.ClearSaveStatus -> {

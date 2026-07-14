@@ -56,38 +56,6 @@ class DriverAnalysisService(
         file.writeText(json.encodeToString(profiles.values.toList()))
     }
 
-    suspend fun exportToConstants(recommendedExponent: Double, recommendedSlewRate: Double, constantsService: ConstantsParserService, projectPath: String): Boolean = withContext(Dispatchers.IO) {
-        val constants = constantsService.loadTunableConstants(projectPath)
-        
-        val deadbandConst = constants.firstOrNull { it.name == "DRIVER_DEADBAND_EXPONENT" }
-        val slewRateConst = constants.firstOrNull { it.name == "DRIVER_SLEW_RATE" }
-        
-        val root = File(projectPath)
-        if (!root.exists() || !root.isDirectory) return@withContext false
-        
-        val targetFile = root.walkTopDown()
-            .filter { it.name == "Constants.kt" || it.name == "RobotConfig.java" || it.name == "Constants.java" || it.name == "TunerConstants.kt" || it.name == "TunerConstants.java" }
-            .firstOrNull() ?: return@withContext false
-            
-        val isKotlin = targetFile.name.endsWith(".kt")
-        
-        if (deadbandConst == null) {
-            val line = if (isKotlin) "\nval DRIVER_DEADBAND_EXPONENT = $recommendedExponent" else "\npublic static double DRIVER_DEADBAND_EXPONENT = $recommendedExponent;"
-            targetFile.appendText(line)
-        } else {
-            constantsService.saveConstant(deadbandConst, recommendedExponent)
-        }
-        
-        val slewVal = if (recommendedSlewRate == Double.MAX_VALUE) 999.0 else recommendedSlewRate
-        if (slewRateConst == null) {
-            val line = if (isKotlin) "\nval DRIVER_SLEW_RATE = $slewVal" else "\npublic static double DRIVER_SLEW_RATE = $slewVal;"
-            targetFile.appendText(line)
-        } else {
-            constantsService.saveConstant(slewRateConst, slewVal)
-        }
-        
-        true
-    }
 
     /**
      * Sweeps gamepad telemetry keys (X, Y, Omega) to detect 8-12Hz jitter and recommends a profile.

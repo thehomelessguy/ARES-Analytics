@@ -257,7 +257,7 @@ fun VideoPlayerPanel(
         if (videoFile != null) {
             Card(
                 colors = CardDefaults.cardColors(containerColor = AresBackground),
-                border = ButtonDefaults.outlinedButtonBorder.copy(brush = androidx.compose.ui.graphics.SolidColor(AresBorder)),
+                border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(brush = androidx.compose.ui.graphics.SolidColor(AresBorder)),
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -295,7 +295,7 @@ fun VideoPlayerPanel(
                         }
                     }
 
-                    Divider(color = AresBorder, thickness = 0.5.dp)
+                    HorizontalDivider(color = AresBorder, thickness = 0.5.dp)
 
                     // Micro adjustment steps
                     Row(

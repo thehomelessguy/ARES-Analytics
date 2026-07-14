@@ -194,7 +194,7 @@ fun SignalTreePanel(
                 ) {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = AresSurfaceElevated),
-                        border = ButtonDefaults.outlinedButtonBorder.copy(brush = androidx.compose.ui.graphics.SolidColor(AresCyan)),
+                        border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(brush = androidx.compose.ui.graphics.SolidColor(AresCyan)),
                         shape = RoundedCornerShape(6.dp)
                     ) {
                         Row(

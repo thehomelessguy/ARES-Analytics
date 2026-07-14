@@ -232,7 +232,7 @@ fun EventMarkerCard(
                 onClick = { dropdownExpanded = true },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = AresTextPrimary),
-                border = ButtonDefaults.outlinedButtonBorder.copy(width = 1.dp)
+                border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(width = 1.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),

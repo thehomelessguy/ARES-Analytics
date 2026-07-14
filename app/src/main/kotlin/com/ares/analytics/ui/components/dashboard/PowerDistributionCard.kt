@@ -89,7 +89,7 @@ fun PowerDistributionCard(
                 )
             }
 
-            Divider(modifier = Modifier.padding(vertical = 12.dp), color = AresBorder)
+            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = AresBorder)
 
             if (currentDraws.filterKeys { !it.lowercase().contains("total") }.isEmpty()) {
                 Box(

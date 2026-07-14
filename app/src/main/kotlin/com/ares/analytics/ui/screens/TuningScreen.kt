@@ -24,13 +24,9 @@ import com.ares.analytics.viewmodel.TuningViewModel
 @Composable
 fun TuningScreen(
     viewModel: TuningViewModel,
-    projectPath: String
+    projectPath: String // Kept for compatibility but unused
 ) {
     val state by viewModel.state.collectAsState()
-
-    LaunchedEffect(projectPath) {
-        viewModel.onIntent(TuningIntent.LoadConstants(projectPath))
-    }
 
     Column(
         modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp)).background(AresSurface).border(1.dp, AresBorder, RoundedCornerShape(12.dp)).padding(16.dp),
@@ -51,19 +47,24 @@ fun TuningScreen(
             Text(error, color = AresError, fontSize = 12.sp, fontWeight = FontWeight.Bold)
         }
 
-        if (state.constants.isEmpty()) {
+        if (state.variables.isEmpty()) {
             Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Text("No tunable constants found in project workspace. (Scans TunerConstants.kt/Constants.kt/RobotConfig.java)", color = AresTextTertiary, fontSize = 12.sp)
+                Text("Waiting for live Tuning constants from Robot over NT4...", color = AresTextTertiary, fontSize = 12.sp)
             }
         } else {
-            val grouped = state.constants.groupBy { getCategory(it.name) }
+            // Group by the first segment after Tuning/ (e.g., Tuning/pathTranslationGains/kP -> pathTranslationGains)
+            val grouped = state.variables.entries.groupBy { 
+                val parts = it.key.removePrefix("Tuning/").split("/")
+                if (parts.size > 1) parts[0] else "General Constants"
+            }
+            
             LazyVerticalStaggeredGrid(
                 columns = StaggeredGridCells.Adaptive(minSize = 320.dp),
                 modifier = Modifier.weight(1f).fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalItemSpacing = 12.dp
             ) {
-                items(grouped.entries.toList()) { (category, constants) ->
+                items(grouped.entries.toList().sortedBy { it.key }) { (category, constants) ->
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -73,7 +74,7 @@ fun TuningScreen(
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Text(
-                            text = category,
+                            text = getDisplayCategory(category),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             color = AresCyan
@@ -81,27 +82,21 @@ fun TuningScreen(
                         Column(
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            constants.forEach { const ->
+                            constants.sortedBy { it.key }.forEach { const ->
+                                val constKey = const.key
+                                val parts = constKey.removePrefix("Tuning/").split("/")
+                                val displayName = if (parts.size > 1) parts.drop(1).joinToString("/") else parts[0]
+                                
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
-                                        val displayName = const.name
-                                            .replace("PATH_TRANSLATION_", "")
-                                            .replace("PATH_ROTATION_", "")
-                                            .replace("PINPOINT_", "")
-                                            .replace("MOTOR_", "")
-                                            .replace("VISION_", "")
-                                            .replace("HEADING_", "")
-                                            .split("_")
-                                            .joinToString(" ") { it.lowercase().replaceFirstChar { char -> char.uppercase() } }
                                         Text(displayName, fontSize = 12.sp, color = AresTextPrimary, fontWeight = FontWeight.SemiBold)
-                                        Text(const.filePath.split(java.io.File.separator).last(), fontSize = 9.sp, color = AresTextTertiary)
                                     }
 
-                                    var textValue by remember(const.value) { mutableStateOf(const.value?.toString() ?: "") }
+                                    var textValue by remember(const.value) { mutableStateOf(const.value.toString()) }
                                     BasicTextField(
                                         value = textValue,
                                         onValueChange = { textValue = it },
@@ -133,7 +128,7 @@ fun TuningScreen(
                                         onClick = {
                                             val newVal = textValue.toDoubleOrNull()
                                             if (newVal != null) {
-                                                viewModel.onIntent(TuningIntent.SaveConstant(const, newVal))
+                                                viewModel.onIntent(TuningIntent.SaveConstant(constKey, newVal))
                                             }
                                         },
                                         modifier = Modifier.height(32.dp),
@@ -153,16 +148,14 @@ fun TuningScreen(
     }
 }
 
-private fun getCategory(name: String): String {
-    return when {
-        name.startsWith("PATH_TRANSLATION_") -> "Path Translation PID"
-        name.startsWith("PATH_ROTATION_") -> "Path Rotation PID"
-        name.startsWith("HEADING_") -> "Heading Lock PID"
-        name.startsWith("DRIVE_") || name.startsWith("TRACK_") || name.startsWith("WHEEL_") -> "Drivetrain Config"
-        name.startsWith("ODOM_") -> "EKF Process Noise (Q)"
-        name.startsWith("PINPOINT_") -> "GoBilda Pinpoint Odometry"
-        name.startsWith("MOTOR_") -> "Motor Coefficients"
-        name.startsWith("VISION_") -> "Limelight Vision Rejection"
-        else -> "General Constants"
+private fun getDisplayCategory(category: String): String {
+    return when (category) {
+        "pathTranslationGains" -> "Path Translation PID"
+        "pathRotationGains" -> "Path Rotation PID"
+        "headingGains" -> "Heading Lock PID"
+        "driveFeedforward" -> "Drivetrain Feedforward"
+        "motorGains" -> "Motor PIDF"
+        "General Constants" -> "General Variables"
+        else -> category.replace(Regex("([a-z])([A-Z]+)"), "$1 $2").replaceFirstChar { it.uppercase() }
     }
 }

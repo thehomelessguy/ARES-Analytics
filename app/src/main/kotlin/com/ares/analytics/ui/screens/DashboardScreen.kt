@@ -221,6 +221,9 @@ fun DashboardScreen(
                 },
                 "power_distribution" to { _, mod ->
                     PowerDistributionCard(services.nt4ClientService, mod)
+                },
+                "tuning_card" to { _, mod ->
+                    TuningCard(services.nt4ClientService, mod)
                 }
             )
 

@@ -141,7 +141,6 @@ fun MainScreen(services: ServiceRegistry) {
             databaseService = services.databaseService,
             sysIdService = services.sysIdService,
             driverAnalysisService = services.driverAnalysisService,
-            constantsParserService = services.constantsParserService,
             nt4ClientService = services.nt4ClientService,
             scope = scope
         )
@@ -150,7 +149,7 @@ fun MainScreen(services: ServiceRegistry) {
 
     val tuningViewModel = remember {
         TuningViewModel(
-            constantsParserService = services.constantsParserService,
+            nt4ClientService = services.nt4ClientService,
             scope = scope
         )
     }

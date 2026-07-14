@@ -65,7 +65,7 @@ fun StateMachineTrackerCard(
                 Text("Subsystem States", color = AresTextPrimary, fontWeight = FontWeight.Bold)
             }
 
-            Divider(modifier = Modifier.padding(vertical = 12.dp), color = AresBorder)
+            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = AresBorder)
 
             if (activeStates.isEmpty()) {
                 Box(

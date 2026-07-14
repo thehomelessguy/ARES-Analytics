@@ -317,7 +317,7 @@ fun StatisticsPanel(
                     onClick = { key1Expanded = true },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = AresTextPrimary),
-                    border = ButtonDefaults.outlinedButtonBorder.copy(brush = androidx.compose.ui.graphics.SolidColor(AresBorder))
+                    border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(brush = androidx.compose.ui.graphics.SolidColor(AresBorder))
                 ) {
                     Text(selectedKey1?.substringAfterLast("/") ?: "Select Signal A", maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Spacer(Modifier.weight(1f))
@@ -346,7 +346,7 @@ fun StatisticsPanel(
                     onClick = { key2Expanded = true },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = AresTextSecondary),
-                    border = ButtonDefaults.outlinedButtonBorder.copy(brush = androidx.compose.ui.graphics.SolidColor(AresBorder))
+                    border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(brush = androidx.compose.ui.graphics.SolidColor(AresBorder))
                 ) {
                     Text(selectedKey2?.substringAfterLast("/") ?: "Compare with B (None)", maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Spacer(Modifier.weight(1f))
@@ -383,7 +383,7 @@ fun StatisticsPanel(
                         onClick = { modeExpanded = true },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = AresCyan),
-                        border = ButtonDefaults.outlinedButtonBorder.copy(brush = androidx.compose.ui.graphics.SolidColor(AresCyanGlow))
+                        border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(brush = androidx.compose.ui.graphics.SolidColor(AresCyanGlow))
                     ) {
                         Text(analysisMode.name.replace("_", " "), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Spacer(Modifier.weight(1f))
@@ -412,7 +412,7 @@ fun StatisticsPanel(
                 OutlinedButton(
                     onClick = { filterExpanded = true },
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = AresTextPrimary),
-                    border = ButtonDefaults.outlinedButtonBorder.copy(brush = androidx.compose.ui.graphics.SolidColor(AresBorder))
+                    border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(brush = androidx.compose.ui.graphics.SolidColor(AresBorder))
                 ) {
                     Icon(Icons.Default.FilterList, null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))
@@ -451,7 +451,7 @@ fun StatisticsPanel(
                 Card(
                     modifier = Modifier.width(280.dp).fillMaxHeight(),
                     colors = CardDefaults.cardColors(containerColor = AresBackground),
-                    border = ButtonDefaults.outlinedButtonBorder.copy(brush = androidx.compose.ui.graphics.SolidColor(AresBorder))
+                    border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(brush = androidx.compose.ui.graphics.SolidColor(AresBorder))
                 ) {
                     Column(
                         modifier = Modifier.padding(12.dp).verticalScroll(rememberScrollState()),
@@ -473,7 +473,7 @@ fun StatisticsPanel(
                                 val formatted = if (name == "Count") value.toInt().toString() else String.format("%.5f", value)
                                 Text(formatted, color = AresTextPrimary, fontSize = 12.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
                             }
-                            Divider(color = AresBorder, thickness = 0.5.dp)
+                            HorizontalDivider(color = AresBorder, thickness = 0.5.dp)
                         }
                     }
                 }

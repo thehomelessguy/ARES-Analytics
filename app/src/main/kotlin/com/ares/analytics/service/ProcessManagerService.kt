@@ -240,7 +240,8 @@ class ProcessManagerService {
         activeLogcatJob = CoroutineScope(Dispatchers.IO).launch {
             try {
                 _logcatOutput.emit("[SYSTEM] Starting ADB logcat stream...")
-                val pb = ProcessBuilder("adb", "logcat", "-v", "time")
+                val adb = resolveAdbPath()
+                val pb = ProcessBuilder(adb, "logcat", "-v", "time")
                     .redirectErrorStream(true)
 
                 val proc = pb.start()
@@ -258,9 +259,18 @@ class ProcessManagerService {
         }
     }
 
+    private fun resolveAdbPath(): String {
+        val platformTools = File(System.getenv("LOCALAPPDATA") ?: "", "Android/Sdk/platform-tools/adb.exe")
+        if (platformTools.exists()) return platformTools.absolutePath
+        val adbMac = File(System.getProperty("user.home"), "Library/Android/sdk/platform-tools/adb")
+        if (adbMac.exists()) return adbMac.absolutePath
+        return "adb"
+    }
+
     private suspend fun runAdbDeploy(projectPath: String) {
         _buildOutput.emit("[SYSTEM] Auto-deploying to FTC Control Hub...")
-        val connectPb = ProcessBuilder("adb", "connect", "192.168.43.1:5555")
+        val adb = resolveAdbPath()
+        val connectPb = ProcessBuilder(adb, "connect", "192.168.43.1:5555")
         val connectProc = connectPb.start()
         val connectExit = connectProc.waitFor()
         if (connectExit != 0) {
@@ -268,8 +278,11 @@ class ProcessManagerService {
         }
 
         // Try installing debug apk
-        val apkPath = File(projectPath, "ftc-app/TeamCode/build/outputs/apk/debug/TeamCode-debug.apk")
-        val installPb = ProcessBuilder("adb", "install", "-r", apkPath.absolutePath)
+        var apkPath = File(projectPath, "ftc-app/TeamCode/build/outputs/apk/debug/TeamCode-debug.apk")
+        if (!apkPath.exists()) {
+            apkPath = File(projectPath, "TeamCode/build/outputs/apk/debug/TeamCode-debug.apk")
+        }
+        val installPb = ProcessBuilder(adb, "install", "-r", apkPath.absolutePath)
         val installProc = installPb.start()
 
         BufferedReader(InputStreamReader(installProc.inputStream)).use { reader ->

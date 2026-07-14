@@ -33,7 +33,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.ui.graphics.SolidColor
 import com.ares.analytics.service.DatabaseService
@@ -620,7 +620,7 @@ fun RunHistoryScreen(
                     shape = RoundedCornerShape(6.dp),
                     contentPadding = PaddingValues(horizontal = 12.dp)
                 ) {
-                    Icon(Icons.Default.Send, contentDescription = null, tint = AresBackground, modifier = Modifier.size(16.dp))
+                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, tint = AresBackground, modifier = Modifier.size(16.dp))
                 }
             }
         }

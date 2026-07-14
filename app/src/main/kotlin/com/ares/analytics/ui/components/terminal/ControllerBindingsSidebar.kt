@@ -17,7 +17,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.toComposeImageBitmap
+import androidx.compose.ui.res.useResource
+import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -178,7 +180,7 @@ fun ControllerVisualizer(
             val resourceName = if (league == League.FRC) "drawable/frc_controller.png" else "drawable/ftc_controller.png"
             
             Image(
-                painter = painterResource(resourceName),
+                painter = BitmapPainter(remember(resourceName) { useResource(resourceName) { org.jetbrains.skia.Image.makeFromEncoded(it.readBytes()).toComposeImageBitmap() } }),
                 contentDescription = "Controller Graphic",
                 modifier = Modifier.fillMaxSize(0.9f), // Increased from 0.8f
                 contentScale = ContentScale.Fit

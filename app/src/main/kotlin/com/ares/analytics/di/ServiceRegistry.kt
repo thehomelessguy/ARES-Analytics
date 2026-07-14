@@ -23,7 +23,6 @@ class ServiceRegistry {
     val firebaseClientService by lazy { FirebaseClientService() }
     val processManagerService by lazy { ProcessManagerService() }
     val targetScannerService by lazy { TargetScannerService() }
-    val constantsParserService by lazy { ConstantsParserService() }
     val keybindingParserService by lazy { KeybindingParserService() }
     val simulationService by lazy { SimulationService() }
     val eventApiService by lazy { EventApiService() }

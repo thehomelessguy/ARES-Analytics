@@ -12,7 +12,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
-
+import kotlinx.coroutines.sync.withLock
 import io.ktor.client.engine.okhttp.OkHttp
 
 open class Nt4ClientService(
@@ -427,44 +427,22 @@ open class Nt4ClientService(
         seasonId: String,
         robotId: String
     ) {
+        if (bytes.isEmpty()) return
+        println("[Nt4ClientService] Received binary frame: size=${bytes.size}")
         try {
             var offset = 0
-            if (offset >= bytes.size) return
-            
-            val outerMarker = bytes[offset].toInt() and 0xFF
-            val (outerArrayLen, outerHeaderSize) = Nt4Decoder.getArrayLengthAndHeader(outerMarker, bytes, offset)
-            
-            if (outerArrayLen < 0) return
-            
-            val isFlatUpdate = if (outerArrayLen == 4) {
-                val firstElemOffset = offset + outerHeaderSize
-                if (firstElemOffset < bytes.size) {
-                    val firstElemMarker = bytes[firstElemOffset].toInt() and 0xFF
-                    val isFirstElemArray = firstElemMarker in 0x90..0x9f || firstElemMarker == 0xdc || firstElemMarker == 0xdd
-                    !isFirstElemArray
-                } else false
-            } else false
-            
-            if (isFlatUpdate) {
-                parseAndDispatchUpdate(bytes, offset, outerHeaderSize, teamId, seasonId, robotId)
-            } else {
-                var currentOffset = offset + outerHeaderSize
-                for (i in 0 until outerArrayLen) {
-                    if (currentOffset >= bytes.size) break
-                    
-                    val innerMarker = bytes[currentOffset].toInt() and 0xFF
-                    val (innerArrayLen, innerHeaderSize) = Nt4Decoder.getArrayLengthAndHeader(innerMarker, bytes, currentOffset)
-                    
-                    if (innerArrayLen != 4) {
-                        val size = Nt4Decoder.getMsgPackValueLength(bytes, currentOffset)
-                        if (size == 0) break
-                        currentOffset += size
-                        continue
-                    }
-                    
-                    val nextOffset = parseAndDispatchUpdate(bytes, currentOffset, innerHeaderSize, teamId, seasonId, robotId)
-                    currentOffset = nextOffset
+            while (offset < bytes.size) {
+                val marker = bytes[offset].toInt() and 0xFF
+                val (arrayLen, headerSize) = Nt4Decoder.getArrayLengthAndHeader(marker, bytes, offset)
+                
+                if (arrayLen != 4) {
+                    val size = Nt4Decoder.getMsgPackValueLength(bytes, offset)
+                    if (size == 0) break
+                    offset += size
+                    continue
                 }
+                
+                offset = parseAndDispatchUpdate(bytes, offset, headerSize, teamId, seasonId, robotId)
             }
         } catch (e: Exception) {
             println("[Nt4ClientService] Error handling incoming binary: ${e.message}")
@@ -641,6 +619,31 @@ open class Nt4ClientService(
         latestValues[frame.key] = frame
         if (!isReplayActive.value) {
             _telemetryFlow.emit(frame)
+        }
+    }
+    private var nextPubUid = 2000
+    private val dynamicPubUids = ConcurrentHashMap<String, Int>()
+    private val dynamicPubMutex = kotlinx.coroutines.sync.Mutex()
+
+    suspend fun publishDouble(key: String, value: Double) {
+        val pubuid = dynamicPubMutex.withLock {
+            var id = dynamicPubUids[key]
+            if (id == null) {
+                id = nextPubUid++
+                dynamicPubUids[key] = id
+                val announceMsg = "[{\"method\": \"publish\", \"params\": {\"name\": \"$key\", \"pubuid\": $id, \"type\": \"double\"}}]"
+                webSocketSession?.send(Frame.Text(announceMsg))
+            }
+            id
+        }
+        publishInputDouble(pubuid, value)
+    }
+
+    fun subscribeDouble(key: String): Flow<Double> = flow {
+        val latest = latestValues[key]?.value ?: 0.0
+        emit(latest)
+        telemetryFlow.filter { it.key == key }.collect {
+            emit(it.value)
         }
     }
 }

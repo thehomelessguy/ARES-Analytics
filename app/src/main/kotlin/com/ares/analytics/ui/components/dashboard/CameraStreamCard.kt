@@ -82,7 +82,7 @@ fun CameraStreamCard(
                 }
             }
 
-            Divider(color = AresBorder, thickness = 1.dp)
+            HorizontalDivider(color = AresBorder, thickness = 1.dp)
 
             // Content
             Box(

@@ -139,7 +139,7 @@ fun ControlLoopProfilerCard(
                 }
             }
 
-            Divider(modifier = Modifier.padding(vertical = 12.dp), color = AresBorder)
+            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = AresBorder)
 
             Row(
                 modifier = Modifier.fillMaxWidth(),

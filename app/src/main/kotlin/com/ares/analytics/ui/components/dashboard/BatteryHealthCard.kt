@@ -8,7 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BatteryAlert
 import androidx.compose.material.icons.filled.BatteryChargingFull
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -18,6 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -40,12 +42,14 @@ fun BatteryHealthCard(
 
     LaunchedEffect(sessionId) {
         if (sessionId != null) {
-            scope.launch {
+            while (isActive) {
                 val allTelemetry = databaseService.getTelemetryRange(sessionId, 0L, Long.MAX_VALUE)
                 voltageFrames = allTelemetry.filter { 
                     val lower = it.key.lowercase()
                     lower.contains("voltage") || lower.contains("battery")
                 }
+                if (sessionId != "live-telemetry") break
+                delay(1000)
             }
         } else {
             voltageFrames = emptyList()
@@ -92,7 +96,7 @@ fun BatteryHealthCard(
             )
         }
 
-        Divider(color = AresBorder, thickness = 1.dp)
+        HorizontalDivider(color = AresBorder, thickness = 1.dp)
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -216,3 +220,4 @@ private fun BatteryVoltageChart(frames: List<TelemetryFrame>, statusColor: Color
         )
     }
 }
+

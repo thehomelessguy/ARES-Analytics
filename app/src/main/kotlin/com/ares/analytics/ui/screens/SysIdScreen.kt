@@ -26,8 +26,8 @@ import com.ares.analytics.ui.theme.*
 import com.ares.analytics.viewmodel.SysIdIntent
 import com.ares.analytics.viewmodel.SysIdViewModel
 import com.ares.analytics.service.AlignedDataRow
-import com.areslib.control.SysIdMechanism
-import com.areslib.control.SysIdRoutine
+import com.areslib.control.assist.SysIdMechanism
+import com.areslib.control.assist.SysIdRoutine
 import java.awt.FileDialog
 import java.awt.Frame
 import java.io.File
@@ -159,7 +159,7 @@ fun SysIdScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Text("Robot Controls & Diagnostics", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = AresTextPrimary)
-                    Divider(color = AresBorder)
+                    HorizontalDivider(color = AresBorder)
 
                     if (state.isRoutineRunning) {
                         Surface(
@@ -256,7 +256,7 @@ fun SysIdScreen(
                         }
                     }
 
-                    Divider(color = AresBorder)
+                    HorizontalDivider(color = AresBorder)
 
                     if (state.isLoading) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

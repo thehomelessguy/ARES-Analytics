@@ -13,7 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
@@ -76,7 +76,7 @@ fun AiCoachPanel(
             )
         }
 
-        Divider(color = AresBorder, thickness = 1.dp)
+        HorizontalDivider(color = AresBorder, thickness = 1.dp)
 
         if (sessionId == null) {
             Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -389,7 +389,7 @@ fun AiCoachPanel(
                                     shape = RoundedCornerShape(6.dp),
                                     contentPadding = PaddingValues(horizontal = 12.dp)
                                 ) {
-                                    Icon(Icons.Default.Send, contentDescription = null, tint = AresBackground, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, tint = AresBackground, modifier = Modifier.size(16.dp))
                                 }
                             }
                         }
