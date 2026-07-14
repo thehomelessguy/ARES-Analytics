@@ -107,6 +107,11 @@ fun TelemetryChartPanel(
     var selectedWindowSec by remember(initialWindow) { mutableStateOf(initialWindow) }
     val selectedKeys = remember(initialKeys) { mutableStateListOf<String>().apply { addAll(initialKeys) } }
 
+    // In-memory data store for live plotting: key -> ArrayDeque of points (circular buffer)
+    val telemetryData = remember { ConcurrentHashMap<String, ArrayDeque<TelemetryPoint>>() }
+    var lastUpdateTick by remember { mutableStateOf(0L) }
+    var liveTime by remember { mutableStateOf(System.currentTimeMillis()) }
+
     LaunchedEffect(selectedKeys.toList(), selectedWindowSec) {
         val keysList = selectedKeys.toList()
         if (keysList != initialKeys || selectedWindowSec != initialWindow) {
@@ -115,12 +120,18 @@ fun TelemetryChartPanel(
                 "windowSec" to selectedWindowSec.toString()
             ))
         }
+
+        // Initialize newly added keys with their latest known values if their queue is empty
+        keysList.forEach { key ->
+            val queue = telemetryData.getOrPut(key) { ArrayDeque() }
+            if (queue.isEmpty()) {
+                val latest = nt4ClientService.latestValues[key]
+                if (latest != null) {
+                    queue.add(TelemetryPoint(latest.timestampMs, latest.value))
+                }
+            }
+        }
     }
-    
-    // In-memory data store for live plotting: key -> ArrayDeque of points (circular buffer)
-    val telemetryData = remember { ConcurrentHashMap<String, ArrayDeque<TelemetryPoint>>() }
-    var lastUpdateTick by remember { mutableStateOf(0L) }
-    var liveTime by remember { mutableStateOf(System.currentTimeMillis()) }
 
     // Live clock ticker to keep the chart scrolling smoothly even when stationary
     LaunchedEffect(Unit) {
@@ -163,12 +174,6 @@ fun TelemetryChartPanel(
                 lastUpdateTick = frame.timestampMs
             }
         }
-    }
-
-    // Clean up data if keys are removed
-    LaunchedEffect(selectedKeys.size) {
-        val keysToRemove = telemetryData.keys.filter { !selectedKeys.contains(it) }
-        keysToRemove.forEach { telemetryData.remove(it) }
     }
 
     // Legend colors for up to 8 channels
