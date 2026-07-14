@@ -44,6 +44,11 @@ import com.ares.analytics.shared.TelemetryFrame
 import com.ares.analytics.shared.UnitCategory
 import com.ares.analytics.shared.UnitConversion
 import com.ares.analytics.ui.theme.*
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MenuOpen
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.draw.clipToBounds
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
@@ -83,11 +88,17 @@ fun TelemetryChartPanel(
     var dragOffset by remember { mutableStateOf(Offset.Zero) }
     var canvasWindowBounds by remember { mutableStateOf<Rect?>(null) }
 
+    var isTreeVisible by remember { mutableStateOf(true) }
+    val treeWidth by animateDpAsState(
+        targetValue = if (isTreeVisible) 260.dp else 0.dp,
+        animationSpec = tween(durationMillis = 300)
+    )
+
     // Configurable time windows (seconds)
     val timeWindows = listOf(10, 30, 60, 120)
     
     val initialKeys = remember(properties) {
-        properties["selectedKeys"]?.split(",")?.filter { it.isNotEmpty() } ?: emptyList()
+        properties["selectedKeys"]?.split(",")?.map { it.removePrefix("/") }?.filter { it.isNotEmpty() } ?: emptyList()
     }
     val initialWindow = remember(properties) {
         properties["windowSec"]?.toIntOrNull() ?: 30
@@ -133,7 +144,7 @@ fun TelemetryChartPanel(
         nt4ClientService.telemetryFlow.collect { frame ->
             if (selectedKeys.contains(frame.key)) {
                 val queue = telemetryData.getOrPut(frame.key) { ArrayDeque() }
-                val now = System.currentTimeMillis()
+                val now = frame.timestampMs
                 val cutoff = now - (selectedWindowSec * 1000)
                 
                 queue.add(TelemetryPoint(frame.timestampMs, frame.value))
@@ -288,6 +299,28 @@ fun TelemetryChartPanel(
                 }
             }
 
+            Button(
+                onClick = { isTreeVisible = !isTreeVisible },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isTreeVisible) AresCyan else AresSurfaceElevated
+                ),
+                border = ButtonDefaults.outlinedButtonBorder,
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                Icon(
+                    imageVector = if (isTreeVisible) Icons.Default.MenuOpen else Icons.Default.Menu,
+                    contentDescription = null,
+                    tint = if (isTreeVisible) AresBackground else AresCyan,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    if (isTreeVisible) "Hide Signals" else "Show Signals",
+                    color = if (isTreeVisible) AresBackground else AresTextPrimary,
+                    fontSize = 12.sp
+                )
+            }
+
             // Legend chips
             LazyRow(
                 modifier = Modifier.weight(1f),
@@ -377,41 +410,46 @@ fun TelemetryChartPanel(
                 .background(AresSurfaceElevated)
                 .border(1.dp, AresBorder, RoundedCornerShape(8.dp))
         ) {
-            // Signal Tree Explorer
+            // Signal Tree Explorer (Slide-out panel)
             Box(
                 modifier = Modifier
-                    .width(220.dp)
+                    .width(treeWidth)
                     .fillMaxHeight()
                     .background(AresSurface)
+                    .clipToBounds()
             ) {
-                SignalTreeExplorer(
-                    rootNode = signalTree,
-                    selectedKeys = selectedKeys,
-                    onKeySelected = { key ->
-                        if (selectedKeys.size < 8 && !selectedKeys.contains(key)) {
-                            selectedKeys.add(key)
-                        }
-                    },
-                    onDragStart = { key, offset ->
-                        draggedKey = key
-                        dragOffset = offset
-                    },
-                    onDrag = { offset ->
-                        dragOffset += offset
-                    },
-                    onDragEnd = {
-                        val finalOffset = dragOffset
-                        val bounds = canvasWindowBounds
-                        if (bounds != null && bounds.contains(finalOffset)) {
-                            draggedKey?.let { key ->
-                                if (selectedKeys.size < 8 && !selectedKeys.contains(key)) {
-                                    selectedKeys.add(key)
+                if (treeWidth > 10.dp) {
+                    SignalTreeExplorer(
+                        rootNode = signalTree,
+                        selectedKeys = selectedKeys,
+                        onKeySelected = { key ->
+                            val cleanKey = key.removePrefix("/")
+                            if (selectedKeys.size < 8 && !selectedKeys.contains(cleanKey)) {
+                                selectedKeys.add(cleanKey)
+                            }
+                        },
+                        onDragStart = { key, offset ->
+                            draggedKey = key.removePrefix("/")
+                            dragOffset = offset
+                        },
+                        onDrag = { offset ->
+                            dragOffset += offset
+                        },
+                        onDragEnd = {
+                            val finalOffset = dragOffset
+                            val bounds = canvasWindowBounds
+                            if (bounds != null && bounds.contains(finalOffset)) {
+                                draggedKey?.let { key ->
+                                    val cleanKey = key.removePrefix("/")
+                                    if (selectedKeys.size < 8 && !selectedKeys.contains(cleanKey)) {
+                                        selectedKeys.add(cleanKey)
+                                    }
                                 }
                             }
+                            draggedKey = null
                         }
-                        draggedKey = null
-                    }
-                )
+                    )
+                }
             }
 
             VerticalDivider(color = AresBorder, modifier = Modifier.fillMaxHeight())
@@ -552,11 +590,11 @@ fun TelemetryChartPanel(
                     )
                 }
             }
+            }
         }
     }
-}
         
-        if (draggedKey != null) {
+    if (draggedKey != null) {
             Box(
                 modifier = Modifier
                     .offset { IntOffset((dragOffset.x - parentWindowOffset.x).toInt() - 20, (dragOffset.y - parentWindowOffset.y).toInt() - 20) }

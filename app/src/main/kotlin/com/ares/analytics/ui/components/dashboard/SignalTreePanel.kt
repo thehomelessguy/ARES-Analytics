@@ -177,7 +177,7 @@ fun SignalTreePanel(
                             onToggleExpand = {
                                 expandedStates[node.fullPath] = !(expandedStates[node.fullPath] ?: false)
                             },
-                            liveValue = liveValues[node.fullPath]
+                            liveValue = liveValues[node.fullPath.removePrefix("/")]
                         )
                     }
                 }
