@@ -58,19 +58,19 @@ fun JoystickVisualizer(
                 val g1 = gamepad1StateFlow?.value
 
                 val (vx, vy, omega) = if (keyboardState.useGamepad && g1 != null && g1.connected) {
-                    val activeVx = g1.leftStickX.toDouble() * -4.0
-                    val activeVy = g1.leftStickY.toDouble() * -4.0
+                    val activeVx = g1.leftStickY.toDouble() * -4.0
+                    val activeVy = g1.leftStickX.toDouble() * -4.0
                     val activeOmega = g1.rightStickX.toDouble() * -4.0
                     Triple(activeVx, activeVy, activeOmega)
                 } else {
                     val activeVx = when {
-                        keyboardState.isAPressed -> 4.0
-                        keyboardState.isDPressed -> -4.0
+                        keyboardState.isWPressed -> 4.0
+                        keyboardState.isSPressed -> -4.0
                         else -> 0.0
                     }
                     val activeVy = when {
-                        keyboardState.isSPressed -> 4.0
-                        keyboardState.isWPressed -> -4.0
+                        keyboardState.isAPressed -> 4.0
+                        keyboardState.isDPressed -> -4.0
                         else -> 0.0
                     }
                     val activeOmega = when {
