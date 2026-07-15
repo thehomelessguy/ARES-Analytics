@@ -285,29 +285,15 @@ fun TuningScreen(
                                 Text("Select SysId Test to Run:", fontSize = 11.sp, color = AresTextSecondary)
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     RoutineButton(
-                                        name = "Quasistatic Forward",
-                                        desc = "Voltage ramps up slowly (+0.2V/s)",
-                                        onClick = { sysIdViewModel.onIntent(SysIdIntent.StartRoutine(SysIdRoutine.QUASISTATIC_FORWARD)) },
+                                        name = "Quasistatic (Combined)",
+                                        desc = "Voltage ramps forward then reverse",
+                                        onClick = { sysIdViewModel.onIntent(SysIdIntent.StartRoutine(SysIdRoutine.QUASISTATIC)) },
                                         enabled = sysIdState.isRobotConnected
                                     )
                                     RoutineButton(
-                                        name = "Quasistatic Reverse",
-                                        desc = "Voltage ramps down slowly (-0.2V/s)",
-                                        onClick = { sysIdViewModel.onIntent(SysIdIntent.StartRoutine(SysIdRoutine.QUASISTATIC_REVERSE)) },
-                                        enabled = sysIdState.isRobotConnected
-                                    )
-                                }
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    RoutineButton(
-                                        name = "Dynamic Forward",
-                                        desc = "Voltage steps instantly to +3.0V",
-                                        onClick = { sysIdViewModel.onIntent(SysIdIntent.StartRoutine(SysIdRoutine.DYNAMIC_FORWARD)) },
-                                        enabled = sysIdState.isRobotConnected
-                                    )
-                                    RoutineButton(
-                                        name = "Dynamic Reverse",
-                                        desc = "Voltage steps instantly to -3.0V",
-                                        onClick = { sysIdViewModel.onIntent(SysIdIntent.StartRoutine(SysIdRoutine.DYNAMIC_REVERSE)) },
+                                        name = "Dynamic (Combined)",
+                                        desc = "Voltage steps forward then reverse",
+                                        onClick = { sysIdViewModel.onIntent(SysIdIntent.StartRoutine(SysIdRoutine.DYNAMIC)) },
                                         enabled = sysIdState.isRobotConnected
                                     )
                                 }
