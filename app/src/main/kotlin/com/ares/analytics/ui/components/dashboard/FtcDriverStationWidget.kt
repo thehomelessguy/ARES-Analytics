@@ -36,17 +36,31 @@ enum class MatchState {
     IDLE, AUTO_INIT, AUTO_RUNNING, TRANSITION, TELEOP_INIT, TELEOP_RUNNING
 }
 
+private var cachedSelectedOpMode: String? = null
+private var cachedSelectedAutoOpMode: String? = null
+private var cachedSelectedTeleOpMode: String? = null
+private var cachedDsState: DsState = DsState.STOP
+private var cachedMatchState: MatchState = MatchState.IDLE
+
 @Composable
 fun FtcDriverStationWidget(
     nt4Client: Nt4ClientService,
     modifier: Modifier = Modifier
 ) {
-    var selectedOpMode by remember { mutableStateOf<String?>(null) } // For manual control
-    var selectedAutoOpMode by remember { mutableStateOf<String?>(null) }
-    var selectedTeleOpMode by remember { mutableStateOf<String?>(null) }
+    var selectedOpMode by remember { mutableStateOf(cachedSelectedOpMode) } // For manual control
+    var selectedAutoOpMode by remember { mutableStateOf(cachedSelectedAutoOpMode) }
+    var selectedTeleOpMode by remember { mutableStateOf(cachedSelectedTeleOpMode) }
     
-    var dsState by remember { mutableStateOf(DsState.STOP) }
-    var matchState by remember { mutableStateOf(MatchState.IDLE) }
+    var dsState by remember { mutableStateOf(cachedDsState) }
+    var matchState by remember { mutableStateOf(cachedMatchState) }
+    
+    // Save to cache whenever changed
+    cachedSelectedOpMode = selectedOpMode
+    cachedSelectedAutoOpMode = selectedAutoOpMode
+    cachedSelectedTeleOpMode = selectedTeleOpMode
+    cachedDsState = dsState
+    cachedMatchState = matchState
+
     var matchTimeRemaining by remember { mutableIntStateOf(0) }
     
     var teleOps by remember { 

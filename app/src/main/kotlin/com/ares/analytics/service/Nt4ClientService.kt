@@ -196,6 +196,19 @@ open class Nt4ClientService(
                         """.trimIndent()
                         send(Frame.Text(subMsg))
 
+                        // Start connection-alive heartbeat loop at 50Hz (20ms interval)
+                        val heartbeatJob = launch {
+                            var heartbeat = 0L
+                            while (isActive) {
+                                try {
+                                    publishInputLong(1010, heartbeat++)
+                                } catch (e: Exception) {
+                                    break
+                                }
+                                delay(20)
+                            }
+                        }
+
                         try {
                             // 3. Read frames
                             for (frame in incoming) {

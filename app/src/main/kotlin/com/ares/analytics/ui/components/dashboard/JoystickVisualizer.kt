@@ -103,8 +103,6 @@ fun JoystickVisualizer(
                 if (xPressed != lastX) { nt4ClientService.publishInputBoolean(1018, xPressed); lastX = xPressed }
                 if (yPressed != lastY) { nt4ClientService.publishInputBoolean(1019, yPressed); lastY = yPressed }
 
-                nt4ClientService.publishInputLong(1010, heartbeat++)
-
                 kotlinx.coroutines.delay(20)
             }
         }
