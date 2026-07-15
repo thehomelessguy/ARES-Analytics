@@ -449,9 +449,9 @@ open class Nt4ClientService(
                 val (arrayLen, headerSize) = Nt4Decoder.getArrayLengthAndHeader(marker, bytes, offset)
                 
                 if (arrayLen != 4) {
-                    val size = Nt4Decoder.getMsgPackValueLength(bytes, offset)
-                    if (size == 0) break
-                    offset += size
+                    // NT4 Spec: payload is an array of messages (arrays of 4 elements).
+                    // Skip the outer array header to step inside and parse the inner messages.
+                    offset += headerSize
                     continue
                 }
                 
