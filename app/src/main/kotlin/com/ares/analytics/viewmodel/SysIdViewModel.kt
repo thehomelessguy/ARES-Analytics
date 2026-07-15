@@ -144,8 +144,12 @@ class SysIdViewModel(
                                 arr[idx] = frame.value
                             }
                             
-                            val isTrackWidth = _state.value.activeCalibration == "TRACK_WIDTH_SPIN"
-                            val expectedMaxIdx = if (isTrackWidth) 5 else 4
+                            val expectedMaxIdx = when (_state.value.activeCalibration) {
+                                "PINPOINT_SPIN", "VISION_CALIBRATION" -> 3
+                                "LINEAR_DRIVE" -> 4
+                                "TRACK_WIDTH_SPIN" -> 5
+                                else -> 4
+                            }
                             
                             if (idx == expectedMaxIdx) {
                                 val completedArr = dataBuffer[t]
