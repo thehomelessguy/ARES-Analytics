@@ -90,6 +90,7 @@ class SysIdViewModel(
 ) {
     private val _state = MutableStateFlow(SysIdState())
     val state: StateFlow<SysIdState> = _state.asStateFlow()
+    private val dataBuffer = ConcurrentHashMap<Long, DoubleArray>()
 
     init {
         // Collect connection status
@@ -100,7 +101,6 @@ class SysIdViewModel(
         }
 
         // Collect live streaming data from the robot
-        val dataBuffer = ConcurrentHashMap<Long, DoubleArray>()
 
         scope.launch {
             nt4ClientService.telemetryFlow.collect { frame ->
@@ -408,7 +408,8 @@ class SysIdViewModel(
                     _state.update { it.copy(selectedMechanism = intent.mechanism) }
                 }
                 is SysIdIntent.StartRoutine -> {
-                    _state.update { it.copy(liveSamples = emptyList(), isRoutineRunning = true, summary = null, isLoading = true) }
+                    dataBuffer.clear()
+                    _state.update { it.copy(liveSamples = emptyList(), liveCalibrationData = emptyList(), isRoutineRunning = true, summary = null, isLoading = true) }
                     val cmd = "START_${_state.value.selectedMechanism.name}_${intent.routine.name}"
                     // pubuid 1015 corresponds to "SysId/Command" topic
                     nt4ClientService.publishInputString(1015, cmd)
@@ -439,6 +440,7 @@ class SysIdViewModel(
                     _state.update { it.copy(localAnalysisResult = null, fileAnalysisError = null) }
                 }
                 is SysIdIntent.StartCalibration -> {
+                    dataBuffer.clear()
                     _state.update {
                         it.copy(
                             liveSamples = emptyList(),

@@ -78,10 +78,9 @@ fun TuningScreen(
                     Text("Waiting for live Tuning constants from Robot over NT4...", color = AresTextTertiary, fontSize = 12.sp)
                 }
             } else {
-                // Group by the first segment after Tuning/ (e.g., Tuning/pathTranslationGains/kP -> pathTranslationGains)
+                // Group by custom categories
                 val grouped = state.variables.entries.groupBy { 
-                    val parts = it.key.removePrefix("Tuning/").split("/")
-                    if (parts.size > 1) parts[0] else "General Constants"
+                    getCustomCategory(it.key)
                 }
                 
                 LazyVerticalStaggeredGrid(
@@ -100,7 +99,7 @@ fun TuningScreen(
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             Text(
-                                text = getDisplayCategory(category),
+                                text = category,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = AresCyan
@@ -221,7 +220,7 @@ fun TuningScreen(
                     .border(1.dp, AresBorder, RoundedCornerShape(6.dp)),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                val calTabs = listOf("SysId", "Pinpoint", "Track Width", "Vision", "Ticks/m")
+                val calTabs = listOf("SysId", "Pinpoint", "Track Width", "Vision")
                 calTabs.forEachIndexed { index, title ->
                     val selected = activeCalTab == index
                     Box(
@@ -325,80 +324,33 @@ fun TuningScreen(
                             ParamRow("OLS Fit Quality (R²)", String.format("%.2f%%", summary.rSquared * 100))
                         }
                     }
-                    1 -> { // Pinpoint Offset Tab
+                    1 -> { // Pinpoint Offset & Ticks/m Tab
                         if (sysIdState.isRoutineRunning) {
                             AbortCard(sysIdViewModel)
                         } else {
-                            CalibrationTriggerCard(
-                                name = "Start Pinpoint Offset Calibration",
-                                desc = "Robot will spin in place. Using the reported pose circles, the calculator computes pinpoint modules offset from physical center of rotation.",
-                                onClick = { sysIdViewModel.onIntent(SysIdIntent.StartCalibration("PINPOINT_SPIN")) },
-                                enabled = sysIdState.isRobotConnected
-                            )
-                        }
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Text("Module Offset Calibration", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AresCyan)
+                                CalibrationTriggerCard(
+                                    name = "Start Pinpoint Offset Calibration",
+                                    desc = "Robot spins in place. Computes pinpoint module offsets from physical center of rotation.",
+                                    onClick = { sysIdViewModel.onIntent(SysIdIntent.StartCalibration("PINPOINT_SPIN")) },
+                                    enabled = sysIdState.isRobotConnected
+                                )
+                                val px = sysIdState.recommendedPinpointXOffsetMm
+                                val py = sysIdState.recommendedPinpointYOffsetMm
+                                if (px != null && py != null) {
+                                    ParamRow("Recommended X Offset", String.format("%.2f mm", px))
+                                    ParamRow("Recommended Y Offset", String.format("%.2f mm", py))
+                                    Spacer(Modifier.height(4.dp))
+                                    ApplyButton(onClick = { sysIdViewModel.onIntent(SysIdIntent.ApplyCalibration("PINPOINT_SPIN")) })
+                                }
 
-                        val px = sysIdState.recommendedPinpointXOffsetMm
-                        val py = sysIdState.recommendedPinpointYOffsetMm
-                        if (px != null && py != null) {
-                            HorizontalDivider(color = AresBorder)
-                            Text("Calibrated Pinpoint Offsets:", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AresCyan)
-                            ParamRow("Recommended X Offset", String.format("%.2f mm", px))
-                            ParamRow("Recommended Y Offset", String.format("%.2f mm", py))
-                            Spacer(Modifier.height(4.dp))
-                            ApplyButton(onClick = { sysIdViewModel.onIntent(SysIdIntent.ApplyCalibration("PINPOINT_SPIN")) })
-                        }
-                    }
-                    2 -> { // Track Width Tab
-                        if (sysIdState.isRoutineRunning) {
-                            AbortCard(sysIdViewModel)
-                        } else {
-                            CalibrationTriggerCard(
-                                name = "Start Track Width Calibration",
-                                desc = "Robot will spin in place to calibrate effective track width / moment arm based on IMU vs wheel travel.",
-                                onClick = { sysIdViewModel.onIntent(SysIdIntent.StartCalibration("TRACK_WIDTH_SPIN")) },
-                                enabled = sysIdState.isRobotConnected
-                            )
-                        }
+                                HorizontalDivider(color = AresBorder)
 
-                        val tw = sysIdState.recommendedTrackWidthMeters
-                        if (tw != null) {
-                            HorizontalDivider(color = AresBorder)
-                            Text("Calibrated Drivetrain Kinematics:", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AresCyan)
-                            ParamRow("Recommended Track Width", String.format("%.4f m", tw))
-                            Spacer(Modifier.height(4.dp))
-                            ApplyButton(onClick = { sysIdViewModel.onIntent(SysIdIntent.ApplyCalibration("TRACK_WIDTH_SPIN")) })
-                        }
-                    }
-                    3 -> { // Vision Tab
-                        if (sysIdState.isRoutineRunning) {
-                            AbortCard(sysIdViewModel)
-                        } else {
-                            CalibrationTriggerCard(
-                                name = "Start Vision Noise Calibration",
-                                desc = "Place the robot stationary facing an AprilTag. Collects standard deviations of Limelight observations.",
-                                onClick = { sysIdViewModel.onIntent(SysIdIntent.StartCalibration("VISION_CALIBRATION")) },
-                                enabled = sysIdState.isRobotConnected
-                            )
-                        }
-
-                        val vx = sysIdState.recommendedVisionStdDevsX
-                        val vy = sysIdState.recommendedVisionStdDevsY
-                        val vh = sysIdState.recommendedVisionStdDevsHeading
-                        if (vx != null && vy != null && vh != null) {
-                            HorizontalDivider(color = AresBorder)
-                            Text("Calibrated Vision Std Devs:", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AresCyan)
-                            ParamRow("Recommended Std Dev X", String.format("%.4f m", vx))
-                            ParamRow("Recommended Std Dev Y", String.format("%.4f m", vy))
-                            ParamRow("Recommended Std Dev Heading", String.format("%.4f rad", vh))
-                            Spacer(Modifier.height(4.dp))
-                            ApplyButton(onClick = { sysIdViewModel.onIntent(SysIdIntent.ApplyCalibration("VISION_CALIBRATION")) })
-                        }
-                    }
-                    4 -> { // Ticks/Meter Tab
-                        if (sysIdState.isRoutineRunning) {
-                            AbortCard(sysIdViewModel)
-                        } else {
-                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Text("Ticks/Meter Encoder Calibration", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AresCyan)
                                 var distText by remember(sysIdState.linearDriveActualDistanceMeters) { 
                                     mutableStateOf(sysIdState.linearDriveActualDistanceMeters.toString()) 
                                 }
@@ -434,16 +386,59 @@ fun TuningScreen(
                                     onClick = { sysIdViewModel.onIntent(SysIdIntent.StartCalibration("LINEAR_DRIVE")) },
                                     enabled = sysIdState.isRobotConnected
                                 )
+                                val ticks = sysIdState.recommendedTicksPerMeter
+                                if (ticks != null) {
+                                    ParamRow("Recommended Ticks/Meter", String.format("%.2f", ticks))
+                                    Spacer(Modifier.height(4.dp))
+                                    ApplyButton(onClick = { sysIdViewModel.onIntent(SysIdIntent.ApplyCalibration("LINEAR_DRIVE")) })
+                                }
                             }
                         }
+                    }
+                    2 -> { // Track Width Tab
+                        if (sysIdState.isRoutineRunning) {
+                            AbortCard(sysIdViewModel)
+                        } else {
+                            CalibrationTriggerCard(
+                                name = "Start Track Width Calibration",
+                                desc = "Robot will spin in place to calibrate effective track width / moment arm based on IMU vs wheel travel.",
+                                onClick = { sysIdViewModel.onIntent(SysIdIntent.StartCalibration("TRACK_WIDTH_SPIN")) },
+                                    enabled = sysIdState.isRobotConnected
+                            )
+                        }
 
-                        val ticks = sysIdState.recommendedTicksPerMeter
-                        if (ticks != null) {
+                        val tw = sysIdState.recommendedTrackWidthMeters
+                        if (tw != null) {
                             HorizontalDivider(color = AresBorder)
-                            Text("Calibrated Encoder Constants:", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AresCyan)
-                            ParamRow("Recommended Ticks/Meter", String.format("%.2f", ticks))
+                            Text("Calibrated Drivetrain Kinematics:", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AresCyan)
+                            ParamRow("Recommended Track Width", String.format("%.4f m", tw))
                             Spacer(Modifier.height(4.dp))
-                            ApplyButton(onClick = { sysIdViewModel.onIntent(SysIdIntent.ApplyCalibration("LINEAR_DRIVE")) })
+                            ApplyButton(onClick = { sysIdViewModel.onIntent(SysIdIntent.ApplyCalibration("TRACK_WIDTH_SPIN")) })
+                        }
+                    }
+                    3 -> { // Vision Tab
+                        if (sysIdState.isRoutineRunning) {
+                            AbortCard(sysIdViewModel)
+                        } else {
+                            CalibrationTriggerCard(
+                                name = "Start Vision Noise Calibration",
+                                desc = "Place the robot stationary facing an AprilTag. Collects standard deviations of Limelight observations.",
+                                onClick = { sysIdViewModel.onIntent(SysIdIntent.StartCalibration("VISION_CALIBRATION")) },
+                                enabled = sysIdState.isRobotConnected
+                            )
+                        }
+
+                        val vx = sysIdState.recommendedVisionStdDevsX
+                        val vy = sysIdState.recommendedVisionStdDevsY
+                        val vh = sysIdState.recommendedVisionStdDevsHeading
+                        if (vx != null && vy != null && vh != null) {
+                            HorizontalDivider(color = AresBorder)
+                            Text("Calibrated Vision Std Devs:", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AresCyan)
+                            ParamRow("Recommended Std Dev X", String.format("%.4f m", vx))
+                            ParamRow("Recommended Std Dev Y", String.format("%.4f m", vy))
+                            ParamRow("Recommended Std Dev Heading", String.format("%.4f rad", vh))
+                            Spacer(Modifier.height(4.dp))
+                            ApplyButton(onClick = { sysIdViewModel.onIntent(SysIdIntent.ApplyCalibration("VISION_CALIBRATION")) })
                         }
                     }
                 }
@@ -628,14 +623,31 @@ private fun LiveTelemetryPlot(samples: List<AlignedDataRow>) {
     }
 }
 
-private fun getDisplayCategory(category: String): String {
-    return when (category) {
-        "pathTranslationGains" -> "Path Translation PID"
-        "pathRotationGains" -> "Path Rotation PID"
-        "headingGains" -> "Heading Lock PID"
-        "driveFeedforward" -> "Drivetrain Feedforward"
-        "motorGains" -> "Motor PIDF"
-        "General Constants" -> "General Variables"
-        else -> category.replace(Regex("([a-z])([A-Z]+)"), "$1 $2").replaceFirstChar { it.uppercase() }
+private fun getCustomCategory(key: String): String {
+    val cleanKey = key.removePrefix("Tuning/")
+    val parts = cleanKey.split("/")
+    if (parts.size > 1) {
+        return when (parts[0]) {
+            "pathTranslationGains" -> "Path Translation PID"
+            "pathRotationGains" -> "Path Rotation PID"
+            "headingGains" -> "Heading Lock PID"
+            "driveFeedforward" -> "Drivetrain Feedforward"
+            "motorGains" -> "Motor PIDF"
+            else -> parts[0].replace(Regex("([a-z])([A-Z]+)"), "$1 $2").replaceFirstChar { it.uppercase() }
+        }
+    }
+    
+    // Top-level variables
+    return when {
+        cleanKey == "pinpointXOffsetMm" || 
+        cleanKey == "pinpointYOffsetMm" || 
+        cleanKey == "pinpointEncoderResolution" || 
+        cleanKey == "ticksPerMeter" -> "Pinpoint Odometry"
+        
+        cleanKey.startsWith("vision") -> "Limelight Vision"
+        
+        cleanKey.startsWith("odomQ") -> "EKF Position Filter"
+        
+        else -> "General Drivetrain Constants"
     }
 }
