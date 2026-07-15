@@ -597,11 +597,6 @@ fun MainScreen(services: ServiceRegistry) {
                                 league = currentConfig.league,
                                 projectPath = currentConfig.projectPath
                             )
-                            NavigationTarget.SYSID -> SysIdScreen(
-                                viewModel = sysIdViewModel,
-                                projectPath = currentConfig.projectPath ?: "",
-                                sessionId = primarySessionId
-                            )
                             NavigationTarget.RUN_HISTORY -> RunHistoryScreen(
                                 databaseService = services.databaseService,
                                 syncEngineService = services.syncEngineService
@@ -612,6 +607,7 @@ fun MainScreen(services: ServiceRegistry) {
 
                             NavigationTarget.TUNING -> TuningScreen(
                                 viewModel = tuningViewModel,
+                                sysIdViewModel = sysIdViewModel,
                                 projectPath = currentConfig.projectPath ?: ""
                             )
                             NavigationTarget.PROFILE -> ProfileScreen(

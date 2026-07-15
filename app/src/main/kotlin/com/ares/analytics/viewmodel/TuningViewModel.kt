@@ -25,7 +25,7 @@ sealed class TuningIntent {
 }
 
 class TuningViewModel(
-    private val nt4ClientService: Nt4ClientService,
+    val nt4ClientService: Nt4ClientService,
     private val scope: CoroutineScope
 ) {
     private val _state = MutableStateFlow(TuningState())

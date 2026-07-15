@@ -19,6 +19,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
+import org.ejml.simple.SimpleMatrix
+import java.util.concurrent.ConcurrentHashMap
 
 data class SysIdState(
     val sessionId: String? = null,
@@ -36,7 +38,22 @@ data class SysIdState(
     
     // Standalone file upload analysis
     val localAnalysisResult: CalculatedSummary? = null,
-    val fileAnalysisError: String? = null
+    val fileAnalysisError: String? = null,
+
+    // New Auto-Tuning/Calibration features
+    val activeCalibration: String = "NONE", // "NONE", "PINPOINT_SPIN", "TRACK_WIDTH_SPIN", "VISION_CALIBRATION", "LINEAR_DRIVE"
+    val liveCalibrationData: List<DoubleArray> = emptyList(),
+    
+    val recommendedPinpointXOffsetMm: Double? = null,
+    val recommendedPinpointYOffsetMm: Double? = null,
+    val recommendedTrackWidthMeters: Double? = null,
+    val recommendedVisionStdDevsX: Double? = null,
+    val recommendedVisionStdDevsY: Double? = null,
+    val recommendedVisionStdDevsHeading: Double? = null,
+    val recommendedTicksPerMeter: Double? = null,
+
+    // For linear drive calibration distance input
+    val linearDriveActualDistanceMeters: Double = 2.0
 )
 
 sealed class SysIdIntent {
@@ -56,13 +73,19 @@ sealed class SysIdIntent {
     // Standalone log analysis
     data class LoadLocalLogFile(val fileContent: String) : SysIdIntent()
     object ClearLocalAnalysis : SysIdIntent()
+
+    // New Auto-Tuning/Calibration intents
+    data class StartCalibration(val calibrationType: String) : SysIdIntent()
+    object StopCalibration : SysIdIntent()
+    data class SetLinearDriveDistance(val distance: Double) : SysIdIntent()
+    data class ApplyCalibration(val calibrationType: String) : SysIdIntent()
 }
 
 class SysIdViewModel(
     private val databaseService: DatabaseService,
     private val sysIdService: SysIdService,
     private val driverAnalysisService: DriverAnalysisService,
-    private val nt4ClientService: Nt4ClientService,
+    val nt4ClientService: Nt4ClientService,
     private val scope: CoroutineScope
 ) {
     private val _state = MutableStateFlow(SysIdState())
@@ -77,25 +100,77 @@ class SysIdViewModel(
         }
 
         // Collect live streaming data from the robot
+        val dataBuffer = ConcurrentHashMap<Long, DoubleArray>()
+
         scope.launch {
             nt4ClientService.telemetryFlow.collect { frame ->
-                when (frame.key) {
-                    "SysId/Status" -> {
+                when {
+                    frame.key == "SysId/Status" -> {
                         val status = frame.stringValue ?: ""
                         val wasRunning = _state.value.isRoutineRunning
                         val isRunning = status.isNotEmpty() && status != "NONE"
-                        _state.update { it.copy(isRoutineRunning = isRunning) }
+                        
+                        val prevCalibration = _state.value.activeCalibration
+                        
+                        _state.update { 
+                            it.copy(
+                                isRoutineRunning = isRunning,
+                                activeCalibration = if (isRunning) status else it.activeCalibration
+                            ) 
+                        }
                         
                         if (wasRunning && !isRunning) {
-                            // Routine just completed! Run OLS analysis on live samples
-                            val samples = _state.value.liveSamples
-                            if (samples.isNotEmpty()) {
-                                val summary = sysIdService.analyzeRawData(samples)
-                                _state.update { it.copy(summary = summary, isLoading = false) }
+                            // Routine/Calibration just completed!
+                            val finalCalibration = prevCalibration
+                            _state.update { it.copy(isLoading = false) }
+                            if (finalCalibration == "PINPOINT_SPIN" || finalCalibration == "TRACK_WIDTH_SPIN" ||
+                                finalCalibration == "VISION_CALIBRATION" || finalCalibration == "LINEAR_DRIVE") {
+                                runCalibrationAnalysis(finalCalibration, _state.value.liveCalibrationData)
+                            } else {
+                                val samples = _state.value.liveSamples
+                                if (samples.isNotEmpty()) {
+                                    val summary = sysIdService.analyzeRawData(samples)
+                                    _state.update { it.copy(summary = summary) }
+                                }
                             }
                         }
                     }
-                    "SysId/Data" -> {
+                    frame.key.startsWith("SysId/Data/") -> {
+                        val idx = frame.key.removePrefix("SysId/Data/").toIntOrNull()
+                        if (idx != null) {
+                            val t = frame.timestampMs
+                            val arr = dataBuffer.getOrPut(t) { DoubleArray(6) }
+                            if (idx < arr.size) {
+                                arr[idx] = frame.value
+                            }
+                            
+                            val isTrackWidth = _state.value.activeCalibration == "TRACK_WIDTH_SPIN"
+                            val expectedMaxIdx = if (isTrackWidth) 5 else 4
+                            
+                            if (idx == expectedMaxIdx) {
+                                val completedArr = dataBuffer[t]
+                                if (completedArr != null) {
+                                    val sample = AlignedDataRow(
+                                        timestampMs = completedArr[0].toLong(),
+                                        voltage = completedArr[1],
+                                        velocity = completedArr[3],
+                                        accel = completedArr[4]
+                                    )
+                                    _state.update {
+                                        it.copy(
+                                            liveSamples = it.liveSamples + sample,
+                                            liveCalibrationData = it.liveCalibrationData + listOf(completedArr.clone())
+                                        )
+                                    }
+                                    if (dataBuffer.size > 500) {
+                                        val minT = dataBuffer.keys.minOrNull() ?: 0L
+                                        dataBuffer.remove(minT)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    frame.key == "SysId/Data" -> {
                         val stringVal = frame.stringValue
                         if (stringVal != null) {
                             val parts = stringVal.split("|").mapNotNull { it.toDoubleOrNull() }
@@ -112,6 +187,165 @@ class SysIdViewModel(
                     }
                 }
             }
+        }
+    }
+
+    private fun runCalibrationAnalysis(calibrationType: String, data: List<DoubleArray>) {
+        if (data.size < 10) {
+            _state.update { it.copy(errorMessage = "Not enough calibration data collected (minimum 10 points)") }
+            return
+        }
+        
+        try {
+            when (calibrationType) {
+                "PINPOINT_SPIN" -> {
+                    val n = data.size
+                    val A = SimpleMatrix(2 * n, 4)
+                    val b = SimpleMatrix(2 * n, 1)
+                    
+                    for (i in 0 until n) {
+                        val row = data[i]
+                        val x = row[1]
+                        val y = row[2]
+                        val heading = row[3]
+                        val cosT = kotlin.math.cos(heading)
+                        val sinT = kotlin.math.sin(heading)
+                        
+                        A.setRow(2 * i, 0, 1.0, 0.0, cosT, -sinT)
+                        A.setRow(2 * i + 1, 0, 0.0, 1.0, sinT, cosT)
+                        
+                        b.set(2 * i, 0, x)
+                        b.set(2 * i + 1, 0, y)
+                    }
+                    
+                    val beta = A.solve(b)
+                    val dxMeters = beta.get(2, 0)
+                    val dyMeters = beta.get(3, 0)
+                    
+                    val deltaXOffsetMm = dxMeters * 1000.0
+                    val deltaYOffsetMm = dyMeters * 1000.0
+                    
+                    val currentX = nt4ClientService.latestValues["Tuning/pinpointXOffsetMm"]?.value ?: 0.0
+                    val currentY = nt4ClientService.latestValues["Tuning/pinpointYOffsetMm"]?.value ?: 0.0
+                    
+                    _state.update {
+                        it.copy(
+                            recommendedPinpointXOffsetMm = currentX + deltaXOffsetMm,
+                            recommendedPinpointYOffsetMm = currentY + deltaYOffsetMm,
+                            errorMessage = null
+                        )
+                    }
+                }
+                "TRACK_WIDTH_SPIN" -> {
+                    val n = data.size
+                    var accumHeading = 0.0
+                    var lastHeading = data[0][5]
+                    val unwrappedHeadings = DoubleArray(n)
+                    unwrappedHeadings[0] = 0.0
+                    
+                    for (i in 1 until n) {
+                        val currentHeading = data[i][5]
+                        var diff = currentHeading - lastHeading
+                        while (diff < -kotlin.math.PI) diff += 2 * kotlin.math.PI
+                        while (diff > kotlin.math.PI) diff -= 2 * kotlin.math.PI
+                        accumHeading += diff
+                        unwrappedHeadings[i] = accumHeading
+                        lastHeading = currentHeading
+                    }
+                    
+                    var sumXY = 0.0
+                    var sumX2 = 0.0
+                    
+                    val fl0 = data[0][1]
+                    val fr0 = data[0][2]
+                    val rl0 = data[0][3]
+                    val rr0 = data[0][4]
+                    
+                    for (i in 0 until n) {
+                        val fl = data[i][1] - fl0
+                        val fr = data[i][2] - fr0
+                        val rl = data[i][3] - rl0
+                        val rr = data[i][4] - rr0
+                        
+                        val y = -fl + fr - rl + rr
+                        val x = 4.0 * unwrappedHeadings[i]
+                        
+                        sumXY += x * y
+                        sumX2 += x * x
+                    }
+                    
+                    val k = if (sumX2 > 1e-6) sumXY / sumX2 else 0.45
+                    
+                    val wheelBase = nt4ClientService.latestValues["Tuning/wheelBaseMeters"]?.value ?: 0.45
+                    val recTrackWidth = 2.0 * k - wheelBase
+                    
+                    _state.update {
+                        it.copy(
+                            recommendedTrackWidthMeters = recTrackWidth,
+                            errorMessage = null
+                        )
+                    }
+                }
+                "VISION_CALIBRATION" -> {
+                    val n = data.size
+                    val meanX = data.map { it[1] }.average()
+                    val meanY = data.map { it[2] }.average()
+                    val meanHeading = data.map { it[3] }.average()
+                    
+                    var varX = 0.0
+                    var varY = 0.0
+                    var varHeading = 0.0
+                    
+                    for (row in data) {
+                        val dx = row[1] - meanX
+                        val dy = row[2] - meanY
+                        
+                        var dHeading = row[3] - meanHeading
+                        while (dHeading < -kotlin.math.PI) dHeading += 2 * kotlin.math.PI
+                        while (dHeading > kotlin.math.PI) dHeading -= 2 * kotlin.math.PI
+                        
+                        varX += dx * dx
+                        varY += dy * dy
+                        varHeading += dHeading * dHeading
+                    }
+                    
+                    val stdX = kotlin.math.sqrt(varX / (n - 1))
+                    val stdY = kotlin.math.sqrt(varY / (n - 1))
+                    val stdHeading = kotlin.math.sqrt(varHeading / (n - 1))
+                    
+                    _state.update {
+                        it.copy(
+                            recommendedVisionStdDevsX = stdX,
+                            recommendedVisionStdDevsY = stdY,
+                            recommendedVisionStdDevsHeading = stdHeading,
+                            errorMessage = null
+                        )
+                    }
+                }
+                "LINEAR_DRIVE" -> {
+                    val firstDisplacement = data.firstOrNull()?.get(1) ?: 0.0
+                    val lastDisplacement = data.lastOrNull()?.get(1) ?: 0.0
+                    val reportedDisplacement = lastDisplacement - firstDisplacement
+                    
+                    val actualDistance = _state.value.linearDriveActualDistanceMeters
+                    
+                    if (actualDistance > 0.1 && reportedDisplacement > 0.05) {
+                        val currentTicks = nt4ClientService.latestValues["Tuning/ticksPerMeter"]?.value ?: 2000.0
+                        val recTicks = currentTicks * (reportedDisplacement / actualDistance)
+                        
+                        _state.update {
+                            it.copy(
+                                recommendedTicksPerMeter = recTicks,
+                                errorMessage = null
+                            )
+                        }
+                    } else {
+                        _state.update { it.copy(errorMessage = "Insufficient linear displacement or invalid physical distance input.") }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            _state.update { it.copy(errorMessage = "Calibration analysis failed: ${e.message}") }
         }
     }
 
@@ -199,6 +433,76 @@ class SysIdViewModel(
                 }
                 is SysIdIntent.ClearLocalAnalysis -> {
                     _state.update { it.copy(localAnalysisResult = null, fileAnalysisError = null) }
+                }
+                is SysIdIntent.StartCalibration -> {
+                    _state.update {
+                        it.copy(
+                            liveSamples = emptyList(),
+                            liveCalibrationData = emptyList(),
+                            isRoutineRunning = true,
+                            activeCalibration = intent.calibrationType,
+                            isLoading = true,
+                            errorMessage = null,
+                            recommendedPinpointXOffsetMm = null,
+                            recommendedPinpointYOffsetMm = null,
+                            recommendedTrackWidthMeters = null,
+                            recommendedVisionStdDevsX = null,
+                            recommendedVisionStdDevsY = null,
+                            recommendedVisionStdDevsHeading = null,
+                            recommendedTicksPerMeter = null
+                        )
+                    }
+                    nt4ClientService.publishInputString(1015, "START_${intent.calibrationType}")
+                }
+                is SysIdIntent.StopCalibration -> {
+                    _state.update { it.copy(isRoutineRunning = false, activeCalibration = "NONE", isLoading = false) }
+                    nt4ClientService.publishInputString(1015, "STOP")
+                }
+                is SysIdIntent.SetLinearDriveDistance -> {
+                    _state.update { it.copy(linearDriveActualDistanceMeters = intent.distance) }
+                }
+                is SysIdIntent.ApplyCalibration -> {
+                    _state.update { it.copy(exportStatus = "Applying calibration to robot...") }
+                    try {
+                        when (intent.calibrationType) {
+                            "PINPOINT_SPIN" -> {
+                                val x = _state.value.recommendedPinpointXOffsetMm
+                                val y = _state.value.recommendedPinpointYOffsetMm
+                                if (x != null && y != null) {
+                                    nt4ClientService.publishDouble("Tuning/pinpointXOffsetMm", x)
+                                    nt4ClientService.publishDouble("Tuning/pinpointYOffsetMm", y)
+                                    _state.update { it.copy(exportStatus = "Applied Pinpoint Offsets! 🎉") }
+                                }
+                            }
+                            "TRACK_WIDTH_SPIN" -> {
+                                val tw = _state.value.recommendedTrackWidthMeters
+                                if (tw != null) {
+                                    nt4ClientService.publishDouble("Tuning/trackWidthMeters", tw)
+                                    _state.update { it.copy(exportStatus = "Applied Track Width! 🎉") }
+                                }
+                            }
+                            "VISION_CALIBRATION" -> {
+                                val sx = _state.value.recommendedVisionStdDevsX
+                                val sy = _state.value.recommendedVisionStdDevsY
+                                val sh = _state.value.recommendedVisionStdDevsHeading
+                                if (sx != null && sy != null && sh != null) {
+                                    nt4ClientService.publishDouble("Tuning/visionStdDevsX", sx)
+                                    nt4ClientService.publishDouble("Tuning/visionStdDevsY", sy)
+                                    nt4ClientService.publishDouble("Tuning/visionStdDevsHeading", sh)
+                                    _state.update { it.copy(exportStatus = "Applied Vision Std Devs! 🎉") }
+                                }
+                            }
+                            "LINEAR_DRIVE" -> {
+                                val ticks = _state.value.recommendedTicksPerMeter
+                                if (ticks != null) {
+                                    nt4ClientService.publishDouble("Tuning/ticksPerMeter", ticks)
+                                    _state.update { it.copy(exportStatus = "Applied Ticks Per Meter! 🎉") }
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        _state.update { it.copy(exportStatus = "Failed to apply calibration: ${e.message}") }
+                    }
                 }
             }
         }
