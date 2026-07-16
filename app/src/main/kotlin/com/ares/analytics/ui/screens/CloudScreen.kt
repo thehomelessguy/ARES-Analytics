@@ -36,6 +36,8 @@ fun CloudScreen(
     seasonId: String
 ) {
     val state by viewModel.state.collectAsState()
+    val checkedRobotRuns = remember { mutableStateListOf<String>() }
+    val checkedSessions = remember { mutableStateListOf<String>() }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -125,7 +127,68 @@ fun CloudScreen(
             Column(
                 modifier = Modifier.weight(1f).fillMaxHeight()
             ) {
-                Text("Robot Logs (Local)", color = AresTextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Robot Logs (Local)", color = AresTextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    
+                    if (state.robotRuns.isNotEmpty()) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            val allChecked = state.robotRuns.isNotEmpty() && state.robotRuns.all { it.runId in checkedRobotRuns }
+                            Checkbox(
+                                checked = allChecked,
+                                onCheckedChange = { check ->
+                                    if (check) {
+                                        checkedRobotRuns.clear()
+                                        checkedRobotRuns.addAll(state.robotRuns.map { it.runId })
+                                    } else {
+                                        checkedRobotRuns.clear()
+                                    }
+                                },
+                                colors = CheckboxDefaults.colors(checkedColor = AresCyan)
+                            )
+                            Text("Select All", color = AresTextSecondary, fontSize = 12.sp)
+                        }
+                    }
+                }
+                
+                // Batch Actions
+                if (checkedRobotRuns.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                viewModel.onIntent(CloudIntent.UploadMultipleRobotRuns(checkedRobotRuns.toList(), teamId, seasonId, "robot-1"))
+                                checkedRobotRuns.clear()
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = AresCyan),
+                            modifier = Modifier.height(32.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                        ) {
+                            Text("Import Selected (${checkedRobotRuns.size})", color = AresBackground, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                        
+                        Button(
+                            onClick = {
+                                viewModel.onIntent(CloudIntent.DeleteMultipleRobotRuns(checkedRobotRuns.toList()))
+                                checkedRobotRuns.clear()
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = AresRed),
+                            modifier = Modifier.height(32.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                        ) {
+                            Text("Delete Selected (${checkedRobotRuns.size})", color = AresTextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -145,7 +208,11 @@ fun CloudScreen(
                                 items(state.robotRuns, key = { it.runId }) { run ->
                                     RobotRunRow(
                                         run = run,
-                                        isUploading = state.isUploadingRobotLog == run.runId,
+                                        isChecked = run.runId in checkedRobotRuns,
+                                        onCheckedChange = { check ->
+                                            if (check) checkedRobotRuns.add(run.runId) else checkedRobotRuns.remove(run.runId)
+                                        },
+                                        isUploading = state.isUploadingRobotLog == run.runId || state.isUploadingRobotLog == "BATCH",
                                         onUpload = { viewModel.onIntent(CloudIntent.UploadRobotRun(run.runId, teamId, seasonId, "robot-1")) },
                                         onDelete = { viewModel.onIntent(CloudIntent.DeleteRobotRun(run.runId)) }
                                     )
@@ -160,7 +227,91 @@ fun CloudScreen(
             Column(
                 modifier = Modifier.weight(1.2f).fillMaxHeight()
             ) {
-                Text("Database & Google Drive Sync", color = AresTextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Database & Google Drive Sync", color = AresTextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    
+                    if (state.sessions.isNotEmpty()) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            val allChecked = state.sessions.isNotEmpty() && state.sessions.all { it.summary.sessionId in checkedSessions }
+                            Checkbox(
+                                checked = allChecked,
+                                onCheckedChange = { check ->
+                                    if (check) {
+                                        checkedSessions.clear()
+                                        checkedSessions.addAll(state.sessions.map { it.summary.sessionId })
+                                    } else {
+                                        checkedSessions.clear()
+                                    }
+                                },
+                                colors = CheckboxDefaults.colors(checkedColor = AresCyan)
+                            )
+                            Text("Select All", color = AresTextSecondary, fontSize = 12.sp)
+                        }
+                    }
+                }
+                
+                // Batch Actions for Sessions
+                if (checkedSessions.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val selectedSessionInfos = state.sessions.filter { it.summary.sessionId in checkedSessions }
+                        val remoteOnlySummaries = selectedSessionInfos.filter { !it.isLocal && it.isRemote }.map { it.summary }
+                        val localOnlySessionIds = selectedSessionInfos.filter { it.isLocal }.map { it.summary.sessionId }
+                        val remoteSessionIdsAndTeamIds = selectedSessionInfos.filter { it.isRemote }.map { it.summary.sessionId to it.summary.teamId }
+
+                        if (remoteOnlySummaries.isNotEmpty()) {
+                            Button(
+                                onClick = {
+                                    viewModel.onIntent(CloudIntent.DownloadMultipleSessions(remoteOnlySummaries))
+                                    checkedSessions.clear()
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = AresCyan),
+                                modifier = Modifier.height(32.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                            ) {
+                                Text("Import Selected (${remoteOnlySummaries.size})", color = AresBackground, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                        
+                        if (localOnlySessionIds.isNotEmpty()) {
+                            Button(
+                                onClick = {
+                                    viewModel.onIntent(CloudIntent.DeleteMultipleLocalSessions(localOnlySessionIds))
+                                    checkedSessions.clear()
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = AresRed),
+                                modifier = Modifier.height(32.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                            ) {
+                                Text("Del Local (${localOnlySessionIds.size})", color = AresTextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                        
+                        if (remoteSessionIdsAndTeamIds.isNotEmpty()) {
+                            Button(
+                                onClick = {
+                                    viewModel.onIntent(CloudIntent.DeleteMultipleRemoteSessions(remoteSessionIdsAndTeamIds))
+                                    checkedSessions.clear()
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = AresRed),
+                                modifier = Modifier.height(32.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                            ) {
+                                Text("Del Cloud (${remoteSessionIdsAndTeamIds.size})", color = AresTextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -175,6 +326,10 @@ fun CloudScreen(
                             items(state.sessions, key = { it.summary.sessionId }) { sessionInfo ->
                                 SessionSyncRow(
                                     info = sessionInfo,
+                                    isChecked = sessionInfo.summary.sessionId in checkedSessions,
+                                    onCheckedChange = { check ->
+                                        if (check) checkedSessions.add(sessionInfo.summary.sessionId) else checkedSessions.remove(sessionInfo.summary.sessionId)
+                                    },
                                     onUpload = { viewModel.onIntent(CloudIntent.UploadSession(sessionInfo.summary.sessionId)) },
                                     onDownload = { viewModel.onIntent(CloudIntent.DownloadSession(sessionInfo.summary)) },
                                     onDeleteLocal = { viewModel.onIntent(CloudIntent.DeleteSessionLocal(sessionInfo.summary.sessionId)) },
@@ -247,6 +402,8 @@ fun CloudScreen(
 @Composable
 fun RobotRunRow(
     run: com.ares.analytics.viewmodel.RobotRun,
+    isChecked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
     isUploading: Boolean,
     onUpload: () -> Unit,
     onDelete: () -> Unit
@@ -260,14 +417,26 @@ fun RobotRunRow(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column {
-            Text("Run: ${run.runId}", color = AresTextPrimary, fontWeight = FontWeight.Bold)
-            val statusText = if (run.isActive) " | ACTIVE RECORDING..." else ""
-            Text(
-                "Files: ${run.files.size} | Size: ${run.totalSizeBytes / 1024} KB | ${run.lastModifiedFmt}$statusText",
-                color = if (run.isActive) AresCyan else AresTextSecondary,
-                fontSize = 12.sp
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.weight(1f)
+        ) {
+            Checkbox(
+                checked = isChecked,
+                onCheckedChange = onCheckedChange,
+                enabled = !isUploading && !run.isActive,
+                colors = CheckboxDefaults.colors(checkedColor = AresCyan)
             )
+            Column {
+                Text("Run: ${run.runId}", color = AresTextPrimary, fontWeight = FontWeight.Bold)
+                val statusText = if (run.isActive) " | ACTIVE RECORDING..." else ""
+                Text(
+                    "Files: ${run.files.size} | Size: ${run.totalSizeBytes / 1024} KB | ${run.lastModifiedFmt}$statusText",
+                    color = if (run.isActive) AresCyan else AresTextSecondary,
+                    fontSize = 12.sp
+                )
+            }
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -294,6 +463,8 @@ fun RobotRunRow(
 @Composable
 fun SessionSyncRow(
     info: com.ares.analytics.viewmodel.SessionSyncInfo,
+    isChecked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
     onUpload: () -> Unit,
     onDownload: () -> Unit,
     onDeleteLocal: () -> Unit,
@@ -309,48 +480,59 @@ fun SessionSyncRow(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            val formatter = java.text.SimpleDateFormat("yyyyMMdd_HHmmss")
-            val runName = try {
-                formatter.format(java.util.Date(summary.createdAt))
-            } catch (e: Exception) {
-                "Unknown Date"
-            }
-            Text("Session: $runName", color = AresTextPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-
-            val sizeStr = if (summary.fileSizeBytes > 0) " | Size: ${summary.fileSizeBytes / 1024} KB" else ""
-            val dateStr = try {
-                java.text.SimpleDateFormat("MMM dd, HH:mm").format(java.util.Date(summary.createdAt))
-            } catch (e: Exception) {
-                "unknown"
-            }
-
-            Text(
-                "Match: ${summary.matchNumber ?: "None"}$sizeStr | $dateStr",
-                color = AresTextSecondary,
-                fontSize = 11.sp
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.weight(1f)
+        ) {
+            Checkbox(
+                checked = isChecked,
+                onCheckedChange = onCheckedChange,
+                colors = CheckboxDefaults.colors(checkedColor = AresCyan)
             )
+            Column(modifier = Modifier.weight(1f)) {
+                val formatter = java.text.SimpleDateFormat("yyyyMMdd_HHmmss")
+                val runName = try {
+                    formatter.format(java.util.Date(summary.createdAt))
+                } catch (e: Exception) {
+                    "Unknown Date"
+                }
+                Text("Session: $runName", color = AresTextPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
 
-            Spacer(modifier = Modifier.height(6.dp))
-            val badgeColor = when {
-                info.isLocal && info.isRemote -> AresGreen
-                info.isLocal -> AresCyan
-                else -> AresAmber
+                val sizeStr = if (summary.fileSizeBytes > 0) " | Size: ${summary.fileSizeBytes / 1024} KB" else ""
+                val dateStr = try {
+                    java.text.SimpleDateFormat("MMM dd, HH:mm").format(java.util.Date(summary.createdAt))
+                } catch (e: Exception) {
+                    "unknown"
+                }
+
+                Text(
+                    "Match: ${summary.matchNumber ?: "None"}$sizeStr | $dateStr",
+                    color = AresTextSecondary,
+                    fontSize = 11.sp
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+                val badgeColor = when {
+                    info.isLocal && info.isRemote -> AresGreen
+                    info.isLocal -> AresCyan
+                    else -> AresAmber
+                }
+                val badgeText = when {
+                    info.isLocal && info.isRemote -> "Synced"
+                    info.isLocal -> "Local Only (DuckDB)"
+                    else -> "Cloud Only (Drive)"
+                }
+                Text(
+                    text = badgeText,
+                    color = badgeColor,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 10.sp,
+                    modifier = Modifier
+                        .background(badgeColor.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                )
             }
-            val badgeText = when {
-                info.isLocal && info.isRemote -> "Synced"
-                info.isLocal -> "Local Only (DuckDB)"
-                else -> "Cloud Only (Drive)"
-            }
-            Text(
-                text = badgeText,
-                color = badgeColor,
-                fontWeight = FontWeight.Bold,
-                fontSize = 10.sp,
-                modifier = Modifier
-                    .background(badgeColor.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
-            )
         }
 
         Row(

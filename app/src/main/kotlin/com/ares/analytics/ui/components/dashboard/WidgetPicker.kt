@@ -56,7 +56,8 @@ val availableWidgetsList = listOf(
     AvailableWidget("tuning_card", "Live Tuning Card", "Live variable tuning over NT4.", Icons.Default.Tune),
     AvailableWidget("ekf_telemetry", "EKF Diagnostics", "Real-time line charts of EKF position drift and covariance.", Icons.Default.ShowChart),
     AvailableWidget("path_tuning", "Path Tuning Visualizer", "Line chart tracking cross-track and along-track path follower errors.", Icons.Default.Timeline),
-    AvailableWidget("brownout_protection", "Brownout Protection", "Real-time battery sag scaling, state of charge, and brownout warnings.", Icons.Default.BatteryAlert)
+    AvailableWidget("brownout_protection", "Brownout Protection", "Real-time battery sag scaling, state of charge, and brownout warnings.", Icons.Default.BatteryAlert),
+    AvailableWidget("profiling_diagnostics", "Profiling Diagnostics", "Real-time maximum and average loop/subsystem timings.", Icons.Default.HourglassEmpty)
 )
 
 @Composable

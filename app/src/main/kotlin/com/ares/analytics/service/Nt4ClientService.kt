@@ -68,6 +68,7 @@ open class Nt4ClientService(
     internal val topicMap = ConcurrentHashMap<Int, Nt4Topic>()
     private val discoveredKeys = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
     val latestValues = ConcurrentHashMap<String, TelemetryFrame>()
+    val telemetryHistory = ConcurrentHashMap<String, java.util.ArrayDeque<TelemetryFrame>>()
 
     fun getActiveTopics(): List<String> {
         return topicMap.values.map { it.name.removePrefix("/") }.sorted()
@@ -576,6 +577,14 @@ open class Nt4ClientService(
                 )
                 frames.add(frame)
                 latestValues[frame.key] = frame
+                val history = telemetryHistory.getOrPut(frame.key) { java.util.ArrayDeque() }
+                synchronized(history) {
+                    history.add(frame)
+                    val cutoff = frame.timestampMs - 120_000
+                    while (history.isNotEmpty() && history.first().timestampMs < cutoff) {
+                        history.removeFirst()
+                    }
+                }
                 if (!isReplayActive.value) {
                     _telemetryFlow.emit(frame)
                 }
@@ -615,6 +624,14 @@ open class Nt4ClientService(
 
         pendingFrames.add(frame)
         latestValues[frame.key] = frame
+        val history = telemetryHistory.getOrPut(frame.key) { java.util.ArrayDeque() }
+        synchronized(history) {
+            history.add(frame)
+            val cutoff = frame.timestampMs - 120_000
+            while (history.isNotEmpty() && history.first().timestampMs < cutoff) {
+                history.removeFirst()
+            }
+        }
         if (!isReplayActive.value) {
             _telemetryFlow.emit(frame)
         }

@@ -71,15 +71,20 @@ sealed class CloudIntent {
     object RefreshRobotLogs : CloudIntent()
     data class PerformDeltaSync(val teamId: String, val seasonId: String) : CloudIntent()
     data class UploadRobotRun(val runId: String, val teamId: String, val seasonId: String, val robotId: String) : CloudIntent()
+    data class UploadMultipleRobotRuns(val runIds: List<String>, val teamId: String, val seasonId: String, val robotId: String) : CloudIntent()
     data class DeleteRobotRun(val runId: String) : CloudIntent()
+    data class DeleteMultipleRobotRuns(val runIds: List<String>) : CloudIntent()
     data class DeleteCloudLog(val sessionId: String, val teamId: String) : CloudIntent()
     object ClearError : CloudIntent()
 
     // Database / Cloud Sync Manager Intents
     data class UploadSession(val sessionId: String) : CloudIntent()
     data class DownloadSession(val summary: SessionSummary) : CloudIntent()
+    data class DownloadMultipleSessions(val summaries: List<SessionSummary>) : CloudIntent()
     data class DeleteSessionLocal(val sessionId: String) : CloudIntent()
+    data class DeleteMultipleLocalSessions(val sessionIds: List<String>) : CloudIntent()
     data class DeleteSessionRemote(val sessionId: String, val teamId: String) : CloudIntent()
+    data class DeleteMultipleRemoteSessions(val sessionIdsAndTeamIds: List<Pair<String, String>>) : CloudIntent()
 }
 
 class CloudViewModel(
@@ -270,6 +275,84 @@ class CloudViewModel(
                         _state.update { it.copy(isUploadingRobotLog = null) }
                     }
                 }
+                is CloudIntent.UploadMultipleRobotRuns -> {
+                    _state.update { it.copy(isUploadingRobotLog = "BATCH", errorMessage = null, uploadLogs = listOf("Starting batch upload for ${intent.runIds.size} runs...")) }
+                    try {
+                        val runsToUpload = _state.value.robotRuns.filter { it.runId in intent.runIds }
+                        for ((index, run) in runsToUpload.withIndex()) {
+                            logUpload("=== [${index + 1}/${runsToUpload.size}] Uploading Run: ${run.runId} ===")
+                            val errors = mutableListOf<String>()
+                            val downloadedFiles = mutableListOf<File>()
+
+                            logUpload("Downloading ${run.files.size} raw files from robot...")
+                            for (file in run.files) {
+                                try {
+                                    val tempFile = withContext(Dispatchers.IO) {
+                                        val fileBytes = httpClient.get("http://${getRobotIp()}:5002/api/download?file=${file.name}").body<ByteArray>()
+                                        val tempDir = File(System.getProperty("java.io.tmpdir"), "ares-raw-upload")
+                                        tempDir.mkdirs()
+                                        val f = File(tempDir, file.name)
+                                        f.writeBytes(fileBytes)
+                                        f
+                                    }
+                                    downloadedFiles.add(tempFile)
+                                    logUpload("  -> Downloaded ${file.name} (${tempFile.length() / 1024} KB)")
+                                } catch (e: Exception) {
+                                    errors.add("${file.name}: ${e.message}")
+                                    logUpload("  -> Error downloading ${file.name}: ${e.message}")
+                                }
+                            }
+
+                            if (errors.isEmpty() && downloadedFiles.isNotEmpty()) {
+                                logUpload("Parsing ${downloadedFiles.size} log files into DuckDB...")
+                                val session = logParserService.parseLogFiles(
+                                    files = downloadedFiles,
+                                    teamId = intent.teamId,
+                                    seasonId = intent.seasonId,
+                                    robotId = intent.robotId
+                                )
+                                logUpload("  -> Parsed session: ${session.sessionId}")
+
+                                logUpload("Pushing DuckDB Parquet blob to Cloud...")
+                                try {
+                                    syncEngineService.uploadSession(session.sessionId)
+                                    logUpload("  -> Cloud upload completed.")
+                                } catch (syncEx: Exception) {
+                                    errors.add("Imported locally but cloud upload failed: ${syncEx.message}")
+                                    logUpload("  -> Cloud upload failed: ${syncEx.message}")
+                                }
+
+                                downloadedFiles.forEach { it.delete() }
+
+                                logUpload("Deleting remote files from Robot...")
+                                if (errors.isEmpty()) {
+                                    try {
+                                        withContext(Dispatchers.IO) {
+                                            for (file in run.files) {
+                                                httpClient.post("http://${getRobotIp()}:5002/api/delete") {
+                                                    parameter("file", file.name)
+                                                }
+                                            }
+                                        }
+                                    } catch (deleteEx: Exception) {
+                                        errors.add("Uploaded successfully but robot cleanup failed: ${deleteEx.message}")
+                                    }
+                                }
+                            } else {
+                                logUpload("Run ${run.runId} upload encountered errors. Skipping cleanup.")
+                            }
+                        }
+                        logUpload("Batch upload finished! Syncing metadata...")
+                        syncEngineService.performDeltaSync(intent.teamId, intent.seasonId)
+                        fetchRobotLogs()
+                        onIntent(CloudIntent.RefreshCloudLogs)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        _state.update { it.copy(errorMessage = "Batch upload failed: ${e.message}", isUploadingRobotLog = null) }
+                    } finally {
+                        _state.update { it.copy(isUploadingRobotLog = null) }
+                    }
+                }
                 is CloudIntent.DeleteRobotRun -> {
                     try {
                         val run = _state.value.robotRuns.find { it.runId == intent.runId }
@@ -283,6 +366,24 @@ class CloudViewModel(
                             }
                             fetchRobotLogs()
                         }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        _state.update { it.copy(errorMessage = e.message ?: "Delete request failed") }
+                    }
+                }
+                is CloudIntent.DeleteMultipleRobotRuns -> {
+                    try {
+                        val runsToDelete = _state.value.robotRuns.filter { it.runId in intent.runIds }
+                        withContext(Dispatchers.IO) {
+                            for (run in runsToDelete) {
+                                for (file in run.files) {
+                                    httpClient.post("http://${getRobotIp()}:5002/api/delete") {
+                                        parameter("file", file.name)
+                                    }
+                                }
+                            }
+                        }
+                        fetchRobotLogs()
                     } catch (e: Exception) {
                         e.printStackTrace()
                         _state.update { it.copy(errorMessage = e.message ?: "Delete request failed") }
@@ -321,6 +422,18 @@ class CloudViewModel(
                         _state.update { it.copy(isSyncing = false, errorMessage = e.message ?: "Download failed") }
                     }
                 }
+                is CloudIntent.DownloadMultipleSessions -> {
+                    _state.update { it.copy(isSyncing = true, errorMessage = null) }
+                    try {
+                        for (summary in intent.summaries) {
+                            syncEngineService.downloadSession(summary)
+                        }
+                        onIntent(CloudIntent.RefreshCloudLogs)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        _state.update { it.copy(isSyncing = false, errorMessage = e.message ?: "Batch download failed") }
+                    }
+                }
                 is CloudIntent.DeleteSessionLocal -> {
                     _state.update { it.copy(isSyncing = true, errorMessage = null) }
                     try {
@@ -331,6 +444,18 @@ class CloudViewModel(
                         _state.update { it.copy(isSyncing = false, errorMessage = e.message ?: "Local delete failed") }
                     }
                 }
+                is CloudIntent.DeleteMultipleLocalSessions -> {
+                    _state.update { it.copy(isSyncing = true, errorMessage = null) }
+                    try {
+                        for (sessionId in intent.sessionIds) {
+                            databaseService.deleteSession(sessionId)
+                        }
+                        onIntent(CloudIntent.RefreshCloudLogs)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        _state.update { it.copy(isSyncing = false, errorMessage = e.message ?: "Batch local delete failed") }
+                    }
+                }
                 is CloudIntent.DeleteSessionRemote -> {
                     _state.update { it.copy(isSyncing = true, errorMessage = null) }
                     try {
@@ -339,6 +464,18 @@ class CloudViewModel(
                     } catch (e: Exception) {
                         e.printStackTrace()
                         _state.update { it.copy(isSyncing = false, errorMessage = e.message ?: "Remote delete failed") }
+                    }
+                }
+                is CloudIntent.DeleteMultipleRemoteSessions -> {
+                    _state.update { it.copy(isSyncing = true, errorMessage = null) }
+                    try {
+                        for (item in intent.sessionIdsAndTeamIds) {
+                            syncEngineService.deleteCloudSession(item.first, item.second)
+                        }
+                        onIntent(CloudIntent.RefreshCloudLogs)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        _state.update { it.copy(isSyncing = false, errorMessage = e.message ?: "Batch remote delete failed") }
                     }
                 }
                 is CloudIntent.ClearError -> {

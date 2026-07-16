@@ -124,13 +124,22 @@ fun TelemetryChartPanel(
             ))
         }
 
-        // Initialize newly added keys with their latest known values if their queue is empty
+        // Initialize newly added keys with their historical values
         keysList.forEach { key ->
             val queue = telemetryData.getOrPut(key) { ArrayDeque() }
             if (queue.isEmpty()) {
-                val latest = nt4ClientService.latestValues[key]
-                if (latest != null) {
-                    queue.add(TelemetryPoint(latest.timestampMs, latest.value))
+                val history = nt4ClientService.telemetryHistory[key]
+                if (history != null) {
+                    synchronized(history) {
+                        history.forEach { frame ->
+                            queue.add(TelemetryPoint(frame.timestampMs, frame.value))
+                        }
+                    }
+                } else {
+                    val latest = nt4ClientService.latestValues[key]
+                    if (latest != null) {
+                        queue.add(TelemetryPoint(latest.timestampMs, latest.value))
+                    }
                 }
             }
         }

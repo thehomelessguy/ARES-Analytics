@@ -219,7 +219,7 @@ fun MainScreen(services: ServiceRegistry) {
     LaunchedEffect(currentConfig, targetSelection, liveRobotIp, isSimRunning) {
         println("[MainScreen LaunchedEffect] RUNNING: config=$currentConfig (hash=${System.identityHashCode(currentConfig)}), targetSelection=$targetSelection, liveRobotIp=$liveRobotIp, isSimRunning=$isSimRunning")
         focusRequester.requestFocus()
-        val host = if (targetSelection == TargetSelection.LOCAL_SIM || isSimRunning) {
+        val host = if (targetSelection == TargetSelection.LOCAL_SIM) {
             "127.0.0.1"
         } else {
             liveRobotIp

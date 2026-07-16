@@ -233,6 +233,9 @@ fun DashboardScreen(
                 },
                 "brownout_protection" to { _, mod ->
                     BrownoutProtectionCard(services.nt4ClientService, mod)
+                },
+                "profiling_diagnostics" to { _, mod ->
+                    ProfilingDiagnosticsCard(services.nt4ClientService, mod)
                 }
             )
 
