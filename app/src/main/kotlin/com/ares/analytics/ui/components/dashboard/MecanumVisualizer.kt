@@ -105,6 +105,8 @@ fun MecanumVisualizer(
             )
         }
 
+        val dashEffect = remember { PathEffect.dashPathEffect(floatArrayOf(8f, 8f), 0f) }
+
         Box(
             modifier = Modifier
                 .weight(1f)
@@ -119,7 +121,6 @@ fun MecanumVisualizer(
                 // Draw robot outline (dashed)
                 val robotW = 160f
                 val robotH = 220f
-                val dashEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f), 0f)
                 drawRect(
                     color = AresBorder,
                     topLeft = Offset(cx - robotW / 2f, cy - robotH / 2f),

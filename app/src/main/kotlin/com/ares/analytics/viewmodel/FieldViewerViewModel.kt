@@ -41,6 +41,44 @@ data class FieldViewerState(
     val selectedPathWaypoints: List<Waypoint> = emptyList()
 )
 
+private class FieldViewerStateBuilder(state: FieldViewerState) {
+    var trueX: Double = state.trueX
+    var trueY: Double = state.trueY
+    var trueHeading: Double = state.trueHeading
+    var ekfX: Double? = state.ekfX
+    var ekfY: Double? = state.ekfY
+    var ekfHeading: Double? = state.ekfHeading
+    var odomX: Double? = state.odomX
+    var odomY: Double? = state.odomY
+    var odomHeading: Double? = state.odomHeading
+    var visionX: Double? = state.visionX
+    var visionY: Double? = state.visionY
+    var visionHeading: Double? = state.visionHeading
+    var visionPoses: MutableMap<Int, Double> = state.visionPoses.toMutableMap()
+    var visionHasTarget: Boolean = state.visionHasTarget
+    var liveGamePieces: MutableMap<Int, GamePiece> = state.liveGamePieces.toMutableMap()
+
+    fun build(original: FieldViewerState): FieldViewerState {
+        return original.copy(
+            trueX = trueX,
+            trueY = trueY,
+            trueHeading = trueHeading,
+            ekfX = ekfX,
+            ekfY = ekfY,
+            ekfHeading = ekfHeading,
+            odomX = odomX,
+            odomY = odomY,
+            odomHeading = odomHeading,
+            visionX = visionX,
+            visionY = visionY,
+            visionHeading = visionHeading,
+            visionPoses = visionPoses.toMap(),
+            visionHasTarget = visionHasTarget,
+            liveGamePieces = liveGamePieces.toMap()
+        )
+    }
+}
+
 sealed class FieldViewerIntent {
     data class FetchAvailablePaths(val projectPath: String?, val league: League) : FieldViewerIntent()
     data class SelectPath(val pathName: String?, val projectPath: String?, val league: League) : FieldViewerIntent()
@@ -70,73 +108,73 @@ class FieldViewerViewModel(
             }
         }
         scope.launch {
+            val builder = FieldViewerStateBuilder(_state.value)
+            var lastEmit = System.currentTimeMillis()
+            
             nt4ClientService.telemetryFlow.collect { frame ->
                 val key = frame.key
                 val value = frame.value
                 
-                _state.update { currentState ->
-                    var newState = currentState
-                    when (key) {
-                        "ARES/EstimatedPose/0", "Drive/Pose_X" -> newState = newState.copy(trueX = value, ekfX = if (key == "Drive/Pose_X") value else newState.ekfX)
-                        "ARES/EstimatedPose/1", "Drive/Pose_Y" -> newState = newState.copy(trueY = value, ekfY = if (key == "Drive/Pose_Y") value else newState.ekfY)
-                        "ARES/EstimatedPose/2", "Drive/Pose_Heading", "Drive/Drive_Heading" -> newState = newState.copy(trueHeading = value, ekfHeading = if (key != "ARES/EstimatedPose/2") value else newState.ekfHeading)
-                        "Drive/Odom_X", "pinpoint_x", "pinpoint/x" -> newState = newState.copy(odomX = value)
-                        "Drive/Odom_Y", "pinpoint_y", "pinpoint/y" -> newState = newState.copy(odomY = value)
-                        "Drive/Odom_Heading", "pinpoint_heading", "pinpoint/heading" -> newState = newState.copy(odomHeading = value)
-                        "Vision/HasTarget" -> {
-                            val hasTarget = value > 0.5
-                            newState = newState.copy(
-                                visionHasTarget = hasTarget,
-                                visionX = if (hasTarget) newState.visionX else null,
-                                visionY = if (hasTarget) newState.visionY else null,
-                                visionHeading = if (hasTarget) newState.visionHeading else null,
-                                visionPoses = if (hasTarget) newState.visionPoses else emptyMap()
-                            )
+                when (key) {
+                    "ARES/EstimatedPose/0", "Drive/Pose_X" -> { builder.trueX = value; if (key == "Drive/Pose_X") builder.ekfX = value }
+                    "ARES/EstimatedPose/1", "Drive/Pose_Y" -> { builder.trueY = value; if (key == "Drive/Pose_Y") builder.ekfY = value }
+                    "ARES/EstimatedPose/2", "Drive/Pose_Heading", "Drive/Drive_Heading" -> { builder.trueHeading = value; if (key != "ARES/EstimatedPose/2") builder.ekfHeading = value }
+                    "Drive/Odom_X", "pinpoint_x", "pinpoint/x" -> builder.odomX = value
+                    "Drive/Odom_Y", "pinpoint_y", "pinpoint/y" -> builder.odomY = value
+                    "Drive/Odom_Heading", "pinpoint_heading", "pinpoint/heading" -> builder.odomHeading = value
+                    "Vision/HasTarget" -> {
+                        val hasTarget = value > 0.5
+                        builder.visionHasTarget = hasTarget
+                        if (!hasTarget) {
+                            builder.visionX = null
+                            builder.visionY = null
+                            builder.visionHeading = null
+                            builder.visionPoses.clear()
                         }
-                        "Vision/Pose_X", "Vision/Pose/X" -> newState = newState.copy(visionX = if (newState.visionHasTarget) value else null)
-                        "Vision/Pose_Y", "Vision/Pose/Y" -> newState = newState.copy(visionY = if (newState.visionHasTarget) value else null)
-                        "Vision/Pose_Heading", "Vision/Pose/Heading" -> newState = newState.copy(visionHeading = if (newState.visionHasTarget) value else null)
                     }
+                    "Vision/Pose_X", "Vision/Pose/X" -> if (builder.visionHasTarget) builder.visionX = value
+                    "Vision/Pose_Y", "Vision/Pose/Y" -> if (builder.visionHasTarget) builder.visionY = value
+                    "Vision/Pose_Heading", "Vision/Pose/Heading" -> if (builder.visionHasTarget) builder.visionHeading = value
+                }
 
-                    if (key.startsWith("Vision/PoseArray/") || key.startsWith("AdvantageScope/VisionPose/")) {
-                        if (newState.visionHasTarget) {
-                            val idx = key.substringAfterLast("/").toIntOrNull()
-                            if (idx != null) {
-                                val newMap = newState.visionPoses.toMutableMap()
-                                newMap[idx] = value
-                                newState = newState.copy(visionPoses = newMap)
-                            }
-                        } else {
-                            newState = newState.copy(visionPoses = emptyMap())
+                if (key.startsWith("Vision/PoseArray/") || key.startsWith("AdvantageScope/VisionPose/")) {
+                    if (builder.visionHasTarget) {
+                        val idx = key.substringAfterLast("/").toIntOrNull()
+                        if (idx != null) {
+                            builder.visionPoses[idx] = value
                         }
+                    } else {
+                        builder.visionPoses.clear()
                     }
+                }
 
-                    if (key.startsWith("ARES/GamePieces/")) {
-                        val arrayIdx = key.substringAfterLast("/").toIntOrNull()
-                        if (arrayIdx != null) {
-                            val pieceIdx = arrayIdx / 7
-                            val attributeIdx = arrayIdx % 7
-                            val currentPiece = newState.liveGamePieces[pieceIdx] ?: GamePiece(
-                                id = pieceIdx.toString(),
-                                name = "Piece $pieceIdx",
-                                x = 0.0,
-                                y = 0.0,
-                                type = "Decode (Ball)" // Assuming Decode (Ball) for sim
-                            )
-                            
-                            val updatedPiece = when (attributeIdx) {
-                                0 -> currentPiece.copy(x = value)
-                                1 -> currentPiece.copy(y = value)
-                                else -> currentPiece
-                            }
-                            
-                            val newMap = newState.liveGamePieces.toMutableMap()
-                            newMap[pieceIdx] = updatedPiece
-                            newState = newState.copy(liveGamePieces = newMap)
+                if (key.startsWith("ARES/GamePieces/")) {
+                    val arrayIdx = key.substringAfterLast("/").toIntOrNull()
+                    if (arrayIdx != null) {
+                        val pieceIdx = arrayIdx / 7
+                        val attributeIdx = arrayIdx % 7
+                        val currentPiece = builder.liveGamePieces[pieceIdx] ?: GamePiece(
+                            id = pieceIdx.toString(),
+                            name = "Piece $pieceIdx",
+                            x = 0.0,
+                            y = 0.0,
+                            type = "Decode (Ball)"
+                        )
+                        
+                        val updatedPiece = when (attributeIdx) {
+                            0 -> currentPiece.copy(x = value)
+                            1 -> currentPiece.copy(y = value)
+                            else -> currentPiece
                         }
+                        
+                        builder.liveGamePieces[pieceIdx] = updatedPiece
                     }
-                    
-                    newState
+                }
+                
+                val now = System.currentTimeMillis()
+                if (now - lastEmit > 16) {
+                    _state.update { builder.build(it) }
+                    lastEmit = now
                 }
             }
         }

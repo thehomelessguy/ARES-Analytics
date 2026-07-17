@@ -44,6 +44,13 @@ class CameraStreamViewModel(
     
     private var streamJob: Job? = null
     
+    private val httpClient = HttpClient(CIO) {
+        install(HttpTimeout) {
+            requestTimeoutMillis = Long.MAX_VALUE
+            socketTimeoutMillis = Long.MAX_VALUE
+        }
+    }
+    
     init {
         if (initialStreamUrl != null) {
             startStreaming()
@@ -88,15 +95,8 @@ class CameraStreamViewModel(
                 
                 _state.update { it.copy(isConnected = false, errorMessage = null) }
 
-                val client = HttpClient(CIO) {
-                    install(HttpTimeout) {
-                        requestTimeoutMillis = Long.MAX_VALUE
-                        socketTimeoutMillis = Long.MAX_VALUE
-                    }
-                }
-
                 try {
-                    client.prepareGet(currentUrl).execute { response ->
+                    httpClient.prepareGet(currentUrl).execute { response ->
                         if (response.status.value in 200..299) {
                             _state.update { it.copy(isConnected = true) }
                             retryDelayMs = 1000L
@@ -146,7 +146,6 @@ class CameraStreamViewModel(
                 } catch (e: Exception) {
                     _state.update { it.copy(isConnected = false, errorMessage = e.message ?: "Connection failed") }
                 } finally {
-                    client.close()
                     _state.update { it.copy(isConnected = false) }
                 }
                 

@@ -33,6 +33,12 @@ class PathCacheHolder {
     var actualPath: Path? = null
     var constraintPaths: List<Path> = emptyList()
 
+    val reusableArrowPath = Path()
+    val reusableDiamondPath = Path()
+    val reusableXAxisPath = Path()
+    val reusableYAxisPath = Path()
+    val reusablePath = Path()
+
     val dashEffect10 = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
     val dashEffect8 = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(8f, 8f), 0f)
     val dashEffect5 = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(5f, 5f), 0f)
