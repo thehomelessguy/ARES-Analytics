@@ -206,10 +206,11 @@ class CloudViewModel(
                                         val tempDir = File(System.getProperty("java.io.tmpdir"), "ares-raw-upload")
                                         tempDir.mkdirs()
                                         val f = File(tempDir, file.name)
-                                        val response = httpClient.get("http://${getRobotIp()}:5002/api/download?file=${file.name}")
-                                        val channel = response.bodyAsChannel()
-                                        java.io.FileOutputStream(f).use { outputStream ->
-                                            channel.copyTo(outputStream)
+                                        httpClient.prepareGet("http://${getRobotIp()}:5002/api/download?file=${file.name}").execute { response ->
+                                            val channel = response.bodyAsChannel()
+                                            java.io.FileOutputStream(f).use { outputStream ->
+                                                channel.copyTo(outputStream)
+                                            }
                                         }
                                         f
                                     }
@@ -251,9 +252,9 @@ class CloudViewModel(
                                     try {
                                         withContext(Dispatchers.IO) {
                                             for (file in run.files) {
-                                                httpClient.post("http://${getRobotIp()}:5002/api/delete") {
+                                                httpClient.preparePost("http://${getRobotIp()}:5002/api/delete") {
                                                     parameter("file", file.name)
-                                                }
+                                                }.execute {}
                                             }
                                         }
                                     } catch (deleteEx: Exception) {
@@ -296,10 +297,11 @@ class CloudViewModel(
                                         val tempDir = File(System.getProperty("java.io.tmpdir"), "ares-raw-upload")
                                         tempDir.mkdirs()
                                         val f = File(tempDir, file.name)
-                                        val response = httpClient.get("http://${getRobotIp()}:5002/api/download?file=${file.name}")
-                                        val channel = response.bodyAsChannel()
-                                        java.io.FileOutputStream(f).use { outputStream ->
-                                            channel.copyTo(outputStream)
+                                        httpClient.prepareGet("http://${getRobotIp()}:5002/api/download?file=${file.name}").execute { response ->
+                                            val channel = response.bodyAsChannel()
+                                            java.io.FileOutputStream(f).use { outputStream ->
+                                                channel.copyTo(outputStream)
+                                            }
                                         }
                                         f
                                     }
@@ -337,9 +339,9 @@ class CloudViewModel(
                                     try {
                                         withContext(Dispatchers.IO) {
                                             for (file in run.files) {
-                                                httpClient.post("http://${getRobotIp()}:5002/api/delete") {
+                                                httpClient.preparePost("http://${getRobotIp()}:5002/api/delete") {
                                                     parameter("file", file.name)
-                                                }
+                                                }.execute {}
                                             }
                                         }
                                     } catch (deleteEx: Exception) {
@@ -367,9 +369,9 @@ class CloudViewModel(
                         if (run != null) {
                             withContext(Dispatchers.IO) {
                                 for (file in run.files) {
-                                    httpClient.post("http://${getRobotIp()}:5002/api/delete") {
+                                    httpClient.preparePost("http://${getRobotIp()}:5002/api/delete") {
                                         parameter("file", file.name)
-                                    }
+                                    }.execute {}
                                 }
                             }
                             fetchRobotLogs()
@@ -385,9 +387,9 @@ class CloudViewModel(
                         withContext(Dispatchers.IO) {
                             for (run in runsToDelete) {
                                 for (file in run.files) {
-                                    httpClient.post("http://${getRobotIp()}:5002/api/delete") {
+                                    httpClient.preparePost("http://${getRobotIp()}:5002/api/delete") {
                                         parameter("file", file.name)
-                                    }
+                                    }.execute {}
                                 }
                             }
                         }

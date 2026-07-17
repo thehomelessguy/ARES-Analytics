@@ -34,13 +34,14 @@ class TeamApiService(
     suspend fun fetchTeamRobots(teamId: String, authToken: String? = null): List<RobotProfile> = withContext(Dispatchers.IO) {
         val token = try { getActiveToken(authToken) } catch (e: Exception) { return@withContext emptyList() }
         try {
-            val response = httpClient.get("$gatewayUrl/api/team/$teamId/robots") {
+            httpClient.prepareGet("$gatewayUrl/api/team/$teamId/robots") {
                 header(HttpHeaders.Authorization, "Bearer $token")
-            }
-            if (response.status == HttpStatusCode.OK) {
-                response.body<TeamRobotsResponse>().robots
-            } else {
-                emptyList()
+            }.execute { response ->
+                if (response.status == HttpStatusCode.OK) {
+                    response.body<TeamRobotsResponse>().robots
+                } else {
+                    emptyList()
+                }
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -50,33 +51,35 @@ class TeamApiService(
 
     suspend fun addRobotProfile(teamId: String, robot: RobotProfile, authToken: String? = null): Boolean = withContext(Dispatchers.IO) {
         val token = getActiveToken(authToken)
-        val response = try {
-            httpClient.post("$gatewayUrl/api/team/robots/add") {
+        return@withContext try {
+            httpClient.preparePost("$gatewayUrl/api/team/robots/add") {
                 contentType(ContentType.Application.Json)
                 header(HttpHeaders.Authorization, "Bearer $token")
                 setBody(AddRobotRequest(teamId, robot))
+            }.execute { response ->
+                when (response.status) {
+                    HttpStatusCode.OK -> true
+                    HttpStatusCode.Forbidden -> throw SecurityException(response.bodyAsText())
+                    else -> throw Exception("Server returned ${response.status}: ${response.bodyAsText()}")
+                }
             }
         } catch (e: Exception) {
+            if (e is SecurityException) throw e
             e.printStackTrace()
             throw Exception("Network error connecting to backend.", e)
-        }
-        
-        when (response.status) {
-            HttpStatusCode.OK -> return@withContext true
-            HttpStatusCode.Forbidden -> throw SecurityException(response.bodyAsText())
-            else -> throw Exception("Server returned ${response.status}: ${response.bodyAsText()}")
         }
     }
 
     suspend fun deleteRobotProfile(teamId: String, robotId: String, authToken: String? = null): Boolean = withContext(Dispatchers.IO) {
         val token = getActiveToken(authToken)
         try {
-            val response = httpClient.post("$gatewayUrl/api/team/robots/delete") {
+            httpClient.preparePost("$gatewayUrl/api/team/robots/delete") {
                 contentType(ContentType.Application.Json)
                 header(HttpHeaders.Authorization, "Bearer $token")
                 setBody(DeleteRobotRequest(teamId, robotId))
+            }.execute { response ->
+                response.status == HttpStatusCode.OK
             }
-            response.status == HttpStatusCode.OK
         } catch (e: Exception) {
             e.printStackTrace()
             false

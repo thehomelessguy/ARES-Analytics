@@ -44,16 +44,15 @@ fun Route.authRoutes() {
 
             try {
                 // Query GitHub API for user's organizations
-                val orgsResponse = httpClient.get("https://api.github.com/user/orgs") {
+                val orgs = httpClient.prepareGet("https://api.github.com/user/orgs") {
                     header(HttpHeaders.Authorization, "token ${req.githubToken}")
                     header(HttpHeaders.Accept, "application/vnd.github.v3+json")
-                }
-
-                if (orgsResponse.status != HttpStatusCode.OK) {
-                    return@post call.respond(HttpStatusCode.BadRequest, "Failed to verify GitHub token: ${orgsResponse.status}")
-                }
-
-                val orgs = orgsResponse.body<List<GithubOrg>>()
+                }.execute { orgsResponse ->
+                    if (orgsResponse.status != HttpStatusCode.OK) {
+                        return@execute null
+                    }
+                    orgsResponse.body<List<GithubOrg>>()
+                } ?: return@post call.respond(HttpStatusCode.BadRequest, "Failed to verify GitHub token")
                 val orgNames = orgs.map { it.login }
 
                 // If a target organization is specified, verify membership
@@ -65,24 +64,26 @@ fun Route.authRoutes() {
                 }
 
                 // Query username to resolve teams
-                val userResponse = httpClient.get("https://api.github.com/user") {
+                val username = httpClient.prepareGet("https://api.github.com/user") {
                     header(HttpHeaders.Authorization, "token ${req.githubToken}")
                     header(HttpHeaders.Accept, "application/vnd.github.v3+json")
+                }.execute { userResponse ->
+                    if (userResponse.status == HttpStatusCode.OK) {
+                        userResponse.body<GithubUser>().login
+                    } else null
                 }
-                val username = if (userResponse.status == HttpStatusCode.OK) {
-                    userResponse.body<GithubUser>().login
-                } else null
 
                 // Determine sub-team admin tier
                 var role = "VIEWER"
                 if (req.targetOrg != null && username != null) {
                     // Check mentors membership
-                    val mentorsResponse = httpClient.get("https://api.github.com/orgs/${req.targetOrg}/teams/mentors/memberships/$username") {
+                    httpClient.prepareGet("https://api.github.com/orgs/${req.targetOrg}/teams/mentors/memberships/$username") {
                         header(HttpHeaders.Authorization, "token ${req.githubToken}")
                         header(HttpHeaders.Accept, "application/vnd.github.v3+json")
-                    }
-                    if (mentorsResponse.status == HttpStatusCode.OK) {
-                        role = "ADMIN"
+                    }.execute { mentorsResponse ->
+                        if (mentorsResponse.status == HttpStatusCode.OK) {
+                            role = "ADMIN"
+                        }
                     }
                 }
 

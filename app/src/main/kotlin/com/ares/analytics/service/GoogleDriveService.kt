@@ -153,18 +153,18 @@ class GoogleDriveService(
      */
     suspend fun readFileStreaming(fileId: String, destination: File): Unit = withContext(Dispatchers.IO) {
         val token = getAccessToken()
-        val response = httpClient.get("https://www.googleapis.com/drive/v3/files/$fileId") {
+        httpClient.prepareGet("https://www.googleapis.com/drive/v3/files/$fileId") {
             header(HttpHeaders.Authorization, "Bearer $token")
             parameter("alt", "media")
-        }
+        }.execute { response ->
+            if (response.status != HttpStatusCode.OK) {
+                throw Exception("Failed to download file: ${response.bodyAsText()}")
+            }
 
-        if (response.status != HttpStatusCode.OK) {
-            throw Exception("Failed to download file: ${response.bodyAsText()}")
-        }
-
-        val channel = response.bodyAsChannel()
-        java.io.FileOutputStream(destination).use { outputStream ->
-            channel.copyTo(outputStream)
+            val channel = response.bodyAsChannel()
+            java.io.FileOutputStream(destination).use { outputStream ->
+                channel.copyTo(outputStream)
+            }
         }
     }
 
@@ -173,16 +173,16 @@ class GoogleDriveService(
 
         if (fileId != null) {
             // Overwrite existing file media content
-            val response = httpClient.patch("https://www.googleapis.com/upload/drive/v3/files/$fileId?uploadType=media") {
+            return@withContext httpClient.preparePatch("https://www.googleapis.com/upload/drive/v3/files/$fileId?uploadType=media") {
                 header(HttpHeaders.Authorization, "Bearer $token")
                 contentType(ContentType.parse(mimeType))
                 setBody(bytes)
+            }.execute { response ->
+                if (response.status != HttpStatusCode.OK) {
+                    throw Exception("Failed to overwrite file content: ${response.bodyAsText()}")
+                }
+                fileId
             }
-
-            if (response.status != HttpStatusCode.OK) {
-                throw Exception("Failed to overwrite file content: ${response.bodyAsText()}")
-            }
-            return@withContext fileId
         } else {
             // Create a new file with multipart metadata + media content
             val boundary = "Boundary_${System.currentTimeMillis()}"
@@ -227,18 +227,18 @@ class GoogleDriveService(
 
         if (fileId != null) {
             // Overwrite existing file with streaming content
-            val response = httpClient.patch("https://www.googleapis.com/upload/drive/v3/files/$fileId?uploadType=media") {
+            return@withContext httpClient.preparePatch("https://www.googleapis.com/upload/drive/v3/files/$fileId?uploadType=media") {
                 header(HttpHeaders.Authorization, "Bearer $token")
                 contentType(ContentType.parse(mimeType))
                 setBody(io.ktor.client.request.forms.InputProvider(file.length()) {
                     file.inputStream().asInput()
                 })
+            }.execute { response ->
+                if (response.status != HttpStatusCode.OK) {
+                    throw Exception("Failed to overwrite file content: ${response.bodyAsText()}")
+                }
+                fileId
             }
-
-            if (response.status != HttpStatusCode.OK) {
-                throw Exception("Failed to overwrite file content: ${response.bodyAsText()}")
-            }
-            return@withContext fileId
         } else {
             // For new file creation, read bytes (metadata + content multipart requires it)
             // This path is acceptable because new uploads are rarer than overwrites
@@ -249,12 +249,12 @@ class GoogleDriveService(
 
     suspend fun deleteFile(fileId: String): Unit = withContext(Dispatchers.IO) {
         val token = getAccessToken()
-        val response = httpClient.delete("https://www.googleapis.com/drive/v3/files/$fileId") {
+        httpClient.prepareDelete("https://www.googleapis.com/drive/v3/files/$fileId") {
             header(HttpHeaders.Authorization, "Bearer $token")
-        }
-
-        if (response.status != HttpStatusCode.OK && response.status != HttpStatusCode.NoContent) {
-            throw Exception("Failed to delete file: ${response.bodyAsText()}")
+        }.execute { response ->
+            if (response.status != HttpStatusCode.OK && response.status != HttpStatusCode.NoContent) {
+                throw Exception("Failed to delete file: ${response.bodyAsText()}")
+            }
         }
     }
 }

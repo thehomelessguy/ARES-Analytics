@@ -46,29 +46,31 @@ class PhoenixDiagnosticsService(
         pollJob = serviceScope.launch {
             while (isActive) {
                 try {
-                    val devicesResponse = httpClient.get("http://$host:$port/devices")
-                    if (devicesResponse.status == HttpStatusCode.OK) {
-                        _isConnected.value = true
-                        val devices = devicesResponse.body<List<PhoenixDevice>>()
-                        
-                        for (device in devices) {
-                            val telResponse = httpClient.get("http://$host:$port/device/${device.id}/telemetry")
-                            if (telResponse.status == HttpStatusCode.OK) {
-                                val telData = telResponse.body<PhoenixTelemetryResponse>()
-                                val now = System.currentTimeMillis()
-                                for ((signalName, signalValue) in telData.signals) {
-                                    val frame = TelemetryFrame(
-                                        timestampMs = now,
-                                        sessionId = "live-telemetry",
-                                        key = "/Phoenix/${device.name}_${device.canId ?: 0}/$signalName",
-                                        value = signalValue
-                                    )
-                                    nt4ClientService.publishFrame(frame)
+                    httpClient.prepareGet("http://$host:$port/devices").execute { devicesResponse ->
+                        if (devicesResponse.status == HttpStatusCode.OK) {
+                            _isConnected.value = true
+                            val devices = devicesResponse.body<List<PhoenixDevice>>()
+                            
+                            for (device in devices) {
+                                httpClient.prepareGet("http://$host:$port/device/${device.id}/telemetry").execute { telResponse ->
+                                    if (telResponse.status == HttpStatusCode.OK) {
+                                        val telData = telResponse.body<PhoenixTelemetryResponse>()
+                                        val now = System.currentTimeMillis()
+                                        for ((signalName, signalValue) in telData.signals) {
+                                            val frame = TelemetryFrame(
+                                                timestampMs = now,
+                                                sessionId = "live-telemetry",
+                                                key = "/Phoenix/${device.name}_${device.canId ?: 0}/$signalName",
+                                                value = signalValue
+                                            )
+                                            nt4ClientService.publishFrame(frame)
+                                        }
+                                    }
                                 }
                             }
+                        } else {
+                            _isConnected.value = false
                         }
-                    } else {
-                        _isConnected.value = false
                     }
                 } catch (e: Exception) {
                     _isConnected.value = false

@@ -44,22 +44,23 @@ class UpdateCheckerService(
         serviceScope.launch {
             _updateState.value = UpdateState.Checking
             try {
-                val response = httpClient.get("https://api.github.com/repos/ares-robotics/ares-analytics/releases/latest") {
+                httpClient.prepareGet("https://api.github.com/repos/ares-robotics/ares-analytics/releases/latest") {
                     header(HttpHeaders.UserAgent, "ares-analytics-app")
-                }
-                if (response.status == HttpStatusCode.OK) {
-                    val release = response.body<GitHubRelease>()
-                    if (isNewerVersion(BuildConfig.VERSION, release.tagName)) {
-                        _updateState.value = UpdateState.UpdateAvailable(
-                            latestVersion = release.tagName,
-                            downloadUrl = release.htmlUrl,
-                            releaseNotes = release.body
-                        )
+                }.execute { response ->
+                    if (response.status == HttpStatusCode.OK) {
+                        val release = response.body<GitHubRelease>()
+                        if (isNewerVersion(BuildConfig.VERSION, release.tagName)) {
+                            _updateState.value = UpdateState.UpdateAvailable(
+                                latestVersion = release.tagName,
+                                downloadUrl = release.htmlUrl,
+                                releaseNotes = release.body
+                            )
+                        } else {
+                            _updateState.value = UpdateState.UpToDate
+                        }
                     } else {
-                        _updateState.value = UpdateState.UpToDate
+                        _updateState.value = UpdateState.Error("API returned status ${response.status}")
                     }
-                } else {
-                    _updateState.value = UpdateState.Error("API returned status ${response.status}")
                 }
             } catch (e: Exception) {
                 _updateState.value = UpdateState.Error(e.message ?: "Unknown error checking updates")
