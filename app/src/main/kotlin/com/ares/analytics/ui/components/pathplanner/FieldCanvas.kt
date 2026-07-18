@@ -356,71 +356,73 @@ fun FieldCanvas(
                                  EditorMode.SELECT -> {
                                      var hitIdx = -1; var hitHeading = false; var hitRotation = false
                                      
+                                     // Convert press position to base canvas space (before zoom/pan/rotate transform).
+                                     // This matches the coordinate system used by PathRenderer.drawWaypoints.
+                                     val basePress = getBaseCanvasFromScreen(pressOffset, w, h, zoomScale, panOffset, viewRotation)
+                                     
+                                     // Helper: compute rotation handle position in base canvas space (matches PathRenderer.kt L456-458)
+                                     fun rotHandleBase(wpBaseOffset: Offset, wpIdx: Int): Offset {
+                                         val rotAngleRad = combinedRotationTargets.find { kotlin.math.abs(it.waypointRelativePos - wpIdx) < 1e-3 }
+                                             ?.rotationDegrees?.let { Math.toRadians(-it - 90.0) } ?: Math.toRadians(-90.0)
+                                         val rotHandleLenPx = 30.dp.toPx() // same as PathRenderer L456
+                                         return Offset(
+                                             wpBaseOffset.x + rotHandleLenPx * cos(rotAngleRad).toFloat(),
+                                             wpBaseOffset.y + rotHandleLenPx * sin(rotAngleRad).toFloat()
+                                         )
+                                     }
+                                     
+                                     // Scale-aware hit threshold: fixed screen-size radius divided by zoom
+                                     // so clickability doesn't shrink when zoomed out
+                                     val hitRadiusPx = 15.dp.toPx() / zoomScale
+                                     val rotHitRadiusPx = 18.dp.toPx() / zoomScale
+                                     
                                      // 1. Prioritize handles of the ALREADY selected waypoint (if any)
                                      if (selectedWaypointIndex in currentWaypoints.indices) {
                                          val wp = currentWaypoints[selectedWaypointIndex]
-                                         val wpOffset = getTransformedCanvasOffset(wp, w, h, fieldWidthM, fieldHeightM, league, zoomScale, panOffset, viewRotation)
+                                         val wpBase = getCanvasOffsetBase(wp, w, h, fieldWidthM, fieldHeightM, league)
                                          
-                                         // Heading handle
-                                         val handleOffset = getTransformedCanvasOffset(
-                                             Waypoint(wp.x + wp.tangentMagnitude * cos(wp.headingRad), wp.y + wp.tangentMagnitude * sin(wp.headingRad)), 
-                                             w, h, fieldWidthM, fieldHeightM, league, zoomScale, panOffset, viewRotation
-                                         )
-                                         if (sqrt((pressOffset.x - handleOffset.x).pow(2) + (pressOffset.y - handleOffset.y).pow(2)) < 20.dp.toPx()) {
-                                             hitIdx = selectedWaypointIndex
-                                             hitHeading = true
+                                         // Heading handle (tangent arrowhead)
+                                         val headingWp = Waypoint(wp.x + wp.tangentMagnitude * cos(wp.headingRad), wp.y + wp.tangentMagnitude * sin(wp.headingRad))
+                                         val headingBase = getCanvasOffsetBase(headingWp, w, h, fieldWidthM, fieldHeightM, league)
+                                         if (sqrt((basePress.x - headingBase.x).pow(2) + (basePress.y - headingBase.y).pow(2)) < hitRadiusPx) {
+                                             hitIdx = selectedWaypointIndex; hitHeading = true
                                          }
                                          
-                                         // Rotation handle
+                                         // Rotation handle (green diamond)
                                          if (hitIdx == -1) {
-                                             val viewRotRad = Math.toRadians(viewRotation.toDouble())
-                                             val targetAngleRad = combinedRotationTargets.find { kotlin.math.abs(it.waypointRelativePos - selectedWaypointIndex) < 1e-3 }?.rotationDegrees?.let { Math.toRadians(-it - 90.0) }
-                                                 ?: Math.toRadians(-90.0)
-                                             val rotationHandleLenPx = 30.dp.toPx() * zoomScale
-                                             val rotHandleX = wpOffset.x + rotationHandleLenPx * cos(targetAngleRad + viewRotRad).toFloat()
-                                             val rotHandleY = wpOffset.y + rotationHandleLenPx * sin(targetAngleRad + viewRotRad).toFloat()
-                                             if (sqrt((pressOffset.x - rotHandleX).pow(2) + (pressOffset.y - rotHandleY).pow(2)) < 24.dp.toPx()) {
-                                                 hitIdx = selectedWaypointIndex
-                                                 hitRotation = true
+                                             val rotBase = rotHandleBase(wpBase, selectedWaypointIndex)
+                                             if (sqrt((basePress.x - rotBase.x).pow(2) + (basePress.y - rotBase.y).pow(2)) < rotHitRadiusPx) {
+                                                 hitIdx = selectedWaypointIndex; hitRotation = true
                                              }
                                          }
                                      }
                                      
-                                     // 2. If no selected handle was hit, find if we clicked any waypoint center dot
+                                     // 2. Check all waypoint center dots
                                      if (hitIdx == -1) {
-                                         hitIdx = currentWaypoints.indexOfFirst {
-                                             val centerOffset = getTransformedCanvasOffset(it, w, h, fieldWidthM, fieldHeightM, league, zoomScale, panOffset, viewRotation)
-                                             sqrt((pressOffset.x - centerOffset.x).pow(2) + (pressOffset.y - centerOffset.y).pow(2)) < 20.dp.toPx()
+                                         for (i in currentWaypoints.indices) {
+                                             val wpBase = getCanvasOffsetBase(currentWaypoints[i], w, h, fieldWidthM, fieldHeightM, league)
+                                             if (sqrt((basePress.x - wpBase.x).pow(2) + (basePress.y - wpBase.y).pow(2)) < hitRadiusPx) {
+                                                 hitIdx = i; break
+                                             }
                                          }
                                      }
                                      
-                                     // 3. If still nothing, allow selecting other waypoints' handles
+                                     // 3. Check other waypoints' handles (heading + rotation)
                                      if (hitIdx == -1) {
                                          for (i in currentWaypoints.indices) {
                                              if (i == selectedWaypointIndex) continue
                                              val wp = currentWaypoints[i]
-                                             val wpOffset = getTransformedCanvasOffset(wp, w, h, fieldWidthM, fieldHeightM, league, zoomScale, panOffset, viewRotation)
+                                             val wpBase = getCanvasOffsetBase(wp, w, h, fieldWidthM, fieldHeightM, league)
                                              
-                                             val handleOffset = getTransformedCanvasOffset(
-                                                 Waypoint(wp.x + wp.tangentMagnitude * cos(wp.headingRad), wp.y + wp.tangentMagnitude * sin(wp.headingRad)), 
-                                                 w, h, fieldWidthM, fieldHeightM, league, zoomScale, panOffset, viewRotation
-                                             )
-                                             if (sqrt((pressOffset.x - handleOffset.x).pow(2) + (pressOffset.y - handleOffset.y).pow(2)) < 20.dp.toPx()) {
-                                                 hitIdx = i
-                                                 hitHeading = true
-                                                 break
+                                             val headingWp = Waypoint(wp.x + wp.tangentMagnitude * cos(wp.headingRad), wp.y + wp.tangentMagnitude * sin(wp.headingRad))
+                                             val headingBase = getCanvasOffsetBase(headingWp, w, h, fieldWidthM, fieldHeightM, league)
+                                             if (sqrt((basePress.x - headingBase.x).pow(2) + (basePress.y - headingBase.y).pow(2)) < hitRadiusPx) {
+                                                 hitIdx = i; hitHeading = true; break
                                              }
                                              
-                                             val viewRotRad = Math.toRadians(viewRotation.toDouble())
-                                             val targetAngleRad = combinedRotationTargets.find { kotlin.math.abs(it.waypointRelativePos - i) < 1e-3 }?.rotationDegrees?.let { Math.toRadians(-it - 90.0) }
-                                                 ?: Math.toRadians(-90.0)
-                                             val rotationHandleLenPx = 30.dp.toPx() * zoomScale
-                                             val rotHandleX = wpOffset.x + rotationHandleLenPx * cos(targetAngleRad + viewRotRad).toFloat()
-                                             val rotHandleY = wpOffset.y + rotationHandleLenPx * sin(targetAngleRad + viewRotRad).toFloat()
-                                             if (sqrt((pressOffset.x - rotHandleX).pow(2) + (pressOffset.y - rotHandleY).pow(2)) < 24.dp.toPx()) {
-                                                 hitIdx = i
-                                                 hitRotation = true
-                                                 break
+                                             val rotBase = rotHandleBase(wpBase, i)
+                                             if (sqrt((basePress.x - rotBase.x).pow(2) + (basePress.y - rotBase.y).pow(2)) < rotHitRadiusPx) {
+                                                 hitIdx = i; hitRotation = true; break
                                              }
                                          }
                                      }
@@ -428,8 +430,8 @@ fun FieldCanvas(
                                      var hitEventIdx = -1
                                      if (hitIdx == -1) {
                                          hitEventIdx = currentEventMarkers.indexOfFirst {
-                                             val markerOffset = getTransformedCanvasOffset(getPositionOnSpline(it.waypointRelativePos, currentWaypoints), w, h, fieldWidthM, fieldHeightM, league, zoomScale, panOffset, viewRotation)
-                                             sqrt((pressOffset.x - markerOffset.x).pow(2) + (pressOffset.y - markerOffset.y).pow(2)) < 15.dp.toPx()
+                                             val markerBase = getCanvasOffsetBase(getPositionOnSpline(it.waypointRelativePos, currentWaypoints), w, h, fieldWidthM, fieldHeightM, league)
+                                             sqrt((basePress.x - markerBase.x).pow(2) + (basePress.y - markerBase.y).pow(2)) < hitRadiusPx
                                          }
                                      }
                                     
