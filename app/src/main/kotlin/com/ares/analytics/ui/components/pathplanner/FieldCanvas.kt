@@ -365,7 +365,7 @@ fun FieldCanvas(
                                      
                                      // Helper: compute rotation handle position in base canvas space (matches PathRenderer draw code)
                                      fun rotHandleBase(wpBaseOffset: Offset, wp: Waypoint): Offset {
-                                         val rotAngleRad = Math.toRadians(-wp.rotationDeg - 90.0)
+                                         val rotAngleRad = Math.toRadians(-(wp.rotationDeg ?: 0.0) - 90.0)
                                          val rotHandleLenPx = 30.dp.toPx()
                                          return Offset(
                                              wpBaseOffset.x + rotHandleLenPx * cos(rotAngleRad).toFloat(),

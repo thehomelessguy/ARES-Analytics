@@ -243,13 +243,13 @@ class PathPlannerViewModel(
                                                 0.0
                                             }
                                         }
-                                        // Distribute rotation from PathPlanner format into the waypoint
-                                        val rotation = when {
-                                            idx == 0 -> pathFile.idealStartingState?.rotation ?: 0.0
-                                            idx == pathFile.waypoints.size - 1 -> pathFile.goalEndState?.rotation ?: 0.0
+                                        // Distribute rotation from PathPlanner format into the waypoint (null = unspecified)
+                                        val rotation: Double? = when {
+                                            idx == 0 -> pathFile.idealStartingState?.rotation
+                                            idx == pathFile.waypoints.size - 1 -> pathFile.goalEndState?.rotation
                                             else -> pathFile.rotationTargets
                                                 .find { kotlin.math.abs(it.waypointRelativePos - idx) < 1e-3 }
-                                                ?.rotationDegrees ?: 0.0
+                                                ?.rotationDegrees
                                         }
                                         Waypoint(pwp.anchor.x, pwp.anchor.y, heading, rotationDeg = rotation)
                                     }
@@ -345,20 +345,22 @@ class PathPlannerViewModel(
                                     )
                                 }
                                 // Extract rotations from waypoints into PathPlanner format
+                                val firstRot = s.waypoints.firstOrNull()?.rotationDeg
+                                val lastRot = s.waypoints.lastOrNull()?.rotationDeg
                                 val extractedStartingState = IdealStartingState(
                                     velocity = s.idealStartingState?.velocity ?: 0.0,
-                                    rotation = s.waypoints.firstOrNull()?.rotationDeg ?: 0.0
+                                    rotation = firstRot ?: 0.0
                                 )
                                 val extractedGoalEndState = GoalEndState(
                                     velocity = s.goalEndState?.velocity ?: 0.0,
-                                    rotation = s.waypoints.lastOrNull()?.rotationDeg ?: 0.0
+                                    rotation = lastRot ?: 0.0
                                 )
                                 val waypointRotationTargets = s.waypoints
                                     .mapIndexedNotNull { idx, wp ->
-                                        // Skip first and last (handled by start/goal state)
+                                        // Skip first/last (handled by start/goal state) and unspecified rotations
+                                        val rot = wp.rotationDeg ?: return@mapIndexedNotNull null
                                         if (idx == 0 || idx == s.waypoints.size - 1) null
-                                        else if (wp.rotationDeg != 0.0) RotationTarget(idx.toDouble(), wp.rotationDeg)
-                                        else null
+                                        else RotationTarget(idx.toDouble(), rot)
                                     }
                                 // Preserve any legacy mid-segment targets (non-integer positions)
                                 val midSegmentTargets = s.rotationTargets.filter { rt ->
