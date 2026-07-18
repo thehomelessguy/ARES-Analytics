@@ -122,35 +122,7 @@ fun WaypointEditorPanel(
                 }
             }
 
-            // ROTATION TARGETS
-            item {
-                CollapsibleSection(title = "Rotation Targets", badgeCount = state.rotationTargets.size) {
-                    val maxPos = (state.waypoints.size - 1).coerceAtLeast(0).toDouble()
-                    state.rotationTargets.forEachIndexed { idx, target ->
-                        RotationTargetCard(
-                            idx = idx,
-                            target = target,
-                            maxPos = maxPos,
-                            onChanged = { updatedTarget ->
-                                onIntent(PathPlannerIntent.UpdateRotationTarget(idx, updatedTarget))
-                            },
-                            onDelete = {
-                                onIntent(PathPlannerIntent.DeleteRotationTarget(idx))
-                            }
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Button(
-                        onClick = {
-                            onIntent(PathPlannerIntent.AddRotationTarget(RotationTarget(waypointRelativePos = 0.5, rotationDegrees = 0.0)))
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = AresCyan)
-                    ) {
-                        Text("Add Rotation Target", color = AresBackground, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
+            // ROTATION TARGETS REMOVED — rotation is now per-waypoint via Waypoint.rotationDeg
 
             // POINT TOWARDS ZONES
             item {
@@ -192,85 +164,57 @@ fun WaypointEditorPanel(
                 }
             }
 
-            // STARTING STATE
+            // STARTING STATE (velocity only — rotation is per-waypoint)
             item {
-                val startVelStr = state.idealStartingState?.velocity?.toString() ?: ""
-                val startRotStr = state.idealStartingState?.rotation?.toString() ?: ""
-                CollapsibleSection(title = "Ideal Starting State", badgeText = "${startVelStr} M/S") {
-                    Row(
+                val startVelStr = state.idealStartingState?.velocity?.toString() ?: "0.0"
+                CollapsibleSection(title = "Start Velocity", badgeText = "${startVelStr} M/S") {
+                    OutlinedTextField(
+                        value = startVelStr,
+                        onValueChange = { newValue ->
+                            newValue.toDoubleOrNull()?.let { v ->
+                                val currentState = state.idealStartingState ?: IdealStartingState()
+                                onIntent(PathPlannerIntent.UpdateStartingState(currentState.copy(velocity = v)))
+                            }
+                        },
+                        label = { Text("Starting Velocity (M/S)", fontSize = 10.sp) },
+                        placeholder = { Text("0.0 = stopped", fontSize = 12.sp, color = AresTextSecondary.copy(alpha = 0.5f)) },
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = startVelStr,
-                            onValueChange = { newValue ->
-                                newValue.toDoubleOrNull()?.let { v ->
-                                    val currentState = state.idealStartingState ?: IdealStartingState()
-                                    onIntent(PathPlannerIntent.UpdateStartingState(currentState.copy(velocity = v)))
-                                }
-                            },
-                            label = { Text("Velocity (M/S)", fontSize = 10.sp) },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true,
-                            textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
-                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder)
-                        )
-                        OutlinedTextField(
-                            value = startRotStr,
-                            onValueChange = { newValue ->
-                                newValue.toDoubleOrNull()?.let { v ->
-                                    val currentState = state.idealStartingState ?: IdealStartingState()
-                                    onIntent(PathPlannerIntent.UpdateStartingState(currentState.copy(rotation = v)))
-                                }
-                            },
-                            label = { Text("Rotation (Deg)", fontSize = 10.sp) },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true,
-                            textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
-                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder)
-                        )
-                    }
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder)
+                    )
+                    Text(
+                        "Set > 0 if chaining from a previous path that ends in motion.",
+                        fontSize = 10.sp, color = AresTextSecondary.copy(alpha = 0.6f),
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
                 }
             }
 
-            // END STATE
+            // END STATE (velocity only — rotation is per-waypoint)
             item {
-                val endVelStr = state.goalEndState?.velocity?.toString() ?: ""
-                val endRotStr = state.goalEndState?.rotation?.toString() ?: ""
-                CollapsibleSection(title = "Goal End State", badgeText = "${endVelStr} M/S") {
-                    Row(
+                val endVelStr = state.goalEndState?.velocity?.toString() ?: "0.0"
+                CollapsibleSection(title = "End Velocity", badgeText = "${endVelStr} M/S") {
+                    OutlinedTextField(
+                        value = endVelStr,
+                        onValueChange = { newValue ->
+                            newValue.toDoubleOrNull()?.let { v ->
+                                val currentState = state.goalEndState ?: GoalEndState()
+                                onIntent(PathPlannerIntent.UpdateEndState(currentState.copy(velocity = v)))
+                            }
+                        },
+                        label = { Text("End Velocity (M/S)", fontSize = 10.sp) },
+                        placeholder = { Text("0.0 = full stop", fontSize = 12.sp, color = AresTextSecondary.copy(alpha = 0.5f)) },
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = endVelStr,
-                            onValueChange = { newValue ->
-                                newValue.toDoubleOrNull()?.let { v ->
-                                    val currentState = state.goalEndState ?: GoalEndState()
-                                    onIntent(PathPlannerIntent.UpdateEndState(currentState.copy(velocity = v)))
-                                }
-                            },
-                            label = { Text("Velocity (M/S)", fontSize = 10.sp) },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true,
-                            textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
-                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder)
-                        )
-                        OutlinedTextField(
-                            value = endRotStr,
-                            onValueChange = { newValue ->
-                                newValue.toDoubleOrNull()?.let { v ->
-                                    val currentState = state.goalEndState ?: GoalEndState()
-                                    onIntent(PathPlannerIntent.UpdateEndState(currentState.copy(rotation = v)))
-                                }
-                            },
-                            label = { Text("Rotation (Deg)", fontSize = 10.sp) },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true,
-                            textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
-                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder)
-                        )
-                    }
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder)
+                    )
+                    Text(
+                        "Set > 0 to keep moving into the next path (chaining).",
+                        fontSize = 10.sp, color = AresTextSecondary.copy(alpha = 0.6f),
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
                 }
             }
 
