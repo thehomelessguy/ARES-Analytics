@@ -10,10 +10,13 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.decodeFromString
 import java.io.File
 import com.ares.analytics.shared.League
 import com.ares.analytics.shared.PathPlannerFile
+import com.ares.analytics.shared.AutoFile
+import com.ares.analytics.shared.AutoCommandNode
 import com.ares.analytics.shared.GamePiece
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
@@ -213,18 +216,27 @@ class FieldViewerViewModel(
                     if (!projectPath.isNullOrEmpty()) {
                         withContext(Dispatchers.IO) {
                             try {
-                                val relativeDir = if (league == League.FTC) {
+                                val relativePathsDir = if (league == League.FTC) {
                                     if (File(projectPath, "TeamCode/src/main/assets").exists()) "TeamCode/src/main/assets/pathplanner/paths"
                                     else "src/main/assets/pathplanner/paths"
                                 } else {
                                     "src/main/deploy/pathplanner/paths"
                                 }
-                                val targetDir = File(projectPath, relativeDir)
-                                if (targetDir.exists() && targetDir.isDirectory) {
-                                    val files = targetDir.listFiles { _, name -> name.endsWith(".path") }
-                                    val paths = files?.map { it.nameWithoutExtension }?.sorted() ?: emptyList()
-                                    _state.update { it.copy(availablePaths = paths) }
-                                }
+                                val relativeAutosDir = relativePathsDir.replace("/paths", "/autos").replace("\\paths", "\\autos")
+
+                                val pathsTargetDir = File(projectPath, relativePathsDir)
+                                val autosTargetDir = File(projectPath, relativeAutosDir)
+
+                                val pathFiles = if (pathsTargetDir.exists() && pathsTargetDir.isDirectory) {
+                                    pathsTargetDir.listFiles { _, name -> name.endsWith(".path") }?.map { "[Path] ${it.nameWithoutExtension}" } ?: emptyList()
+                                } else emptyList()
+
+                                val autoFiles = if (autosTargetDir.exists() && autosTargetDir.isDirectory) {
+                                    autosTargetDir.listFiles { _, name -> name.endsWith(".auto") }?.map { "[Auto] ${it.nameWithoutExtension}" } ?: emptyList()
+                                } else emptyList()
+
+                                val allAvailable = (autoFiles.sorted() + pathFiles.sorted())
+                                _state.update { it.copy(availablePaths = allAvailable) }
                             } catch (e: Exception) {
                                 // Ignore failure to fetch paths
                             }
@@ -244,37 +256,89 @@ class FieldViewerViewModel(
                     if (!projectPath.isNullOrEmpty()) {
                         withContext(Dispatchers.IO) {
                             try {
-                                val relativeDir = if (league == League.FTC) {
+                                val relativePathsDir = if (league == League.FTC) {
                                     if (File(projectPath, "TeamCode/src/main/assets").exists()) "TeamCode/src/main/assets/pathplanner/paths"
                                     else "src/main/assets/pathplanner/paths"
                                 } else {
                                     "src/main/deploy/pathplanner/paths"
                                 }
-                                val targetDir = File(projectPath, relativeDir)
-                                val file = File(targetDir, "$pathName.path")
-                                if (file.exists()) {
-                                    val json = Json { ignoreUnknownKeys = true }
-                                    val content = file.readText()
-                                    val pathFile = json.decodeFromString<PathPlannerFile>(content)
+                                val relativeAutosDir = relativePathsDir.replace("/paths", "/autos").replace("\\paths", "\\autos")
 
-                                    val loadedWps = pathFile.waypoints.map { pwp ->
-                                        val next = pwp.nextControl
-                                        val prev = pwp.prevControl
-                                        val heading = when {
-                                            next != null -> {
-                                                kotlin.math.atan2(next.y - pwp.anchor.y, next.x - pwp.anchor.x)
+                                val pathsTargetDir = File(projectPath, relativePathsDir)
+                                val autosTargetDir = File(projectPath, relativeAutosDir)
+
+                                val json = Json { ignoreUnknownKeys = true }
+                                val loadedWps = mutableListOf<Waypoint>()
+
+                                if (pathName.startsWith("[Auto] ")) {
+                                    val autoName = pathName.substringAfter("[Auto] ")
+                                    val autoFile = File(autosTargetDir, "$autoName.auto")
+                                    if (autoFile.exists()) {
+                                        val content = autoFile.readText()
+                                        val auto = json.decodeFromString<AutoFile>(content)
+
+                                        val extractedPaths = mutableListOf<String>()
+                                        fun collectPaths(node: AutoCommandNode) {
+                                            if (node.type == "path") {
+                                                node.data["pathName"]?.let {
+                                                    extractedPaths.add(it.toString().removeSurrounding("\""))
+                                                }
                                             }
-                                            prev != null -> {
-                                                kotlin.math.atan2(pwp.anchor.y - prev.y, pwp.anchor.x - prev.x)
-                                            }
-                                            else -> {
-                                                0.0
+                                            node.data["commands"]?.let { commandsElement ->
+                                                if (commandsElement is kotlinx.serialization.json.JsonArray) {
+                                                    for (element in commandsElement) {
+                                                        if (element is kotlinx.serialization.json.JsonObject) {
+                                                            try {
+                                                                val subNode = json.decodeFromJsonElement<AutoCommandNode>(element)
+                                                                collectPaths(subNode)
+                                                            } catch (e: Exception) {}
+                                                        }
+                                                    }
+                                                }
                                             }
                                         }
-                                        Waypoint(pwp.anchor.x, pwp.anchor.y, heading)
+                                        collectPaths(auto.command)
+
+                                        for (pName in extractedPaths) {
+                                            val pFile = File(pathsTargetDir, "$pName.path")
+                                            if (pFile.exists()) {
+                                                val pContent = pFile.readText()
+                                                val pathFile = json.decodeFromString<PathPlannerFile>(pContent)
+                                                val pathWps = pathFile.waypoints.map { pwp ->
+                                                    val next = pwp.nextControl
+                                                    val prev = pwp.prevControl
+                                                    val heading = when {
+                                                        next != null -> kotlin.math.atan2(next.y - pwp.anchor.y, next.x - pwp.anchor.x)
+                                                        prev != null -> kotlin.math.atan2(pwp.anchor.y - prev.y, pwp.anchor.x - prev.x)
+                                                        else -> 0.0
+                                                    }
+                                                    Waypoint(pwp.anchor.x, pwp.anchor.y, heading)
+                                                }
+                                                loadedWps.addAll(pathWps)
+                                            }
+                                        }
                                     }
-                                    _state.update { it.copy(selectedPathName = pathName, selectedPathWaypoints = loadedWps) }
+                                } else {
+                                    val cleanPathName = if (pathName.startsWith("[Path] ")) pathName.substringAfter("[Path] ") else pathName
+                                    val file = File(pathsTargetDir, "$cleanPathName.path")
+                                    if (file.exists()) {
+                                        val content = file.readText()
+                                        val pathFile = json.decodeFromString<PathPlannerFile>(content)
+                                        val pathWps = pathFile.waypoints.map { pwp ->
+                                            val next = pwp.nextControl
+                                            val prev = pwp.prevControl
+                                            val heading = when {
+                                                next != null -> kotlin.math.atan2(next.y - pwp.anchor.y, next.x - pwp.anchor.x)
+                                                prev != null -> kotlin.math.atan2(pwp.anchor.y - prev.y, pwp.anchor.x - prev.x)
+                                                else -> 0.0
+                                            }
+                                            Waypoint(pwp.anchor.x, pwp.anchor.y, heading)
+                                        }
+                                        loadedWps.addAll(pathWps)
+                                    }
                                 }
+
+                                _state.update { it.copy(selectedPathName = pathName, selectedPathWaypoints = loadedWps) }
                             } catch (e: Exception) {
                                 // Ignore failure to parse
                             }
