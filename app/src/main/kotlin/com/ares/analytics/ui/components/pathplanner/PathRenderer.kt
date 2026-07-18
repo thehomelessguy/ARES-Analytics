@@ -449,10 +449,8 @@ fun DrawScope.drawWaypoints(
         drawCircle(color = color, radius = 8.dp.toPx(), center = offset)
         drawCircle(color = AresBackground, radius = 4.dp.toPx(), center = offset)
 
-        // --- Rotation handle (green diamond, defaults to 0°) ---
-        val rotTarget = rotationTargets.find { kotlin.math.abs(it.waypointRelativePos - idx) < 1e-3 }
-        val hasExplicitTarget = rotTarget != null
-        val rotAngleRad = rotTarget?.rotationDegrees?.let { Math.toRadians(-it - 90.0) } ?: Math.toRadians(-90.0)
+        // --- Rotation handle (green diamond) — reads rotation directly from waypoint ---
+        val rotAngleRad = Math.toRadians(-wp.rotationDeg - 90.0)
         val rotHandleLenPx = 30.dp.toPx()
         val rotHandleX = offset.x + rotHandleLenPx * cos(rotAngleRad).toFloat()
         val rotHandleY = offset.y + rotHandleLenPx * sin(rotAngleRad).toFloat()

@@ -274,6 +274,9 @@ fun FieldCanvas(
     val currentActiveFieldWaypoints by rememberUpdatedState(activeFieldWaypoints)
     val currentEventMarkers by rememberUpdatedState(eventMarkers)
     val currentRotationTargets by rememberUpdatedState(rotationTargets)
+    val currentCombinedRotationTargets by rememberUpdatedState(combinedRotationTargets)
+    val currentIdealStartingState by rememberUpdatedState(idealStartingState)
+    val currentGoalEndState by rememberUpdatedState(goalEndState)
 
     LaunchedEffect(projectPath) {
         if (!projectPath.isNullOrEmpty()) {
@@ -360,11 +363,10 @@ fun FieldCanvas(
                                      // This matches the coordinate system used by PathRenderer.drawWaypoints.
                                      val basePress = getBaseCanvasFromScreen(pressOffset, w, h, zoomScale, panOffset, viewRotation)
                                      
-                                     // Helper: compute rotation handle position in base canvas space (matches PathRenderer.kt L456-458)
-                                     fun rotHandleBase(wpBaseOffset: Offset, wpIdx: Int): Offset {
-                                         val rotAngleRad = combinedRotationTargets.find { kotlin.math.abs(it.waypointRelativePos - wpIdx) < 1e-3 }
-                                             ?.rotationDegrees?.let { Math.toRadians(-it - 90.0) } ?: Math.toRadians(-90.0)
-                                         val rotHandleLenPx = 30.dp.toPx() // same as PathRenderer L456
+                                     // Helper: compute rotation handle position in base canvas space (matches PathRenderer draw code)
+                                     fun rotHandleBase(wpBaseOffset: Offset, wp: Waypoint): Offset {
+                                         val rotAngleRad = Math.toRadians(-wp.rotationDeg - 90.0)
+                                         val rotHandleLenPx = 30.dp.toPx()
                                          return Offset(
                                              wpBaseOffset.x + rotHandleLenPx * cos(rotAngleRad).toFloat(),
                                              wpBaseOffset.y + rotHandleLenPx * sin(rotAngleRad).toFloat()
@@ -390,7 +392,7 @@ fun FieldCanvas(
                                          
                                          // Rotation handle (green diamond)
                                          if (hitIdx == -1) {
-                                             val rotBase = rotHandleBase(wpBase, selectedWaypointIndex)
+                                             val rotBase = rotHandleBase(wpBase, wp)
                                              if (sqrt((basePress.x - rotBase.x).pow(2) + (basePress.y - rotBase.y).pow(2)) < rotHitRadiusPx) {
                                                  hitIdx = selectedWaypointIndex; hitRotation = true
                                              }
@@ -420,7 +422,7 @@ fun FieldCanvas(
                                                  hitIdx = i; hitHeading = true; break
                                              }
                                              
-                                             val rotBase = rotHandleBase(wpBase, i)
+                                             val rotBase = rotHandleBase(wpBase, wp)
                                              if (sqrt((basePress.x - rotBase.x).pow(2) + (basePress.y - rotBase.y).pow(2)) < rotHitRadiusPx) {
                                                  hitIdx = i; hitRotation = true; break
                                              }
@@ -565,28 +567,16 @@ fun FieldCanvas(
                                                      val posMeters = getRobotCoordFromScreen(change.position, w, h, fieldWidthM, fieldHeightM, league, zoomScale, panOffset)
                                                      val angle = kotlin.math.atan2(posMeters.y - wp.y, posMeters.x - wp.x)
                                                      val degrees = Math.toDegrees(angle)
-                                                     if (selectedWaypointIndex == 0 && onStartingStateChanged != null) {
-                                                         val startState = idealStartingState ?: IdealStartingState()
-                                                         onStartingStateChanged(startState.copy(rotation = if (isShiftPressed) snap(degrees).toDouble() else degrees))
-                                                     } else if (selectedWaypointIndex == currentWaypoints.size - 1 && onGoalEndStateChanged != null) {
-                                                         val endState = goalEndState ?: GoalEndState()
-                                                         onGoalEndStateChanged(endState.copy(rotation = if (isShiftPressed) snap(degrees).toDouble() else degrees))
-                                                     } else if (onRotationTargetsChanged != null) {
-                                                         val existingIdx = currentRotationTargets.indexOfFirst { kotlin.math.abs(it.waypointRelativePos - selectedWaypointIndex) < 1e-3 }
-                                                         if (existingIdx != -1) {
-                                                             val newList = currentRotationTargets.toMutableList()
-                                                             newList[existingIdx] = newList[existingIdx].copy(rotationDegrees = if (isShiftPressed) snap(degrees).toDouble() else degrees)
-                                                             onRotationTargetsChanged(newList)
-                                                         } else {
-                                                             val newList = currentRotationTargets.toMutableList()
-                                                             newList.add(RotationTarget(waypointRelativePos = selectedWaypointIndex.toDouble(), rotationDegrees = if (isShiftPressed) snap(degrees).toDouble() else degrees))
-                                                             onRotationTargetsChanged(newList)
-                                                         }
-                                                     }
+                                                     val snappedDeg = if (isShiftPressed) snap(degrees).toDouble() else degrees
+                                                     // Update waypoint's own rotation directly
+                                                     onWaypointsChanged(currentWaypoints.toMutableList().apply {
+                                                         set(selectedWaypointIndex, wp.copy(rotationDeg = snappedDeg))
+                                                     })
                                                  }
                                                  else -> {
-                                                     val wp = getRobotCoordFromScreen(change.position, w, h, fieldWidthM, fieldHeightM, league, zoomScale, panOffset)
-                                                     onWaypointsChanged(currentWaypoints.toMutableList().apply { set(selectedWaypointIndex, Waypoint(snap(wp.x), snap(wp.y), this[selectedWaypointIndex].headingRad)) })
+                                                     val newPos = getRobotCoordFromScreen(change.position, w, h, fieldWidthM, fieldHeightM, league, zoomScale, panOffset)
+                                                     val existingWp = currentWaypoints[selectedWaypointIndex]
+                                                     onWaypointsChanged(currentWaypoints.toMutableList().apply { set(selectedWaypointIndex, existingWp.copy(x = snap(newPos.x), y = snap(newPos.y))) })
                                                  }
                                              }
                                          }
