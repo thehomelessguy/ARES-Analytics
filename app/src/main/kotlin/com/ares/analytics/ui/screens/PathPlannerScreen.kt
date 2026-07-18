@@ -114,6 +114,14 @@ fun PathPlannerScreen(
                     onRotationTargetsChanged = {
                         viewModel.onIntent(PathPlannerIntent.UpdateRotationTargets(it))
                     },
+                    idealStartingState = state.idealStartingState,
+                    onStartingStateChanged = {
+                        viewModel.onIntent(PathPlannerIntent.UpdateStartingState(it))
+                    },
+                    goalEndState = state.goalEndState,
+                    onGoalEndStateChanged = {
+                        viewModel.onIntent(PathPlannerIntent.UpdateEndState(it))
+                    },
                     constraintZones = state.constraintZones,
                     pointTowardsZones = state.pointTowardsZones,
                     globalConstraints = state.globalConstraints

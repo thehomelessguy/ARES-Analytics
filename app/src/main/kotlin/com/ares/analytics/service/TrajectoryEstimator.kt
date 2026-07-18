@@ -135,6 +135,18 @@ object TrajectoryEstimator {
         var currentTime = 0.0
         val states = mutableListOf<TrajectoryState>()
 
+        val combinedRotationTargets = mutableListOf<RotationTarget>()
+        val startingRot = idealStartingState?.rotation ?: 0.0
+        if (rotationTargets.none { kotlin.math.abs(it.waypointRelativePos) < 1e-3 }) {
+            combinedRotationTargets.add(RotationTarget(waypointRelativePos = 0.0, rotationDegrees = startingRot))
+        }
+        combinedRotationTargets.addAll(rotationTargets)
+        val endRot = goalEndState?.rotation ?: 0.0
+        val lastWaypointIdx = (waypoints.size - 1).toDouble()
+        if (lastWaypointIdx >= 0.0 && rotationTargets.none { kotlin.math.abs(it.waypointRelativePos - lastWaypointIdx) < 1e-3 }) {
+            combinedRotationTargets.add(RotationTarget(waypointRelativePos = lastWaypointIdx, rotationDegrees = endRot))
+        }
+
         for (i in 0 until pointCount) {
             if (i > 0) {
                 val ds = sampledPoints[i].s - sampledPoints[i - 1].s
@@ -145,7 +157,7 @@ object TrajectoryEstimator {
 
             val prevPt = if (i > 0) sampledPoints[i - 1] else null
             val nextPt = if (i < pointCount - 1) sampledPoints[i + 1] else null
-            val headingRad = getHeadingAt(sampledPoints[i].relativePos, rotationTargets, waypoints, sampledPoints[i], prevPt, nextPt)
+            val headingRad = getHeadingAt(sampledPoints[i].relativePos, combinedRotationTargets, waypoints, sampledPoints[i], prevPt, nextPt)
 
             states.add(
                 TrajectoryState(

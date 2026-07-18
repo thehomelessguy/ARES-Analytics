@@ -68,6 +68,10 @@ fun FieldCanvas(
     onEventMarkersChanged: ((List<PathPlannerEventMarker>) -> Unit)? = null,
     rotationTargets: List<RotationTarget> = emptyList(),
     onRotationTargetsChanged: ((List<RotationTarget>) -> Unit)? = null,
+    idealStartingState: IdealStartingState? = null,
+    onStartingStateChanged: ((IdealStartingState) -> Unit)? = null,
+    goalEndState: GoalEndState? = null,
+    onGoalEndStateChanged: ((GoalEndState) -> Unit)? = null,
     constraintZones: List<ConstraintsZone> = emptyList(),
     pointTowardsZones: List<PointTowardsZone> = emptyList(),
     globalConstraints: PathConstraints = PathConstraints(),
@@ -128,9 +132,24 @@ fun FieldCanvas(
         else eventMarkers.map { getPositionOnSpline(it.waypointRelativePos, waypoints) }
     }
 
-    val rotationTargetPoints = remember(rotationTargets, waypoints) {
+    val combinedRotationTargets = remember(rotationTargets, idealStartingState, goalEndState, waypoints) {
+        val list = mutableListOf<RotationTarget>()
+        val startingRot = idealStartingState?.rotation ?: 0.0
+        if (rotationTargets.none { kotlin.math.abs(it.waypointRelativePos) < 1e-3 }) {
+            list.add(RotationTarget(waypointRelativePos = 0.0, rotationDegrees = startingRot))
+        }
+        list.addAll(rotationTargets)
+        val endRot = goalEndState?.rotation ?: 0.0
+        val lastWaypointIdx = (waypoints.size - 1).toDouble()
+        if (lastWaypointIdx >= 0.0 && rotationTargets.none { kotlin.math.abs(it.waypointRelativePos - lastWaypointIdx) < 1e-3 }) {
+            list.add(RotationTarget(waypointRelativePos = lastWaypointIdx, rotationDegrees = endRot))
+        }
+        list
+    }
+
+    val combinedRotationTargetPoints = remember(combinedRotationTargets, waypoints) {
         if (waypoints.size < 2) emptyList()
-        else rotationTargets.map { getPositionOnSpline(it.waypointRelativePos, waypoints) }
+        else combinedRotationTargets.map { getPositionOnSpline(it.waypointRelativePos, waypoints) }
     }
 
     val constraintZoneSplines = remember(constraintZones, waypoints) {
@@ -343,7 +362,7 @@ fun FieldCanvas(
                                         if (sqrt((pressOffset.x - handleOffset.x).pow(2) + (pressOffset.y - handleOffset.y).pow(2)) < 15.dp.toPx()) {
                                             hitIdx = i; hitHeading = true; break
                                         }
-                                        val targetAngleRad = currentRotationTargets.find { kotlin.math.abs(it.waypointRelativePos - i) < 1e-3 }?.rotationDegrees?.let { Math.toRadians(-it - 90.0) }
+                                        val targetAngleRad = combinedRotationTargets.find { kotlin.math.abs(it.waypointRelativePos - i) < 1e-3 }?.rotationDegrees?.let { Math.toRadians(-it - 90.0) }
                                             ?: Math.toRadians(-90.0)
                                         val rotationHandleLenPx = 30.dp.toPx()
                                         val rotHandleX = wpOffset.x + rotationHandleLenPx * cos(targetAngleRad).toFloat()
@@ -485,20 +504,28 @@ fun FieldCanvas(
                                                      val mag = kotlin.math.sqrt(dx * dx + dy * dy)
                                                      onWaypointsChanged(currentWaypoints.toMutableList().apply { set(selectedWaypointIndex, wp.copy(headingRad = angle, tangentMagnitude = if (isShiftPressed) snap(mag) else mag)) })
                                                  }
-                                                 isDraggingRotation && onRotationTargetsChanged != null -> {
+                                                 isDraggingRotation -> {
                                                      val wp = currentWaypoints[selectedWaypointIndex]
                                                      val posMeters = getRobotCoordFromScreen(change.position, w, h, fieldWidthM, fieldHeightM, league, zoomScale, panOffset)
                                                      val angle = kotlin.math.atan2(posMeters.y - wp.y, posMeters.x - wp.x)
                                                      val degrees = Math.toDegrees(angle)
-                                                     val existingIdx = currentRotationTargets.indexOfFirst { kotlin.math.abs(it.waypointRelativePos - selectedWaypointIndex) < 1e-3 }
-                                                     if (existingIdx != -1) {
-                                                         val newList = currentRotationTargets.toMutableList()
-                                                         newList[existingIdx] = newList[existingIdx].copy(rotationDegrees = if (isShiftPressed) snap(degrees).toDouble() else degrees)
-                                                         onRotationTargetsChanged(newList)
-                                                     } else {
-                                                         val newList = currentRotationTargets.toMutableList()
-                                                         newList.add(RotationTarget(waypointRelativePos = selectedWaypointIndex.toDouble(), rotationDegrees = if (isShiftPressed) snap(degrees).toDouble() else degrees))
-                                                         onRotationTargetsChanged(newList)
+                                                     if (selectedWaypointIndex == 0 && onStartingStateChanged != null) {
+                                                         val startState = idealStartingState ?: IdealStartingState()
+                                                         onStartingStateChanged(startState.copy(rotation = if (isShiftPressed) snap(degrees).toDouble() else degrees))
+                                                     } else if (selectedWaypointIndex == currentWaypoints.size - 1 && onGoalEndStateChanged != null) {
+                                                         val endState = goalEndState ?: GoalEndState()
+                                                         onGoalEndStateChanged(endState.copy(rotation = if (isShiftPressed) snap(degrees).toDouble() else degrees))
+                                                     } else if (onRotationTargetsChanged != null) {
+                                                         val existingIdx = currentRotationTargets.indexOfFirst { kotlin.math.abs(it.waypointRelativePos - selectedWaypointIndex) < 1e-3 }
+                                                         if (existingIdx != -1) {
+                                                             val newList = currentRotationTargets.toMutableList()
+                                                             newList[existingIdx] = newList[existingIdx].copy(rotationDegrees = if (isShiftPressed) snap(degrees).toDouble() else degrees)
+                                                             onRotationTargetsChanged(newList)
+                                                         } else {
+                                                             val newList = currentRotationTargets.toMutableList()
+                                                             newList.add(RotationTarget(waypointRelativePos = selectedWaypointIndex.toDouble(), rotationDegrees = if (isShiftPressed) snap(degrees).toDouble() else degrees))
+                                                             onRotationTargetsChanged(newList)
+                                                         }
                                                      }
                                                  }
                                                  else -> {
@@ -725,7 +752,7 @@ fun FieldCanvas(
                 drawEventMarkers(waypoints, eventMarkerPoints, w, h, fieldWidthM, fieldHeightM, league, selectedEventMarkerIndex)
                 drawConstraintZones(pathCache, waypoints, constraintZoneSplines, w, h, fieldWidthM, fieldHeightM, league)
                 drawPointTowardsZones(pathCache, waypoints, pointTowardsZoneRenderData, w, h, fieldWidthM, fieldHeightM, league)
-                drawHolonomicRotationTargets(waypoints, currentRotationTargets, rotationTargetPoints, w, h, fieldWidthM, fieldHeightM, league)
+                drawHolonomicRotationTargets(waypoints, combinedRotationTargets, combinedRotationTargetPoints, w, h, fieldWidthM, fieldHeightM, league)
 
                 drawActualPathAndDeviations(pathCache, actualPath, waypoints, w, h, fieldWidthM, fieldHeightM, league)
                 drawRobotRepresentations(
@@ -745,7 +772,7 @@ fun FieldCanvas(
                     fieldHeightM = fieldHeightM,
                     league = league
                 )
-                drawWaypoints(pathCache, waypoints, selectedWaypointIndex, isDraggingHeading, w, h, fieldWidthM, fieldHeightM, league, currentRotationTargets, isDraggingRotation)
+                drawWaypoints(pathCache, waypoints, selectedWaypointIndex, isDraggingHeading, w, h, fieldWidthM, fieldHeightM, league, combinedRotationTargets, isDraggingRotation)
 
                 drawContext.canvas.restore()
             }
