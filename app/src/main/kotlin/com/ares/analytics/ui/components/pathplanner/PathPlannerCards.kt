@@ -31,6 +31,8 @@ fun WaypointCard(
     var yText by remember { mutableStateOf(String.format("%.3f", wp.y)) }
     val headingDeg = wp.headingRad?.let { Math.toDegrees(it) }
     var headingText by remember { mutableStateOf(headingDeg?.let { String.format("%.1f", it) } ?: "") }
+    val rotationDeg = wp.rotationDeg
+    var rotationText by remember { mutableStateOf(rotationDeg?.let { String.format("%.1f", it) } ?: "") }
 
     LaunchedEffect(wp.x) {
         if (xText.toDoubleOrNull() != wp.x) xText = String.format("%.3f", wp.x)
@@ -45,6 +47,17 @@ fun WaypointCard(
                 val parsed = headingText.toDoubleOrNull()
                 if (parsed == null || kotlin.math.abs(parsed - headingDeg) > 0.1) {
                     headingText = String.format("%.1f", headingDeg)
+                }
+            }
+        }
+    }
+    LaunchedEffect(rotationDeg) {
+        when {
+            rotationDeg == null -> { if (rotationText.isNotEmpty()) rotationText = "" }
+            else -> {
+                val parsed = rotationText.toDoubleOrNull()
+                if (parsed == null || kotlin.math.abs(parsed - rotationDeg) > 0.1) {
+                    rotationText = String.format("%.1f", rotationDeg)
                 }
             }
         }
@@ -105,7 +118,12 @@ fun WaypointCard(
                 textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
                 colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder)
             )
+        }
 
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             OutlinedTextField(
                 value = headingText,
                 onValueChange = { newValue ->
@@ -119,6 +137,26 @@ fun WaypointCard(
                     }
                 },
                 label = { Text("Heading (°)", fontSize = 10.sp) },
+                placeholder = { Text("Auto", fontSize = 12.sp, color = AresTextSecondary.copy(alpha = 0.5f)) },
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+                textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
+                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder)
+            )
+            
+            OutlinedTextField(
+                value = rotationText,
+                onValueChange = { newValue ->
+                    rotationText = newValue
+                    if (newValue.isBlank()) {
+                        onChanged(wp.copy(rotationDeg = null))
+                    } else {
+                        newValue.toDoubleOrNull()?.let {
+                            onChanged(wp.copy(rotationDeg = it))
+                        }
+                    }
+                },
+                label = { Text("Rotation (°)", fontSize = 10.sp) },
                 placeholder = { Text("Auto", fontSize = 12.sp, color = AresTextSecondary.copy(alpha = 0.5f)) },
                 modifier = Modifier.weight(1f),
                 singleLine = true,
