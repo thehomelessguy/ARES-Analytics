@@ -74,7 +74,7 @@ fun WaypointEditorPanel(
                     Button(
                         onClick = {
                             val last = state.waypoints.lastOrNull() ?: Waypoint(0.0, 0.0)
-                            onIntent(PathPlannerIntent.AddWaypoint(Waypoint(last.x + 0.3, last.y + 0.3, last.headingRad)))
+                            onIntent(PathPlannerIntent.AddWaypoint(Waypoint(last.x + 0.3, last.y + 0.3)))
                         },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(containerColor = AresCyan)

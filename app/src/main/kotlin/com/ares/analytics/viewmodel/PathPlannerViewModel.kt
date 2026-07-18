@@ -3,6 +3,7 @@ package com.ares.analytics.viewmodel
 import com.ares.analytics.service.TrajectoryEstimator
 import com.ares.analytics.shared.*
 import com.ares.analytics.ui.components.pathplanner.Waypoint
+import com.ares.analytics.ui.components.pathplanner.resolveHeading
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -328,7 +329,7 @@ class PathPlannerViewModel(
                         withContext(Dispatchers.IO) {
                             try {
                                 val pWaypoints = s.waypoints.mapIndexed { idx, wp ->
-                                    val theta = wp.headingRad
+                                    val theta = resolveHeading(s.waypoints, idx)
                                     val anchor = PathPoint(wp.x, wp.y)
                                     val nextControl = if (idx == s.waypoints.size - 1) null else PathPoint(
                                         wp.x + kotlin.math.cos(theta) * 0.5,

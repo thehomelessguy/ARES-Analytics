@@ -273,7 +273,7 @@ fun DrawScope.drawRobotRepresentations(
         val robotSizePx = ((0.45 / fieldWidthM) * w).toFloat()
         
         drawContext.canvas.save()
-        drawContext.transform.rotate(degrees = -Math.toDegrees(activeRobotWp.headingRad).toFloat() - 90f, pivot = robotOffset)
+        drawContext.transform.rotate(degrees = -Math.toDegrees(activeRobotWp.headingRad ?: 0.0).toFloat() - 90f, pivot = robotOffset)
         drawRect(color = AresCyan.copy(alpha = 0.2f), topLeft = Offset(robotOffset.x - robotSizePx / 2, robotOffset.y - robotSizePx / 2), size = Size(robotSizePx, robotSizePx))
         drawRect(color = AresCyan, topLeft = Offset(robotOffset.x - robotSizePx / 2, robotOffset.y - robotSizePx / 2), size = Size(robotSizePx, robotSizePx), style = Stroke(width = 2.dp.toPx()))
         drawLine(color = AresAmber, start = Offset(robotOffset.x + robotSizePx / 2, robotOffset.y - robotSizePx / 2), end = Offset(robotOffset.x + robotSizePx / 2, robotOffset.y + robotSizePx / 2), strokeWidth = 3.dp.toPx())
@@ -293,7 +293,7 @@ fun DrawScope.drawRobotRepresentations(
         val robotSizePx = ((0.45 / fieldWidthM) * w).toFloat()
         
         drawContext.canvas.save()
-        drawContext.transform.rotate(degrees = -Math.toDegrees(estimatedPose.headingRad).toFloat() - 90f, pivot = robotOffset)
+        drawContext.transform.rotate(degrees = -Math.toDegrees(estimatedPose.headingRad ?: 0.0).toFloat() - 90f, pivot = robotOffset)
 
         // Draw Limelight FOV Cone projecting forward (+X robot-relative points RIGHT in this rotated context)
         val cameraOffsetPx = ((0.18 / fieldWidthM) * w).toFloat()
@@ -337,7 +337,7 @@ fun DrawScope.drawRobotRepresentations(
         val robotSizePx = ((0.45 / fieldWidthM) * w).toFloat()
         
         drawContext.canvas.save()
-        drawContext.transform.rotate(degrees = -Math.toDegrees(odomPose.headingRad).toFloat() - 90f, pivot = robotOffset)
+        drawContext.transform.rotate(degrees = -Math.toDegrees(odomPose.headingRad ?: 0.0).toFloat() - 90f, pivot = robotOffset)
         drawRect(color = AresGreen.copy(alpha = 0.15f), topLeft = Offset(robotOffset.x - robotSizePx / 2, robotOffset.y - robotSizePx / 2), size = Size(robotSizePx, robotSizePx))
         drawRect(color = AresGreen, topLeft = Offset(robotOffset.x - robotSizePx / 2, robotOffset.y - robotSizePx / 2), size = Size(robotSizePx, robotSizePx), style = Stroke(width = 1.5.dp.toPx(), pathEffect = pathCache.dashEffect10))
         drawLine(color = AresGreen, start = Offset(robotOffset.x + robotSizePx / 2, robotOffset.y - robotSizePx / 2), end = Offset(robotOffset.x + robotSizePx / 2, robotOffset.y + robotSizePx / 2), strokeWidth = 2.dp.toPx())
@@ -357,7 +357,7 @@ fun DrawScope.drawRobotRepresentations(
         val robotSizePx = ((0.45 / fieldWidthM) * w).toFloat()
         
         drawContext.canvas.save()
-        drawContext.transform.rotate(degrees = -Math.toDegrees(playbackPose.headingRad).toFloat() - 90f, pivot = robotOffset)
+        drawContext.transform.rotate(degrees = -Math.toDegrees(playbackPose.headingRad ?: 0.0).toFloat() - 90f, pivot = robotOffset)
         drawRect(color = AresCyan.copy(alpha = 0.3f), topLeft = Offset(robotOffset.x - robotSizePx / 2, robotOffset.y - robotSizePx / 2), size = Size(robotSizePx, robotSizePx))
         drawRect(color = AresCyan, topLeft = Offset(robotOffset.x - robotSizePx / 2, robotOffset.y - robotSizePx / 2), size = Size(robotSizePx, robotSizePx), style = Stroke(width = 2.dp.toPx()))
         drawLine(color = AresCyan, start = Offset(robotOffset.x + robotSizePx / 2, robotOffset.y - robotSizePx / 2), end = Offset(robotOffset.x + robotSizePx / 2, robotOffset.y + robotSizePx / 2), strokeWidth = 3.dp.toPx())
@@ -378,7 +378,7 @@ fun DrawScope.drawRobotRepresentations(
             val robotSizePx = ((0.45 / fieldWidthM) * w).toFloat()
             
             drawContext.canvas.save()
-            drawContext.transform.rotate(degrees = -Math.toDegrees(pose.headingRad).toFloat() - 90f, pivot = robotOffset)
+            drawContext.transform.rotate(degrees = -Math.toDegrees(pose.headingRad ?: 0.0).toFloat() - 90f, pivot = robotOffset)
             drawRect(color = AresGold.copy(alpha = 0.15f), topLeft = Offset(robotOffset.x - robotSizePx / 2, robotOffset.y - robotSizePx / 2), size = Size(robotSizePx, robotSizePx))
             drawRect(color = AresGold, topLeft = Offset(robotOffset.x - robotSizePx / 2, robotOffset.y - robotSizePx / 2), size = Size(robotSizePx, robotSizePx), style = Stroke(width = 1.5.dp.toPx(), pathEffect = pathCache.dashEffect4))
             drawLine(color = AresGold, start = Offset(robotOffset.x + robotSizePx / 2, robotOffset.y - robotSizePx / 2), end = Offset(robotOffset.x + robotSizePx / 2, robotOffset.y + robotSizePx / 2), strokeWidth = 2.dp.toPx())
@@ -414,16 +414,32 @@ fun DrawScope.drawWaypoints(
         val color = if (isSelected) AresCyan else AresTextPrimary
 
         // --- Tangent heading handle (amber arrowhead) ---
-        val handleMeters = Waypoint(wp.x + wp.tangentMagnitude * cos(wp.headingRad), wp.y + wp.tangentMagnitude * sin(wp.headingRad))
+        val resolvedHeading = resolveHeading(waypoints, idx)
+        val hasExplicitHeading = wp.headingRad != null
+        val handleMeters = Waypoint(wp.x + wp.tangentMagnitude * cos(resolvedHeading), wp.y + wp.tangentMagnitude * sin(resolvedHeading))
         val arrowEnd = getCanvasOffsetBase(handleMeters, w, h, fieldWidthM, fieldHeightM, league)
 
         // Tangent line
-        val tangentAlpha = if (isSelected) 0.9f else 0.4f
-        drawLine(color = color.copy(alpha = tangentAlpha), start = offset, end = arrowEnd, strokeWidth = 2.dp.toPx())
+        val tangentAlpha = when {
+            !hasExplicitHeading && !isSelected -> 0.15f  // auto heading, not selected: very dim
+            !hasExplicitHeading -> 0.35f                  // auto heading, selected: dim
+            isSelected -> 0.9f                            // explicit, selected: bright
+            else -> 0.4f                                  // explicit, not selected
+        }
+        drawLine(color = color.copy(alpha = tangentAlpha), start = offset, end = arrowEnd, strokeWidth = if (hasExplicitHeading) 2.dp.toPx() else 1.dp.toPx())
 
         // Arrowhead at end of tangent line
-        val handleColor = if (isSelected && isDraggingHeading) AresCyan else AresAmber
-        val handleAlpha = if (isSelected) 1f else 0.5f
+        val handleColor = when {
+            isSelected && isDraggingHeading -> AresCyan
+            !hasExplicitHeading -> Color.Gray    // ghost color for auto heading
+            else -> AresAmber
+        }
+        val handleAlpha = when {
+            !hasExplicitHeading && !isSelected -> 0.2f
+            !hasExplicitHeading -> 0.4f
+            isSelected -> 1f
+            else -> 0.5f
+        }
         val arrowSize = if (isSelected) 8.dp.toPx() else 6.dp.toPx()
         val dx = arrowEnd.x - offset.x
         val dy = arrowEnd.y - offset.y

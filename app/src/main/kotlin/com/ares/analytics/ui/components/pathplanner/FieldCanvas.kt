@@ -113,10 +113,12 @@ fun FieldCanvas(
             for (i in 0 until waypoints.size - 1) {
                 val p0 = waypoints[i]
                 val p1 = waypoints[i + 1]
-                val v0x = cos(p0.headingRad) * p0.tangentMagnitude
-                val v0y = sin(p0.headingRad) * p0.tangentMagnitude
-                val v1x = cos(p1.headingRad) * p1.tangentMagnitude
-                val v1y = sin(p1.headingRad) * p1.tangentMagnitude
+                val h0 = resolveHeading(waypoints, i)
+                val h1 = resolveHeading(waypoints, i + 1)
+                val v0x = cos(h0) * p0.tangentMagnitude
+                val v0y = sin(h0) * p0.tangentMagnitude
+                val v1x = cos(h1) * p1.tangentMagnitude
+                val v1y = sin(h1) * p1.tangentMagnitude
 
                 for (j in 1..density) {
                     val t = j.toDouble() / density
@@ -384,7 +386,8 @@ fun FieldCanvas(
                                          val wpBase = getCanvasOffsetBase(wp, w, h, fieldWidthM, fieldHeightM, league)
                                          
                                          // Heading handle (tangent arrowhead)
-                                         val headingWp = Waypoint(wp.x + wp.tangentMagnitude * cos(wp.headingRad), wp.y + wp.tangentMagnitude * sin(wp.headingRad))
+                                         val selHeading = resolveHeading(currentWaypoints, selectedWaypointIndex)
+                                         val headingWp = Waypoint(wp.x + wp.tangentMagnitude * cos(selHeading), wp.y + wp.tangentMagnitude * sin(selHeading))
                                          val headingBase = getCanvasOffsetBase(headingWp, w, h, fieldWidthM, fieldHeightM, league)
                                          if (sqrt((basePress.x - headingBase.x).pow(2) + (basePress.y - headingBase.y).pow(2)) < hitRadiusPx) {
                                              hitIdx = selectedWaypointIndex; hitHeading = true
@@ -416,7 +419,8 @@ fun FieldCanvas(
                                              val wp = currentWaypoints[i]
                                              val wpBase = getCanvasOffsetBase(wp, w, h, fieldWidthM, fieldHeightM, league)
                                              
-                                             val headingWp = Waypoint(wp.x + wp.tangentMagnitude * cos(wp.headingRad), wp.y + wp.tangentMagnitude * sin(wp.headingRad))
+                                             val hd = resolveHeading(currentWaypoints, i)
+                                             val headingWp = Waypoint(wp.x + wp.tangentMagnitude * cos(hd), wp.y + wp.tangentMagnitude * sin(hd))
                                              val headingBase = getCanvasOffsetBase(headingWp, w, h, fieldWidthM, fieldHeightM, league)
                                              if (sqrt((basePress.x - headingBase.x).pow(2) + (basePress.y - headingBase.y).pow(2)) < hitRadiusPx) {
                                                  hitIdx = i; hitHeading = true; break
@@ -840,6 +844,14 @@ fun FieldCanvas(
                                 })
                                 contextMenuExpanded = false
                             }) { Text("Clear Rotation", color = AresTextPrimary) }
+                        }
+                        if (waypoints[contextTargetIndex].headingRad != null) {
+                            DropdownMenuItem(onClick = {
+                                onWaypointsChanged(waypoints.toMutableList().apply {
+                                    set(contextTargetIndex, this[contextTargetIndex].copy(headingRad = null))
+                                })
+                                contextMenuExpanded = false
+                            }) { Text("Reset to Auto Heading", color = AresTextPrimary) }
                         }
                         DropdownMenuItem(onClick = {
                             onWaypointsChanged(waypoints.toMutableList().apply { removeAt(contextTargetIndex) })

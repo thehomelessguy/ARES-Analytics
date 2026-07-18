@@ -29,8 +29,8 @@ fun WaypointCard(
 ) {
     var xText by remember { mutableStateOf(String.format("%.3f", wp.x)) }
     var yText by remember { mutableStateOf(String.format("%.3f", wp.y)) }
-    val headingDeg = Math.toDegrees(wp.headingRad)
-    var headingText by remember { mutableStateOf(String.format("%.1f", headingDeg)) }
+    val headingDeg = wp.headingRad?.let { Math.toDegrees(it) }
+    var headingText by remember { mutableStateOf(headingDeg?.let { String.format("%.1f", it) } ?: "") }
 
     LaunchedEffect(wp.x) {
         if (xText.toDoubleOrNull() != wp.x) xText = String.format("%.3f", wp.x)
@@ -39,9 +39,14 @@ fun WaypointCard(
         if (yText.toDoubleOrNull() != wp.y) yText = String.format("%.3f", wp.y)
     }
     LaunchedEffect(headingDeg) {
-        val parsed = headingText.toDoubleOrNull()
-        if (parsed == null || kotlin.math.abs(parsed - headingDeg) > 0.1) {
-            headingText = String.format("%.1f", headingDeg)
+        when {
+            headingDeg == null -> { if (headingText.isNotEmpty()) headingText = "" }
+            else -> {
+                val parsed = headingText.toDoubleOrNull()
+                if (parsed == null || kotlin.math.abs(parsed - headingDeg) > 0.1) {
+                    headingText = String.format("%.1f", headingDeg)
+                }
+            }
         }
     }
 
@@ -105,11 +110,16 @@ fun WaypointCard(
                 value = headingText,
                 onValueChange = { newValue ->
                     headingText = newValue
-                    newValue.toDoubleOrNull()?.let {
-                        onChanged(wp.copy(headingRad = Math.toRadians(it)))
+                    if (newValue.isBlank()) {
+                        onChanged(wp.copy(headingRad = null))
+                    } else {
+                        newValue.toDoubleOrNull()?.let {
+                            onChanged(wp.copy(headingRad = Math.toRadians(it)))
+                        }
                     }
                 },
                 label = { Text("Heading (°)", fontSize = 10.sp) },
+                placeholder = { Text("Auto", fontSize = 12.sp, color = AresTextSecondary.copy(alpha = 0.5f)) },
                 modifier = Modifier.weight(1f),
                 singleLine = true,
                 textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),

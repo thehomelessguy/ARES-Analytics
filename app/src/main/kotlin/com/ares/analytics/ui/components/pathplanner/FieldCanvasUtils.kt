@@ -234,10 +234,12 @@ fun getPositionOnSpline(pos: Double, waypoints: List<Waypoint>): Waypoint {
     val p0 = waypoints[i]
     val p1 = waypoints[i + 1]
     
-    val v0x = kotlin.math.cos(p0.headingRad) * p0.tangentMagnitude
-    val v0y = kotlin.math.sin(p0.headingRad) * p0.tangentMagnitude
-    val v1x = kotlin.math.cos(p1.headingRad) * p1.tangentMagnitude
-    val v1y = kotlin.math.sin(p1.headingRad) * p1.tangentMagnitude
+    val h0 = resolveHeading(waypoints, i)
+    val h1 = resolveHeading(waypoints, i + 1)
+    val v0x = kotlin.math.cos(h0) * p0.tangentMagnitude
+    val v0y = kotlin.math.sin(h0) * p0.tangentMagnitude
+    val v1x = kotlin.math.cos(h1) * p1.tangentMagnitude
+    val v1y = kotlin.math.sin(h1) * p1.tangentMagnitude
     
     val px = cubicHermite(p0.x, v0x, p1.x, v1x, t)
     val py = cubicHermite(p0.y, v0y, p1.y, v1y, t)
