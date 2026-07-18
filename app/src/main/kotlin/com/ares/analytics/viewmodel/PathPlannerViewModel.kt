@@ -353,13 +353,19 @@ class PathPlannerViewModel(
                                     velocity = s.goalEndState?.velocity ?: 0.0,
                                     rotation = s.waypoints.lastOrNull()?.rotationDeg ?: 0.0
                                 )
-                                val extractedRotationTargets = s.waypoints
+                                val waypointRotationTargets = s.waypoints
                                     .mapIndexedNotNull { idx, wp ->
                                         // Skip first and last (handled by start/goal state)
                                         if (idx == 0 || idx == s.waypoints.size - 1) null
                                         else if (wp.rotationDeg != 0.0) RotationTarget(idx.toDouble(), wp.rotationDeg)
                                         else null
                                     }
+                                // Preserve any legacy mid-segment targets (non-integer positions)
+                                val midSegmentTargets = s.rotationTargets.filter { rt ->
+                                    val pos = rt.waypointRelativePos
+                                    kotlin.math.abs(pos - kotlin.math.round(pos)) > 1e-3
+                                }
+                                val extractedRotationTargets = waypointRotationTargets + midSegmentTargets
 
                                 val pathFile = PathPlannerFile(
                                     version = "2025.0",
