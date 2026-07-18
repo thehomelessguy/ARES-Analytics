@@ -81,6 +81,11 @@ class CameraStreamViewModel(
         _state.update { it.copy(isConnected = false, currentFrame = null) }
     }
     
+    fun close() {
+        stopStreaming()
+        httpClient.close()
+    }
+    
     private fun startStreaming() {
         streamJob?.cancel()
         

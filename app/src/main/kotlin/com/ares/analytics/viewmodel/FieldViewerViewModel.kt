@@ -108,43 +108,43 @@ class FieldViewerViewModel(
             }
         }
         scope.launch {
-            val builder = FieldViewerStateBuilder(_state.value)
             var lastEmit = System.currentTimeMillis()
+            var currentBuilder = FieldViewerStateBuilder(_state.value)
             
             nt4ClientService.telemetryFlow.collect { frame ->
                 val key = frame.key
                 val value = frame.value
                 
                 when (key) {
-                    "ARES/EstimatedPose/0", "Drive/Pose_X" -> { builder.trueX = value; if (key == "Drive/Pose_X") builder.ekfX = value }
-                    "ARES/EstimatedPose/1", "Drive/Pose_Y" -> { builder.trueY = value; if (key == "Drive/Pose_Y") builder.ekfY = value }
-                    "ARES/EstimatedPose/2", "Drive/Pose_Heading", "Drive/Drive_Heading" -> { builder.trueHeading = value; if (key != "ARES/EstimatedPose/2") builder.ekfHeading = value }
-                    "Drive/Odom_X", "pinpoint_x", "pinpoint/x" -> builder.odomX = value
-                    "Drive/Odom_Y", "pinpoint_y", "pinpoint/y" -> builder.odomY = value
-                    "Drive/Odom_Heading", "pinpoint_heading", "pinpoint/heading" -> builder.odomHeading = value
+                    "ARES/EstimatedPose/0", "Drive/Pose_X" -> { currentBuilder.trueX = value; if (key == "Drive/Pose_X") currentBuilder.ekfX = value }
+                    "ARES/EstimatedPose/1", "Drive/Pose_Y" -> { currentBuilder.trueY = value; if (key == "Drive/Pose_Y") currentBuilder.ekfY = value }
+                    "ARES/EstimatedPose/2", "Drive/Pose_Heading", "Drive/Drive_Heading" -> { currentBuilder.trueHeading = value; if (key != "ARES/EstimatedPose/2") currentBuilder.ekfHeading = value }
+                    "Drive/Odom_X", "pinpoint_x", "pinpoint/x" -> currentBuilder.odomX = value
+                    "Drive/Odom_Y", "pinpoint_y", "pinpoint/y" -> currentBuilder.odomY = value
+                    "Drive/Odom_Heading", "pinpoint_heading", "pinpoint/heading" -> currentBuilder.odomHeading = value
                     "Vision/HasTarget" -> {
                         val hasTarget = value > 0.5
-                        builder.visionHasTarget = hasTarget
+                        currentBuilder.visionHasTarget = hasTarget
                         if (!hasTarget) {
-                            builder.visionX = null
-                            builder.visionY = null
-                            builder.visionHeading = null
-                            builder.visionPoses.clear()
+                            currentBuilder.visionX = null
+                            currentBuilder.visionY = null
+                            currentBuilder.visionHeading = null
+                            currentBuilder.visionPoses.clear()
                         }
                     }
-                    "Vision/Pose_X", "Vision/Pose/X" -> if (builder.visionHasTarget) builder.visionX = value
-                    "Vision/Pose_Y", "Vision/Pose/Y" -> if (builder.visionHasTarget) builder.visionY = value
-                    "Vision/Pose_Heading", "Vision/Pose/Heading" -> if (builder.visionHasTarget) builder.visionHeading = value
+                    "Vision/Pose_X", "Vision/Pose/X" -> if (currentBuilder.visionHasTarget) currentBuilder.visionX = value
+                    "Vision/Pose_Y", "Vision/Pose/Y" -> if (currentBuilder.visionHasTarget) currentBuilder.visionY = value
+                    "Vision/Pose_Heading", "Vision/Pose/Heading" -> if (currentBuilder.visionHasTarget) currentBuilder.visionHeading = value
                 }
 
                 if (key.startsWith("Vision/PoseArray/") || key.startsWith("AdvantageScope/VisionPose/")) {
-                    if (builder.visionHasTarget) {
+                    if (currentBuilder.visionHasTarget) {
                         val idx = key.substringAfterLast("/").toIntOrNull()
                         if (idx != null) {
-                            builder.visionPoses[idx] = value
+                            currentBuilder.visionPoses[idx] = value
                         }
                     } else {
-                        builder.visionPoses.clear()
+                        currentBuilder.visionPoses.clear()
                     }
                 }
 
@@ -153,7 +153,7 @@ class FieldViewerViewModel(
                     if (arrayIdx != null) {
                         val pieceIdx = arrayIdx / 7
                         val attributeIdx = arrayIdx % 7
-                        val currentPiece = builder.liveGamePieces[pieceIdx] ?: GamePiece(
+                        val currentPiece = currentBuilder.liveGamePieces[pieceIdx] ?: GamePiece(
                             id = pieceIdx.toString(),
                             name = "Piece $pieceIdx",
                             x = 0.0,
@@ -167,14 +167,15 @@ class FieldViewerViewModel(
                             else -> currentPiece
                         }
                         
-                        builder.liveGamePieces[pieceIdx] = updatedPiece
+                        currentBuilder.liveGamePieces[pieceIdx] = updatedPiece
                     }
                 }
                 
                 val now = System.currentTimeMillis()
                 if (now - lastEmit > 16) {
-                    _state.update { builder.build(it) }
+                    _state.update { currentBuilder.build(it) }
                     lastEmit = now
+                    currentBuilder = FieldViewerStateBuilder(_state.value)
                 }
             }
         }

@@ -32,9 +32,10 @@ fun CameraStreamCard(
     
     val state by viewModel.state.collectAsState()
 
-    DisposableEffect(Unit) {
+    DisposableEffect(viewModel) {
         onDispose {
             viewModel.onIntent(CameraStreamIntent.Disconnect)
+            viewModel.close()
         }
     }
 

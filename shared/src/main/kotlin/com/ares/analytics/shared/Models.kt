@@ -312,14 +312,6 @@ enum class TransientClassification {
     UNDERDAMPED, OVERDAMPED, CRITICALLY_DAMPED, UNKNOWN
 }
 
-@Serializable
-data class MotorSummary(
-    val name: String,
-    val avgCurrentAmps: Double = 0.0,
-    val maxCurrentAmps: Double = 0.0,
-    val stallCount: Int = 0
-)
-
 // ────────────────────────────────────────────────────────────────────────────
 // Driver Profiles
 // ────────────────────────────────────────────────────────────────────────────

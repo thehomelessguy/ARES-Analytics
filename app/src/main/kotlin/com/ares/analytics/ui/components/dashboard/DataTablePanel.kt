@@ -63,7 +63,7 @@ fun DataTablePanel(
     LaunchedEffect(sessionId) {
         if (sessionId != null) {
             isLoading = true
-            scope.launch {
+            scope.launch(kotlinx.coroutines.Dispatchers.IO) {
                 try {
                     val allFrames = databaseService.getTelemetryRange(sessionId, 0L, Long.MAX_VALUE)
                     availableKeys = allFrames.map { it.key }.distinct().sorted()
@@ -89,7 +89,7 @@ fun DataTablePanel(
     // Align values using sample-and-hold when keys or session changes
     LaunchedEffect(sessionId, selectedKeys.toList()) {
         if (sessionId != null && selectedKeys.isNotEmpty()) {
-            scope.launch {
+            scope.launch(kotlinx.coroutines.Dispatchers.IO) {
                 val data = mutableMapOf<String, List<TelemetryFrame>>()
                 for (key in selectedKeys) {
                     data[key] = databaseService.getTelemetryForKey(sessionId, key)
