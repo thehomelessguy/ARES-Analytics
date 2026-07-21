@@ -50,6 +50,7 @@ fun Route.archiveRoutes(
 ) {
     val storage = customStorage ?: StorageOptions.getDefaultInstance().service
     val bucketName = System.getenv("GCS_BUCKET_NAME") ?: "ares-analytics-telemetry"
+    val db = customFirestore ?: FirestoreOptions.getDefaultInstance().service
 
     authenticate("firebase") {
         rateLimit(RateLimitName("archive")) {
@@ -58,8 +59,7 @@ fun Route.archiveRoutes(
 
             withTeamContext(call, req.summary.teamId) { principal ->
 
-            try {
-                val db = customFirestore ?: FirestoreOptions.getDefaultInstance().service
+                try {
 
                 // 1. Save summary metadata to Firestore
                 withContext(Dispatchers.IO) {
@@ -79,7 +79,7 @@ fun Route.archiveRoutes(
 
                 val expiresAt = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(15)
                 call.respond(UploadUrlResponse(uploadUrl.toString(), expiresAt))
-            } catch (e: Exception) {
+                } catch (e: Exception) {
                 call.respond(HttpStatusCode.InternalServerError, "Failed to provision upload: ${e.message}")
                 }
             }
@@ -90,8 +90,7 @@ fun Route.archiveRoutes(
 
             withTeamContext(call, req.teamId) { principal ->
 
-            try {
-                val db = customFirestore ?: FirestoreOptions.getDefaultInstance().service
+                try {
 
                 // Query all summaries matching teamId and seasonId
                 val querySnapshot = withContext(Dispatchers.IO) {
@@ -112,7 +111,7 @@ fun Route.archiveRoutes(
                 }
 
                 call.respond(SyncResponse(missingSummaries))
-            } catch (e: Exception) {
+                } catch (e: Exception) {
                 call.respond(HttpStatusCode.InternalServerError, "Sync processing error: ${e.message}")
                 }
             }
@@ -122,9 +121,8 @@ fun Route.archiveRoutes(
             val req = call.receive<DeleteSessionRequest>()
 
             withTeamContext(call, req.teamId, "You do not have permission to delete sessions for this team.") { principal ->
-                try {
-                    val db = customFirestore ?: FirestoreOptions.getDefaultInstance().service
-
+                    try {
+    
                 // Only admins/coaches can delete cloud sessions (role from ARESWEB Firestore)
                 if (!isUserAdmin(db, principal.uid)) {
                     return@post call.respond(HttpStatusCode.Forbidden, "Only admins and coaches can delete cloud sessions")
@@ -136,7 +134,7 @@ fun Route.archiveRoutes(
                 }
 
                 // 2. Delete GCS parquet blob (best-effort, may not exist)
-                try {
+                    try {
                     val blobId = com.google.cloud.storage.BlobId.of(bucketName, "${req.teamId}/telemetry/${req.sessionId}.parquet")
                     storage.delete(blobId)
                 } catch (_: Exception) {
@@ -144,7 +142,7 @@ fun Route.archiveRoutes(
                 }
 
                 call.respond(HttpStatusCode.OK, "Session deleted")
-            } catch (e: Exception) {
+                } catch (e: Exception) {
                 call.respond(HttpStatusCode.InternalServerError, "Failed to delete session: ${e.message}")
                 }
             }
@@ -156,7 +154,7 @@ fun Route.archiveRoutes(
 
             withTeamContext(call, teamId) { principal ->
 
-            try {
+                try {
                 val blobInfo = BlobInfo.newBuilder(bucketName, "${teamId}/telemetry/${sessionId}.parquet").build()
                 val downloadUrl = storage.signUrl(
                     blobInfo,
@@ -168,7 +166,7 @@ fun Route.archiveRoutes(
 
                 val expiresAt = System.currentTimeMillis() + TimeUnit.HOURS.toMillis(1)
                 call.respond(DownloadUrlResponse(downloadUrl.toString(), expiresAt))
-            } catch (e: Exception) {
+                } catch (e: Exception) {
                 call.respond(HttpStatusCode.InternalServerError, "Failed to provision download: ${e.message}")
                 }
             }
@@ -177,8 +175,7 @@ fun Route.archiveRoutes(
         get("/api/team/{teamId}/robots") {
             val teamId = call.parameters["teamId"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing teamId")
             withTeamContext(call, teamId) { principal ->
-            try {
-                val db = customFirestore ?: FirestoreOptions.getDefaultInstance().service
+                try {
                 val querySnapshot = withContext(Dispatchers.IO) {
                     db.collection("teams").document(teamId).collection("robots").get().get()
                 }
@@ -192,7 +189,7 @@ fun Route.archiveRoutes(
                     )
                 }
                 call.respond(TeamRobotsResponse(robotsList))
-            } catch (e: Exception) {
+                } catch (e: Exception) {
                 call.respond(HttpStatusCode.InternalServerError, "Failed to load team robots: ${e.message}")
                 }
             }
@@ -201,8 +198,7 @@ fun Route.archiveRoutes(
         post("/api/team/robots/add") {
             val req = call.receive<AddRobotRequest>()
             withTeamContext(call, req.teamId) { principal ->
-            try {
-                val db = customFirestore ?: FirestoreOptions.getDefaultInstance().service
+                try {
                 if (!isUserAdmin(db, principal.uid)) {
                     return@post call.respond(HttpStatusCode.Forbidden, "Only mentors and administrators can register robot profiles.")
                 }
@@ -216,7 +212,7 @@ fun Route.archiveRoutes(
                     docRef.set(robotMap).get()
                 }
                 call.respond(HttpStatusCode.OK, "Robot profile added successfully")
-            } catch (e: Exception) {
+                } catch (e: Exception) {
                 call.respond(HttpStatusCode.InternalServerError, "Failed to add robot: ${e.message}")
                 }
             }
@@ -225,8 +221,7 @@ fun Route.archiveRoutes(
         post("/api/team/robots/delete") {
             val req = call.receive<DeleteRobotRequest>()
             withTeamContext(call, req.teamId) { principal ->
-            try {
-                val db = customFirestore ?: FirestoreOptions.getDefaultInstance().service
+                try {
                 if (!isUserAdmin(db, principal.uid)) {
                     return@post call.respond(HttpStatusCode.Forbidden, "Only mentors and administrators can delete robot profiles.")
                 }
@@ -235,7 +230,7 @@ fun Route.archiveRoutes(
                     docRef.delete().get()
                 }
                 call.respond(HttpStatusCode.OK, "Robot profile deleted successfully")
-            } catch (e: Exception) {
+                } catch (e: Exception) {
                 call.respond(HttpStatusCode.InternalServerError, "Failed to delete robot: ${e.message}")
                 }
             }
@@ -245,7 +240,7 @@ fun Route.archiveRoutes(
             val req = call.receive<RawUploadUrlsRequest>()
             withTeamContext(call, req.teamId) { principal ->
 
-            try {
+                try {
                 val uploadUrls = mutableMapOf<String, String>()
                 for (fileName in req.fileNames) {
                     val blobPath = "raw/${req.teamId}/${req.runTimestamp}/$fileName"
@@ -262,7 +257,7 @@ fun Route.archiveRoutes(
 
                 val expiresAt = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(15)
                 call.respond(RawUploadUrlsResponse(uploadUrls, expiresAt))
-            } catch (e: Exception) {
+                } catch (e: Exception) {
                 call.respond(HttpStatusCode.InternalServerError, "Failed to generate raw upload URLs: ${e.message}")
                 }
             }

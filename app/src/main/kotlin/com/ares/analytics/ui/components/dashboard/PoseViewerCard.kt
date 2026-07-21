@@ -27,7 +27,6 @@ fun PoseViewerCard(
     nt4ClientService: Nt4ClientService,
     modifier: Modifier = Modifier
 ) {
-    val scope = rememberCoroutineScope()
 
     val trueXSim by nt4ClientService.subscribeDouble("ARES/EstimatedPose/0").collectAsState(initial = null)
     val trueYSim by nt4ClientService.subscribeDouble("ARES/EstimatedPose/1").collectAsState(initial = null)

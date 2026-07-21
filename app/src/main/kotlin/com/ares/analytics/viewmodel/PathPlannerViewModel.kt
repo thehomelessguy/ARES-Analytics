@@ -1,5 +1,8 @@
 package com.ares.analytics.viewmodel
 
+import com.ares.analytics.shared.AppJson
+
+
 import com.ares.analytics.service.TrajectoryEstimator
 import com.ares.analytics.shared.*
 import com.ares.analytics.ui.components.pathplanner.Waypoint
@@ -154,7 +157,7 @@ class PathPlannerViewModel(
             val targetDir = File(projectPath, relativeDir)
             val file = File(targetDir, "$pathName.path")
             if (!file.exists()) return null
-            val json = Json { ignoreUnknownKeys = true }
+            val json = AppJson
             val pathFile = json.decodeFromString<PathPlannerFile>(file.readText())
             val loadedWps = pathFile.waypoints.map { pwp ->
                 val next = pwp.nextControl
@@ -192,7 +195,7 @@ class PathPlannerViewModel(
             val targetDir = File(projectPath, relativeDir)
             val file = File(targetDir, "$pathName.path")
             if (!file.exists()) return null
-            val json = Json { ignoreUnknownKeys = true }
+            val json = AppJson
             val pathFile = json.decodeFromString<PathPlannerFile>(file.readText())
             return pathFile.waypoints.map { pwp ->
                 val next = pwp.nextControl
@@ -222,7 +225,7 @@ class PathPlannerViewModel(
             val targetDir = File(projectPath, relativeDir)
             val file = File(targetDir, "$autoName.auto")
             if (!file.exists()) return null
-            val json = Json { ignoreUnknownKeys = true }
+            val json = AppJson
             val autoFile = json.decodeFromString<AutoCommandNode>(file.readText())
             
             val pathNames = mutableListOf<String>()
@@ -293,7 +296,7 @@ class PathPlannerViewModel(
                 val commandsArray = node.data["commands"] as? kotlinx.serialization.json.JsonArray
                 commandsArray?.forEach { jsonElement ->
                     try {
-                        val childNode = Json { ignoreUnknownKeys = true }.decodeFromJsonElement(AutoCommandNode.serializer(), jsonElement)
+                        val childNode = AppJson.decodeFromJsonElement(AutoCommandNode.serializer(), jsonElement)
                         extractPaths(childNode)
                     } catch (e: Exception) {}
                 }
@@ -336,7 +339,7 @@ class PathPlannerViewModel(
                                 val targetDir = File(projectPath, relativeDir)
                                 val file = File(targetDir, "$pathName.path")
                                 if (file.exists()) {
-                                    val json = Json { ignoreUnknownKeys = true }
+                                    val json = AppJson
                                     val content = file.readText()
                                     val pathFile = json.decodeFromString<PathPlannerFile>(content)
 
@@ -812,7 +815,7 @@ class PathPlannerViewModel(
                                 val file = File(projectPath, "$relativeDir/$autoName.auto")
                                 if (file.exists()) {
                                     val jsonString = file.readText()
-                                    val format = Json { ignoreUnknownKeys = true }
+                                    val format = AppJson
                                     val autoFile = format.decodeFromString<AutoFile>(jsonString)
                                     _state.update {
                                         it.copy(
@@ -887,11 +890,11 @@ class PathPlannerViewModel(
                     val newCommands = root.data["commands"]?.let {
                         val array = it as kotlinx.serialization.json.JsonArray
                         kotlinx.serialization.json.JsonArray(array.toMutableList().apply { 
-                            val dataFormat = Json { ignoreUnknownKeys = true }
+                            val dataFormat = AppJson
                             add(dataFormat.encodeToJsonElement(AutoCommandNode.serializer(), intent.node)) 
                         })
                     } ?: kotlinx.serialization.json.JsonArray(listOf(
-                        Json { ignoreUnknownKeys = true }.encodeToJsonElement(AutoCommandNode.serializer(), intent.node)
+                        AppJson.encodeToJsonElement(AutoCommandNode.serializer(), intent.node)
                     ))
                     
                     val newRoot = root.copy(
@@ -944,7 +947,7 @@ class PathPlannerViewModel(
                     if (commandsArray != null && intent.index in 0 until commandsArray.size) {
                         val newCommands = kotlinx.serialization.json.JsonArray(
                             commandsArray.toMutableList().apply { 
-                                set(intent.index, Json { ignoreUnknownKeys = true }.encodeToJsonElement(AutoCommandNode.serializer(), intent.node))
+                                set(intent.index, AppJson.encodeToJsonElement(AutoCommandNode.serializer(), intent.node))
                             }
                         )
                         val newRoot = root.copy(
@@ -976,7 +979,7 @@ class PathPlannerViewModel(
                             val file = File(projectPath, "$relativeDir/$autoName.auto")
                             if (file.exists()) {
                                 val jsonString = file.readText()
-                                val format = Json { ignoreUnknownKeys = true }
+                                val format = AppJson
                                 val autoFile = format.decodeFromString<AutoFile>(jsonString)
                                 
                                 val pathNames = mutableListOf<String>()
@@ -992,7 +995,7 @@ class PathPlannerViewModel(
                                     val commandsArray = node.data["commands"] as? kotlinx.serialization.json.JsonArray
                                     commandsArray?.forEach { jsonElement ->
                                         try {
-                                            val childNode = Json { ignoreUnknownKeys = true }.decodeFromJsonElement(AutoCommandNode.serializer(), jsonElement)
+                                            val childNode = AppJson.decodeFromJsonElement(AutoCommandNode.serializer(), jsonElement)
                                             extractPaths(childNode)
                                         } catch (e: Exception) {}
                                     }

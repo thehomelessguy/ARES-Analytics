@@ -6,7 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ShowChart
+import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,14 +23,12 @@ import androidx.compose.ui.unit.sp
 import com.ares.analytics.service.Nt4ClientService
 import com.ares.analytics.ui.theme.*
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.launch
 
 @Composable
 fun EKFTelemetryCard(
     nt4ClientService: Nt4ClientService,
     modifier: Modifier = Modifier
 ) {
-    val scope = rememberCoroutineScope()
     
     // Ring buffers for chart data (last 200 points)
     val maxPoints = 200
@@ -43,9 +41,8 @@ fun EKFTelemetryCard(
     var currentCovTheta by remember { mutableStateOf(0.0) }
 
     LaunchedEffect(Unit) {
-        scope.launch {
-            nt4ClientService.telemetryFlow.collect { frame ->
-                val key = frame.key
+        nt4ClientService.telemetryFlow.collect { frame ->
+            val key = frame.key
                 when {
                     key.endsWith("Drive/EKF_Drift_X") -> {
                         val value = frame.value as? Double ?: 0.0
@@ -70,7 +67,6 @@ fun EKFTelemetryCard(
                     }
                 }
             }
-        }
     }
 
     Card(
@@ -85,7 +81,7 @@ fun EKFTelemetryCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.ShowChart, contentDescription = "EKF", tint = AresCyan)
+                Icon(Icons.AutoMirrored.Filled.ShowChart, contentDescription = "EKF", tint = AresCyan)
                 Spacer(Modifier.width(8.dp))
                 Text("EKF Diagnostics", color = AresTextPrimary, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
                 

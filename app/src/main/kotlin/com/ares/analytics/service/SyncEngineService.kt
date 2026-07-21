@@ -1,5 +1,8 @@
 package com.ares.analytics.service
 
+import com.ares.analytics.shared.AppJson
+
+
 import com.ares.analytics.shared.*
 import io.ktor.client.*
 import io.ktor.client.call.body
@@ -27,7 +30,7 @@ class SyncEngineService(
     private val gatewayUrl: String = "https://ares-analytics-gateway-staging-205869391101.us-central1.run.app",
     private val httpClient: HttpClient = HttpClient {
         install(ContentNegotiation) {
-            json(Json { ignoreUnknownKeys = true })
+            json(AppJson)
         }
         install(HttpTimeout) {
             requestTimeoutMillis = 30 * 60 * 1000L
@@ -100,7 +103,7 @@ class SyncEngineService(
             val indexList = if (indexFileId != null) {
                 val indexBytes = googleDriveService.readFile(indexFileId)
                 try {
-                    Json { ignoreUnknownKeys = true }.decodeFromString<List<SessionSummary>>(String(indexBytes, Charsets.UTF_8))
+                    AppJson.decodeFromString<List<SessionSummary>>(String(indexBytes, Charsets.UTF_8))
                 } catch (e: Exception) {
                     emptyList()
                 }
@@ -142,7 +145,7 @@ class SyncEngineService(
             val rootFolderId = googleDriveService.findOrCreateFolder("ARES-Analytics")
             val indexFileId = googleDriveService.findFile("index.json", rootFolderId) ?: return@withContext emptyList()
             val indexBytes = googleDriveService.readFile(indexFileId)
-            Json { ignoreUnknownKeys = true }.decodeFromString<List<SessionSummary>>(String(indexBytes, Charsets.UTF_8))
+            AppJson.decodeFromString<List<SessionSummary>>(String(indexBytes, Charsets.UTF_8))
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()
@@ -157,7 +160,7 @@ class SyncEngineService(
             val rootFolderId = googleDriveService.findOrCreateFolder("ARES-Analytics")
             val fileId = googleDriveService.findFile("robots.json", rootFolderId) ?: return@withContext emptyList()
             val bytes = googleDriveService.readFile(fileId)
-            Json { ignoreUnknownKeys = true }.decodeFromString<List<RobotProfile>>(String(bytes, Charsets.UTF_8))
+            AppJson.decodeFromString<List<RobotProfile>>(String(bytes, Charsets.UTF_8))
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()
@@ -282,7 +285,7 @@ class SyncEngineService(
     private suspend fun getVertexAccessToken(serviceAccountJsonPath: String): String {
         val file = File(serviceAccountJsonPath)
         if (!file.exists()) throw IllegalArgumentException("Service Account file not found at: $serviceAccountJsonPath")
-        val parsedJson = Json { ignoreUnknownKeys = true }.parseToJsonElement(file.readText()).jsonObject
+        val parsedJson = AppJson.parseToJsonElement(file.readText()).jsonObject
         val clientEmail = parsedJson["client_email"]?.jsonPrimitive?.content ?: throw IllegalArgumentException("Missing client_email")
         val privateKeyPem = parsedJson["private_key"]?.jsonPrimitive?.content ?: throw IllegalArgumentException("Missing private_key")
         val tokenUri = parsedJson["token_uri"]?.jsonPrimitive?.content ?: "https://oauth2.googleapis.com/token"
@@ -401,7 +404,7 @@ class SyncEngineService(
         val sanitizedJson = jsonResponse.replace(Regex("```(?:json)?\\n?(.*?)\\n?```", RegexOption.DOT_MATCHES_ALL), "$1").trim()
 
         try {
-            Json { ignoreUnknownKeys = true }.decodeFromString<ForensicsResponse>(sanitizedJson)
+            AppJson.decodeFromString<ForensicsResponse>(sanitizedJson)
         } catch (e: Exception) {
             ForensicsResponse(
                 probableRootCause = "AI produced unparseable diagnostics: $sanitizedJson",
@@ -627,7 +630,7 @@ class SyncEngineService(
 
         val sanitizedJson = jsonResponse.replace(Regex("```(?:json)?\\n?(.*?)\\n?```", RegexOption.DOT_MATCHES_ALL), "$1").trim()
         val sqlQuery = try {
-            val parsed = Json { ignoreUnknownKeys = true }.parseToJsonElement(sanitizedJson).jsonObject
+            val parsed = AppJson.parseToJsonElement(sanitizedJson).jsonObject
             parsed["sql"]?.jsonPrimitive?.content ?: throw IllegalArgumentException("No SQL generated")
         } catch (e: Exception) {
             return@withContext "I was unable to formulate a SQL query to extract the data. Details: $sanitizedJson"
@@ -733,7 +736,7 @@ class SyncEngineService(
             if (indexFileId != null) {
                 val indexBytes = googleDriveService.readFile(indexFileId)
                 val indexList = try {
-                    Json { ignoreUnknownKeys = true }.decodeFromString<List<SessionSummary>>(String(indexBytes, Charsets.UTF_8))
+                    AppJson.decodeFromString<List<SessionSummary>>(String(indexBytes, Charsets.UTF_8))
                 } catch (e: Exception) {
                     emptyList()
                 }

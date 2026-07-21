@@ -1,5 +1,8 @@
 package com.ares.analytics.viewmodel
 
+import com.ares.analytics.shared.AppJson
+
+
 import com.ares.analytics.service.Nt4ClientService
 import com.ares.analytics.ui.components.pathplanner.Waypoint
 import kotlinx.coroutines.CoroutineScope
@@ -295,7 +298,7 @@ class FieldViewerViewModel(
                                 val pathsTargetDir = File(projectPath, relativePathsDir)
                                 val autosTargetDir = File(projectPath, relativeAutosDir)
 
-                                val json = Json { ignoreUnknownKeys = true }
+                                val json = AppJson
                                 val loadedWps = mutableListOf<Waypoint>()
 
                                 if (pathName.startsWith("[Auto] ")) {

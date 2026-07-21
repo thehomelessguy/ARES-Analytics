@@ -1,5 +1,8 @@
 package com.ares.analytics.gateway.routes
 
+import com.ares.analytics.shared.AppJson
+
+
 import com.ares.analytics.gateway.auth.FirebasePrincipal
 import com.google.cloud.firestore.FirestoreOptions
 import io.ktor.client.*
@@ -32,7 +35,7 @@ data class AuthSuccessResponse(val status: String, val username: String, val org
 fun Route.authRoutes() {
     val httpClient = HttpClient {
         install(ContentNegotiation) {
-            json(Json { ignoreUnknownKeys = true })
+            json(AppJson)
         }
     }
 

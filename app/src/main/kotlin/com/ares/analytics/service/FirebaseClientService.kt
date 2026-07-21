@@ -1,5 +1,8 @@
 package com.ares.analytics.service
 
+import com.ares.analytics.shared.AppJson
+
+
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.plugins.contentnegotiation.*
@@ -66,7 +69,7 @@ class FirebaseClientService {
 
     private val httpClient = HttpClient {
         install(ContentNegotiation) {
-            json(Json { ignoreUnknownKeys = true })
+            json(AppJson)
         }
     }
 
@@ -93,7 +96,7 @@ class FirebaseClientService {
         if (!authFile.exists()) return
         try {
             val jsonStr = authFile.readText()
-            val savedAuth = Json { ignoreUnknownKeys = true }.decodeFromString<SavedAuth>(jsonStr)
+            val savedAuth = AppJson.decodeFromString<SavedAuth>(jsonStr)
             refreshFirebaseToken(savedAuth)
         } catch (e: Exception) {
             println("Failed to load persisted auth: ${e.message}")
@@ -209,7 +212,7 @@ class FirebaseClientService {
     fun getSavedAuth(): SavedAuth? {
         if (!authFile.exists()) return null
         return try {
-            Json { ignoreUnknownKeys = true }.decodeFromString<SavedAuth>(authFile.readText())
+            AppJson.decodeFromString<SavedAuth>(authFile.readText())
         } catch (e: Exception) {
             null
         }
