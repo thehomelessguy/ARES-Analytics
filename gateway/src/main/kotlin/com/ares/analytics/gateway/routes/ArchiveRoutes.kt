@@ -19,6 +19,31 @@ import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+import io.ktor.server.application.ApplicationCall
+
+private suspend inline fun withTeamContext(
+    call: ApplicationCall,
+    targetTeamId: String,
+    mismatchMessage: String = "Team ID mismatch",
+    block: suspend (FirebasePrincipal) -> Unit
+) {
+    val principal = call.principal<FirebasePrincipal>()
+    if (principal == null) {
+        call.respond(HttpStatusCode.Unauthorized)
+        return
+    }
+    val callerTeamId = principal.teamId
+    if (callerTeamId == null) {
+        call.respond(HttpStatusCode.Forbidden, "Missing team claim")
+        return
+    }
+    if (callerTeamId != targetTeamId) {
+        call.respond(HttpStatusCode.Forbidden, mismatchMessage)
+        return
+    }
+    block(principal)
+}
+
 fun Route.archiveRoutes(
     customStorage: Storage? = null,
     customFirestore: Firestore? = null
@@ -29,13 +54,9 @@ fun Route.archiveRoutes(
     authenticate("firebase") {
         rateLimit(RateLimitName("archive")) {
             post("/api/archive/upload-url") {
-                val principal = call.principal<FirebasePrincipal>() ?: return@post call.respond(HttpStatusCode.Unauthorized)
-            val req = call.receive<UploadUrlRequest>()
+                val req = call.receive<UploadUrlRequest>()
 
-            val callerTeamId = principal.teamId ?: return@post call.respond(HttpStatusCode.Forbidden, "Missing team claim")
-            if (callerTeamId != req.summary.teamId) {
-                return@post call.respond(HttpStatusCode.Forbidden, "Team ID mismatch")
-            }
+            withTeamContext(call, req.summary.teamId) { principal ->
 
             try {
                 val db = customFirestore ?: FirestoreOptions.getDefaultInstance().service
@@ -60,17 +81,14 @@ fun Route.archiveRoutes(
                 call.respond(UploadUrlResponse(uploadUrl.toString(), expiresAt))
             } catch (e: Exception) {
                 call.respond(HttpStatusCode.InternalServerError, "Failed to provision upload: ${e.message}")
+                }
             }
         }
 
         post("/api/archive/sync") {
-            val principal = call.principal<FirebasePrincipal>() ?: return@post call.respond(HttpStatusCode.Unauthorized)
             val req = call.receive<SyncRequest>()
 
-            val callerTeamId = principal.teamId ?: return@post call.respond(HttpStatusCode.Forbidden, "Missing team claim")
-            if (callerTeamId != req.teamId) {
-                return@post call.respond(HttpStatusCode.Forbidden, "Team ID mismatch")
-            }
+            withTeamContext(call, req.teamId) { principal ->
 
             try {
                 val db = customFirestore ?: FirestoreOptions.getDefaultInstance().service
@@ -96,20 +114,16 @@ fun Route.archiveRoutes(
                 call.respond(SyncResponse(missingSummaries))
             } catch (e: Exception) {
                 call.respond(HttpStatusCode.InternalServerError, "Sync processing error: ${e.message}")
+                }
             }
         }
 
         post("/api/archive/delete") {
-            val principal = call.principal<FirebasePrincipal>() ?: return@post call.respond(HttpStatusCode.Unauthorized)
             val req = call.receive<DeleteSessionRequest>()
 
-            try {
-                val db = customFirestore ?: FirestoreOptions.getDefaultInstance().service
-
-                val callerTeamId = principal.teamId ?: return@post call.respond(HttpStatusCode.Forbidden, "Missing team claim")
-                if (callerTeamId != req.teamId) {
-                    return@post call.respond(HttpStatusCode.Forbidden, "You do not have permission to delete sessions for this team.")
-                }
+            withTeamContext(call, req.teamId, "You do not have permission to delete sessions for this team.") { principal ->
+                try {
+                    val db = customFirestore ?: FirestoreOptions.getDefaultInstance().service
 
                 // Only admins/coaches can delete cloud sessions (role from ARESWEB Firestore)
                 if (!isUserAdmin(db, principal.uid)) {
@@ -132,18 +146,15 @@ fun Route.archiveRoutes(
                 call.respond(HttpStatusCode.OK, "Session deleted")
             } catch (e: Exception) {
                 call.respond(HttpStatusCode.InternalServerError, "Failed to delete session: ${e.message}")
+                }
             }
         }
 
         get("/api/archive/download-url") {
-            val principal = call.principal<FirebasePrincipal>() ?: return@get call.respond(HttpStatusCode.Unauthorized)
             val sessionId = call.request.queryParameters["sessionId"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing sessionId")
             val teamId = call.request.queryParameters["teamId"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing teamId")
 
-            val callerTeamId = principal.teamId ?: return@get call.respond(HttpStatusCode.Forbidden, "Missing team claim")
-            if (callerTeamId != teamId) {
-                return@get call.respond(HttpStatusCode.Forbidden, "Team ID mismatch")
-            }
+            withTeamContext(call, teamId) { principal ->
 
             try {
                 val blobInfo = BlobInfo.newBuilder(bucketName, "${teamId}/telemetry/${sessionId}.parquet").build()
@@ -159,14 +170,13 @@ fun Route.archiveRoutes(
                 call.respond(DownloadUrlResponse(downloadUrl.toString(), expiresAt))
             } catch (e: Exception) {
                 call.respond(HttpStatusCode.InternalServerError, "Failed to provision download: ${e.message}")
+                }
             }
         }
 
         get("/api/team/{teamId}/robots") {
-            val principal = call.principal<FirebasePrincipal>() ?: return@get call.respond(HttpStatusCode.Unauthorized)
             val teamId = call.parameters["teamId"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing teamId")
-            val callerTeamId = principal.teamId ?: return@get call.respond(HttpStatusCode.Forbidden, "Missing team claim")
-            if (callerTeamId != teamId) return@get call.respond(HttpStatusCode.Forbidden, "Team ID mismatch")
+            withTeamContext(call, teamId) { principal ->
             try {
                 val db = customFirestore ?: FirestoreOptions.getDefaultInstance().service
                 val querySnapshot = withContext(Dispatchers.IO) {
@@ -184,15 +194,13 @@ fun Route.archiveRoutes(
                 call.respond(TeamRobotsResponse(robotsList))
             } catch (e: Exception) {
                 call.respond(HttpStatusCode.InternalServerError, "Failed to load team robots: ${e.message}")
+                }
             }
         }
 
         post("/api/team/robots/add") {
-            val principal = call.principal<FirebasePrincipal>() ?: return@post call.respond(HttpStatusCode.Unauthorized)
             val req = call.receive<AddRobotRequest>()
-            
-            val callerTeamId = principal.teamId ?: return@post call.respond(HttpStatusCode.Forbidden, "Missing team claim")
-            if (callerTeamId != req.teamId) return@post call.respond(HttpStatusCode.Forbidden, "Team ID mismatch")
+            withTeamContext(call, req.teamId) { principal ->
             try {
                 val db = customFirestore ?: FirestoreOptions.getDefaultInstance().service
                 if (!isUserAdmin(db, principal.uid)) {
@@ -210,15 +218,13 @@ fun Route.archiveRoutes(
                 call.respond(HttpStatusCode.OK, "Robot profile added successfully")
             } catch (e: Exception) {
                 call.respond(HttpStatusCode.InternalServerError, "Failed to add robot: ${e.message}")
+                }
             }
         }
 
         post("/api/team/robots/delete") {
-            val principal = call.principal<FirebasePrincipal>() ?: return@post call.respond(HttpStatusCode.Unauthorized)
             val req = call.receive<DeleteRobotRequest>()
-
-            val callerTeamId = principal.teamId ?: return@post call.respond(HttpStatusCode.Forbidden, "Missing team claim")
-            if (callerTeamId != req.teamId) return@post call.respond(HttpStatusCode.Forbidden, "Team ID mismatch")
+            withTeamContext(call, req.teamId) { principal ->
             try {
                 val db = customFirestore ?: FirestoreOptions.getDefaultInstance().service
                 if (!isUserAdmin(db, principal.uid)) {
@@ -231,15 +237,13 @@ fun Route.archiveRoutes(
                 call.respond(HttpStatusCode.OK, "Robot profile deleted successfully")
             } catch (e: Exception) {
                 call.respond(HttpStatusCode.InternalServerError, "Failed to delete robot: ${e.message}")
+                }
             }
         }
 
         post("/api/archive/upload-raw-urls") {
-            val principal = call.principal<FirebasePrincipal>() ?: return@post call.respond(HttpStatusCode.Unauthorized)
             val req = call.receive<RawUploadUrlsRequest>()
-
-            val callerTeamId = principal.teamId ?: return@post call.respond(HttpStatusCode.Forbidden, "Missing team claim")
-            if (callerTeamId != req.teamId) return@post call.respond(HttpStatusCode.Forbidden, "Team ID mismatch")
+            withTeamContext(call, req.teamId) { principal ->
 
             try {
                 val uploadUrls = mutableMapOf<String, String>()
@@ -260,6 +264,7 @@ fun Route.archiveRoutes(
                 call.respond(RawUploadUrlsResponse(uploadUrls, expiresAt))
             } catch (e: Exception) {
                 call.respond(HttpStatusCode.InternalServerError, "Failed to generate raw upload URLs: ${e.message}")
+                }
             }
         }
         }

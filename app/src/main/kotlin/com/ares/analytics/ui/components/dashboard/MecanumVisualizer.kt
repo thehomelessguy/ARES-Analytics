@@ -71,9 +71,7 @@ fun MecanumVisualizer(
         }
     }
 
-    val isConnected = if (nt4ClientService != null) {
-        nt4ClientService.isConnected.collectAsState().value
-    } else false
+    val isConnected by nt4ClientService?.isConnected?.collectAsState(initial = false) ?: remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -199,13 +197,7 @@ fun MecanumVisualizer(
 
                             // Draw traction force vector arrow (at 45 degrees, matching roller slide reaction)
                             // The traction force vector points along the roller's perpendicular axis (direction of push)
-                            val forceAngle = when (w.name) {
-                                "FL" -> if (w.speed >= 0) Math.toRadians(-45.0) else Math.toRadians(135.0)
-                                "FR" -> if (w.speed >= 0) Math.toRadians(-135.0) else Math.toRadians(45.0)
-                                "BL" -> if (w.speed >= 0) Math.toRadians(-135.0) else Math.toRadians(45.0)
-                                "BR" -> if (w.speed >= 0) Math.toRadians(-45.0) else Math.toRadians(135.0)
-                                else -> 0.0
-                            }
+                            val forceAngle = getForceAngle(w.name, w.speed)
 
                             val forceLen = Math.abs(normalizedSpeed * maxArrowLen)
                             val forceEnd = Offset(
@@ -242,13 +234,7 @@ fun MecanumVisualizer(
                     for (w in wheels) {
                         val normalizedSpeed = (w.speed / speedScale).toFloat()
                         if (Math.abs(normalizedSpeed) > 0.05f) {
-                            val forceAngle = when (w.name) {
-                                "FL" -> if (w.speed >= 0) Math.toRadians(-45.0) else Math.toRadians(135.0)
-                                "FR" -> if (w.speed >= 0) Math.toRadians(-135.0) else Math.toRadians(45.0)
-                                "BL" -> if (w.speed >= 0) Math.toRadians(-135.0) else Math.toRadians(45.0)
-                                "BR" -> if (w.speed >= 0) Math.toRadians(-45.0) else Math.toRadians(135.0)
-                                else -> 0.0
-                            }
+                            val forceAngle = getForceAngle(w.name, w.speed)
                             val forceLen = Math.abs(normalizedSpeed)
                             netForceX += forceLen * cos(forceAngle).toFloat()
                             netForceY += forceLen * sin(forceAngle).toFloat()
@@ -315,5 +301,13 @@ private data class WheelData(
     val speed: Double,
     val current: Double
 )
+
+private fun getForceAngle(name: String, speed: Double): Double = when (name) {
+    "FL" -> if (speed >= 0) Math.toRadians(-45.0) else Math.toRadians(135.0)
+    "FR" -> if (speed >= 0) Math.toRadians(-135.0) else Math.toRadians(45.0)
+    "BL" -> if (speed >= 0) Math.toRadians(-135.0) else Math.toRadians(45.0)
+    "BR" -> if (speed >= 0) Math.toRadians(-45.0) else Math.toRadians(135.0)
+    else -> 0.0
+}
 
 private fun tan(radians: Double): Double = kotlin.math.tan(radians)
