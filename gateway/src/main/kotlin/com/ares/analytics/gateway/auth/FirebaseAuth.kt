@@ -28,7 +28,7 @@ class FirebaseAuthenticationProvider(config: Config) : AuthenticationProvider(co
                     uid = parts.getOrNull(1) ?: "mock-uid",
                     email = parts.getOrNull(2),
                     name = parts.getOrNull(3),
-                    teamId = null
+                    teamId = parts.getOrNull(4)
                 )
                 context.principal(principal)
                 return

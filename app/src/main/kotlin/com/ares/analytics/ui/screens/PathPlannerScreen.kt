@@ -70,29 +70,39 @@ fun PathPlannerScreen(
             modifier = Modifier.weight(1f).fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            if (state.activeEditorMode == "Path") {
-                WaypointEditorPanel(
+            if (state.showBrowser) {
+                PathBrowserPanel(
                     state = state,
-                    projectPath = projectPath,
                     league = league,
+                    projectPath = projectPath,
                     onIntent = { viewModel.onIntent(it) }
                 )
             } else {
-                AutoEditorPanel(
-                    state = state,
-                    projectPath = projectPath,
-                    league = league,
-                    onIntent = { viewModel.onIntent(it) }
-                )
-            }
+                if (state.activeEditorMode == "Path") {
+                    WaypointEditorPanel(
+                        state = state,
+                        projectPath = projectPath,
+                        league = league,
+                        onIntent = { viewModel.onIntent(it) }
+                    )
+                } else {
+                    AutoEditorPanel(
+                        state = state,
+                        projectPath = projectPath,
+                        league = league,
+                        onIntent = { viewModel.onIntent(it) }
+                    )
+                }
 
-            Box(
-                modifier = Modifier.weight(1f).fillMaxHeight().border(1.dp, AresBorder, RoundedCornerShape(12.dp)).clip(RoundedCornerShape(12.dp))
-            ) {
+                Box(
+                    modifier = Modifier.weight(1f).fillMaxHeight().border(1.dp, AresBorder, RoundedCornerShape(12.dp)).clip(RoundedCornerShape(12.dp))
+                ) {
                 FieldCanvas(
                     league = league,
                     waypoints = if (state.activeEditorMode == "Path") state.waypoints else emptyList(),
                     actualPath = if (state.activeEditorMode == "Auto") state.trajectory?.states?.map { Waypoint(it.x, it.y, it.headingRad) } ?: emptyList() else emptyList(),
+                    contextPath = if (state.activeEditorMode == "Path") state.contextTrajectory?.states?.map { Waypoint(it.x, it.y, it.headingRad) } else null,
+                    contextWaypoints = if (state.activeEditorMode == "Path") state.contextWaypoints else null,
                     onWaypointsChanged = {
                         viewModel.onIntent(PathPlannerIntent.UpdateWaypoints(it))
                     },
@@ -128,5 +138,6 @@ fun PathPlannerScreen(
                 )
             }
         }
+    }
     }
 }

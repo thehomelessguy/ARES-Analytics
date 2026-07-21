@@ -34,6 +34,8 @@ fun WaypointCard(
     var headingText by remember { mutableStateOf(headingDeg?.let { String.format("%.1f", it) } ?: "") }
     val rotationDeg = wp.rotationDeg
     var rotationText by remember { mutableStateOf(rotationDeg?.let { String.format("%.1f", it) } ?: "") }
+    var prevLengthText by remember { mutableStateOf(String.format("%.3f", wp.prevControlLength)) }
+    var nextLengthText by remember { mutableStateOf(String.format("%.3f", wp.nextControlLength)) }
 
     LaunchedEffect(wp.x) {
         if (xText.toDoubleOrNull() != wp.x) xText = String.format("%.3f", wp.x)
@@ -61,6 +63,18 @@ fun WaypointCard(
                     rotationText = String.format("%.1f", rotationDeg)
                 }
             }
+        }
+    }
+    LaunchedEffect(wp.prevControlLength) {
+        val parsed = prevLengthText.toDoubleOrNull()
+        if (parsed == null || kotlin.math.abs(parsed - wp.prevControlLength) > 1e-3) {
+            prevLengthText = String.format("%.3f", wp.prevControlLength)
+        }
+    }
+    LaunchedEffect(wp.nextControlLength) {
+        val parsed = nextLengthText.toDoubleOrNull()
+        if (parsed == null || kotlin.math.abs(parsed - wp.nextControlLength) > 1e-3) {
+            nextLengthText = String.format("%.3f", wp.nextControlLength)
         }
     }
 
@@ -159,6 +173,41 @@ fun WaypointCard(
                 },
                 label = { Text("Rotation (°)", fontSize = 10.sp) },
                 placeholder = { Text("Auto", fontSize = 12.sp, color = AresTextSecondary.copy(alpha = 0.5f)) },
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+                textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
+                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder)
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            OutlinedTextField(
+                value = prevLengthText,
+                onValueChange = { newValue ->
+                    prevLengthText = newValue
+                    newValue.toDoubleOrNull()?.let {
+                        onChanged(wp.copy(prevControlLength = it))
+                    }
+                },
+                label = { Text("Previous Control Length (M)", fontSize = 10.sp) },
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+                textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
+                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder)
+            )
+            
+            OutlinedTextField(
+                value = nextLengthText,
+                onValueChange = { newValue ->
+                    nextLengthText = newValue
+                    newValue.toDoubleOrNull()?.let {
+                        onChanged(wp.copy(nextControlLength = it))
+                    }
+                },
+                label = { Text("Next Control Length (M)", fontSize = 10.sp) },
                 modifier = Modifier.weight(1f),
                 singleLine = true,
                 textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),

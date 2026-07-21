@@ -129,7 +129,7 @@ class GcsUploadIntegrationTest {
         val reqJson = Json.encodeToString(UploadUrlRequest.serializer(), uploadReq)
 
         val response = client.post("/api/archive/upload-url") {
-            header(HttpHeaders.Authorization, "Bearer mock-token:uid:email:name")
+            header(HttpHeaders.Authorization, "Bearer mock-token:uid:email:name:9999")
             contentType(ContentType.Application.Json)
             setBody(reqJson)
         }
@@ -148,5 +148,72 @@ class GcsUploadIntegrationTest {
         }
         assertEquals(HttpStatusCode.OK, putResponse.status)
         assertEquals("Uploaded", putResponse.bodyAsText())
+    }
+    
+    @Test
+    fun testIdorAuthorizationBypass() = testApplication {
+        val mockStorage = mock(Storage::class.java)
+        val mockFirestore = mock(Firestore::class.java)
+        
+        application {
+            install(ContentNegotiation) {
+                json(Json {
+                    prettyPrint = false
+                    ignoreUnknownKeys = true
+                })
+            }
+            installFirebaseAuthentication()
+            install(RateLimit) {
+                register(RateLimitName("archive")) {
+                    rateLimiter(limit = 30, refillPeriod = 60.seconds)
+                }
+            }
+            routing {
+                archiveRoutes(mockStorage, mockFirestore)
+            }
+        }
+        
+        val summary = SessionSummary(
+            sessionId = "session-123",
+            teamId = "9999", // Requesting team 9999
+            seasonId = "2026",
+            robotId = "ares",
+            createdAt = 123456789,
+            durationMs = 5000,
+            minBatteryVoltage = 11.5,
+            maxEkfDrift = 0.05,
+            avgLoopTimeMs = 15.0,
+            p95LoopTimeMs = 22.0,
+            motorCurrentAverages = emptyMap(),
+            visionAcceptanceRate = 0.95,
+            tags = listOf("test"),
+            matchNumber = 1,
+            allianceColor = "blue",
+            rawGcsPath = null,
+            fileSizeBytes = 0L
+        )
+
+        val uploadReq = UploadUrlRequest(
+            teamId = "9999",
+            seasonId = "2026",
+            robotId = "ares",
+            sessionId = "session-123",
+            createdAt = 123456789,
+            summary = summary
+        )
+
+        val reqJson = Json.encodeToString(UploadUrlRequest.serializer(), uploadReq)
+
+        // The mock token does not have the team claim setup correctly for team 9999, so this should fail
+        val response = client.post("/api/archive/upload-url") {
+            // Note: Our installFirebaseAuthentication sets teamId based on a hack if missing? Let's check auth logic, but we can pass a token with a different team or no team claim.
+            // If the mock token doesn't include the 'team_id' claim, FirebasePrincipal.teamId will be null.
+            header(HttpHeaders.Authorization, "Bearer mock-token:uid:email:name") 
+            contentType(ContentType.Application.Json)
+            setBody(reqJson)
+        }
+        
+        // Assert that a missing/mismatched team claim returns 403 Forbidden instead of 200/500
+        assertEquals(HttpStatusCode.Forbidden, response.status)
     }
 }

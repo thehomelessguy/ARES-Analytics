@@ -15,7 +15,8 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 @Serializable
 data class GithubAuthRequest(val githubToken: String, val targetOrg: String? = null)
 
@@ -100,8 +101,9 @@ fun Route.authRoutes() {
                     "lastSeen" to System.currentTimeMillis()
                 )
 
-                userDocRef.set(userData).get() // Block wait for Cloud Run environment
-
+                withContext(Dispatchers.IO) {
+                    userDocRef.set(userData).get() // Wait in IO dispatcher for Cloud Run environment
+                }
                 call.respond(AuthSuccessResponse("success", principal.name ?: principal.email ?: "User", orgNames, role))
             } catch (e: Exception) {
                 call.respond(HttpStatusCode.InternalServerError, "GitHub OAuth verification error: ${e.message}")

@@ -50,6 +50,8 @@ fun FieldCanvas(
     league: League,
     waypoints: List<Waypoint>,
     actualPath: List<Waypoint>,
+    contextPath: List<Waypoint>? = null,
+    contextWaypoints: List<Waypoint>? = null,
     onWaypointsChanged: (List<Waypoint>) -> Unit,
     projectPath: String? = null,
     showPathControls: Boolean = true,
@@ -94,6 +96,7 @@ fun FieldCanvas(
     var localFieldImage by remember { mutableStateOf<ImageBitmap?>(null) }
     var localFieldImageConfig by remember { mutableStateOf(FieldImageConfig()) }
     var isDraggingHeading by remember { mutableStateOf(false) }
+    var isDraggingPrevHeading by remember { mutableStateOf(false) }
     var isDraggingRotation by remember { mutableStateOf(false) }
     var isDraggingFieldWaypoint by remember { mutableStateOf(false) }
     var isDraggingFieldWaypointHeading by remember { mutableStateOf(false) }
@@ -116,10 +119,10 @@ fun FieldCanvas(
                 val p1 = waypoints[i + 1]
                 val h0 = resolveHeading(waypoints, i)
                 val h1 = resolveHeading(waypoints, i + 1)
-                val v0x = cos(h0) * p0.tangentMagnitude
-                val v0y = sin(h0) * p0.tangentMagnitude
-                val v1x = cos(h1) * p1.tangentMagnitude
-                val v1y = sin(h1) * p1.tangentMagnitude
+                val v0x = cos(h0) * p0.nextControlLength
+                val v0y = sin(h0) * p0.nextControlLength
+                val v1x = cos(h1) * p1.prevControlLength
+                val v1y = sin(h1) * p1.prevControlLength
 
                 for (j in 1..density) {
                     val t = j.toDouble() / density
@@ -360,7 +363,7 @@ fun FieldCanvas(
                             val w = size.width.toFloat(); val h = size.height.toFloat()
                             when (editorMode) {
                                  EditorMode.SELECT -> {
-                                     var hitIdx = -1; var hitHeading = false; var hitRotation = false
+                                     var hitIdx = -1; var hitHeading = false; var hitPrevHeading = false; var hitRotation = false
                                      
                                      // Convert press position to base canvas space (before zoom/pan/rotate transform).
                                      // This matches the coordinate system used by PathRenderer.drawWaypoints.
@@ -388,10 +391,17 @@ fun FieldCanvas(
                                          
                                          // Heading handle (tangent arrowhead)
                                          val selHeading = resolveHeading(currentWaypoints, selectedWaypointIndex)
-                                         val headingWp = Waypoint(wp.x + wp.tangentMagnitude * cos(selHeading), wp.y + wp.tangentMagnitude * sin(selHeading))
+                                         val headingWp = Waypoint(wp.x + wp.nextControlLength * cos(selHeading), wp.y + wp.nextControlLength * sin(selHeading))
                                          val headingBase = getCanvasOffsetBase(headingWp, w, h, fieldWidthM, fieldHeightM, league)
                                          if (sqrt((basePress.x - headingBase.x).pow(2) + (basePress.y - headingBase.y).pow(2)) < hitRadiusPx) {
                                              hitIdx = selectedWaypointIndex; hitHeading = true
+                                         }
+                                         
+                                         // Prev Heading handle
+                                         val prevHeadingWp = Waypoint(wp.x + wp.prevControlLength * cos(selHeading + Math.PI), wp.y + wp.prevControlLength * sin(selHeading + Math.PI))
+                                         val prevHeadingBase = getCanvasOffsetBase(prevHeadingWp, w, h, fieldWidthM, fieldHeightM, league)
+                                         if (hitIdx == -1 && sqrt((basePress.x - prevHeadingBase.x).pow(2) + (basePress.y - prevHeadingBase.y).pow(2)) < hitRadiusPx) {
+                                             hitIdx = selectedWaypointIndex; hitPrevHeading = true
                                          }
                                          
                                          // Rotation handle (green diamond)
@@ -421,12 +431,17 @@ fun FieldCanvas(
                                              val wpBase = getCanvasOffsetBase(wp, w, h, fieldWidthM, fieldHeightM, league)
                                              
                                              val hd = resolveHeading(currentWaypoints, i)
-                                             val headingWp = Waypoint(wp.x + wp.tangentMagnitude * cos(hd), wp.y + wp.tangentMagnitude * sin(hd))
+                                             val headingWp = Waypoint(wp.x + wp.nextControlLength * cos(hd), wp.y + wp.nextControlLength * sin(hd))
                                              val headingBase = getCanvasOffsetBase(headingWp, w, h, fieldWidthM, fieldHeightM, league)
                                              if (sqrt((basePress.x - headingBase.x).pow(2) + (basePress.y - headingBase.y).pow(2)) < hitRadiusPx) {
                                                  hitIdx = i; hitHeading = true; break
                                              }
                                              
+                                             val prevHeadingWp = Waypoint(wp.x + wp.prevControlLength * cos(hd + Math.PI), wp.y + wp.prevControlLength * sin(hd + Math.PI))
+                                             val prevHeadingBase = getCanvasOffsetBase(prevHeadingWp, w, h, fieldWidthM, fieldHeightM, league)
+                                             if (sqrt((basePress.x - prevHeadingBase.x).pow(2) + (basePress.y - prevHeadingBase.y).pow(2)) < hitRadiusPx) {
+                                                 hitIdx = i; hitPrevHeading = true; break
+                                             }
                                              val rotBase = rotHandleBase(wpBase, wp)
                                              if (sqrt((basePress.x - rotBase.x).pow(2) + (basePress.y - rotBase.y).pow(2)) < rotHitRadiusPx) {
                                                  hitIdx = i; hitRotation = true; break
@@ -465,6 +480,7 @@ fun FieldCanvas(
 
                                     selectedWaypointIndex = hitIdx; selectedEventMarkerIndex = hitEventIdx
                                     isDraggingHeading = hitIdx != -1 && hitHeading
+                                    isDraggingPrevHeading = hitIdx != -1 && hitPrevHeading
                                     isDraggingRotation = hitIdx != -1 && hitRotation
                                     
                                     selectedFieldWaypointId = hitFieldWpId
@@ -565,7 +581,17 @@ fun FieldCanvas(
                                                      val dy = posMeters.y - wp.y
                                                      val angle = kotlin.math.atan2(dy, dx)
                                                      val mag = kotlin.math.sqrt(dx * dx + dy * dy)
-                                                     onWaypointsChanged(currentWaypoints.toMutableList().apply { set(selectedWaypointIndex, wp.copy(headingRad = angle, tangentMagnitude = if (isShiftPressed) snap(mag) else mag)) })
+                                                     onWaypointsChanged(currentWaypoints.toMutableList().apply { set(selectedWaypointIndex, wp.copy(headingRad = angle, nextControlLength = if (isShiftPressed) snap(mag) else mag, prevControlLength = if (isShiftPressed) snap(mag) else mag)) })
+                                                 }
+                                                 isDraggingPrevHeading -> {
+                                                     val wp = currentWaypoints[selectedWaypointIndex]
+                                                     val posMeters = getRobotCoordFromScreen(change.position, w, h, fieldWidthM, fieldHeightM, league, zoomScale, panOffset)
+                                                     val dx = posMeters.x - wp.x
+                                                     val dy = posMeters.y - wp.y
+                                                     val angle = kotlin.math.atan2(dy, dx) - Math.PI
+                                                     val normalizedAngle = ((angle + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI
+                                                     val mag = kotlin.math.sqrt(dx * dx + dy * dy)
+                                                     onWaypointsChanged(currentWaypoints.toMutableList().apply { set(selectedWaypointIndex, wp.copy(headingRad = normalizedAngle, nextControlLength = if (isShiftPressed) snap(mag) else mag, prevControlLength = if (isShiftPressed) snap(mag) else mag)) })
                                                  }
                                                  isDraggingRotation -> {
                                                      val wp = currentWaypoints[selectedWaypointIndex]
@@ -701,7 +727,10 @@ fun FieldCanvas(
                             // Reset selection state
                             selectedWaypointIndex = -1; selectedEventMarkerIndex = -1
                             selectedObstacleId = null; selectedAprilTagId = null; selectedGamePieceId = null
+                            hasDragged = false
+                            accumulatedDragPx = Offset.Zero
                             isDraggingHeading = false
+                            isDraggingPrevHeading = false
                             isDraggingRotation = false
                             isDraggingFieldWaypoint = false
                             isDraggingFieldWaypointHeading = false
@@ -799,6 +828,10 @@ fun FieldCanvas(
                 drawFieldWaypoints(currentActiveFieldWaypoints, selectedFieldWaypointId, w, h, fieldWidthM, fieldHeightM, league, textMeasurer)
                 drawActivePolygonPoints(currentPolygonPoints, w, h, fieldWidthM, fieldHeightM, league)
 
+                if (contextPath != null) {
+                    drawContextPath(pathCache, contextPath, contextWaypoints, w, h, fieldWidthM, fieldHeightM, league)
+                }
+
                 drawPlannedSpline(pathCache, splinePoints, waypoints, w, h, fieldWidthM, fieldHeightM, league)
                 drawEventMarkers(waypoints, eventMarkerPoints, w, h, fieldWidthM, fieldHeightM, league, selectedEventMarkerIndex)
                 drawConstraintZones(pathCache, waypoints, constraintZoneSplines, w, h, fieldWidthM, fieldHeightM, league)
@@ -824,7 +857,7 @@ fun FieldCanvas(
                     league = league,
                     indicatorLightPosition = indicatorLightPosition
                 )
-                drawWaypoints(pathCache, waypoints, selectedWaypointIndex, isDraggingHeading, w, h, fieldWidthM, fieldHeightM, league, combinedRotationTargets, isDraggingRotation)
+                drawWaypoints(pathCache, waypoints, selectedWaypointIndex, isDraggingHeading, isDraggingPrevHeading, w, h, fieldWidthM, fieldHeightM, league, combinedRotationTargets, isDraggingRotation)
 
                 drawContext.canvas.restore()
             }

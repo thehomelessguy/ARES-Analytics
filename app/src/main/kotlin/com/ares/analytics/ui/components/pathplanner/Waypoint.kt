@@ -5,7 +5,8 @@ data class Waypoint(
     val y: Double,
     /** Spline tangent heading in radians. null = auto-calculate (point toward next waypoint). */
     val headingRad: Double? = null,
-    val tangentMagnitude: Double = 1.0,
+    val prevControlLength: Double = 0.5,
+    val nextControlLength: Double = 0.5,
     /** Robot rotation in degrees (holonomic). null = unspecified (planner interpolates or PointTowardsZone applies). */
     val rotationDeg: Double? = null
 )

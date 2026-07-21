@@ -32,7 +32,8 @@ fun Route.archiveRoutes(
                 val principal = call.principal<FirebasePrincipal>() ?: return@post call.respond(HttpStatusCode.Unauthorized)
             val req = call.receive<UploadUrlRequest>()
 
-            if (principal.teamId != null && principal.teamId != req.summary.teamId) {
+            val callerTeamId = principal.teamId ?: return@post call.respond(HttpStatusCode.Forbidden, "Missing team claim")
+            if (callerTeamId != req.summary.teamId) {
                 return@post call.respond(HttpStatusCode.Forbidden, "Team ID mismatch")
             }
 
@@ -66,7 +67,8 @@ fun Route.archiveRoutes(
             val principal = call.principal<FirebasePrincipal>() ?: return@post call.respond(HttpStatusCode.Unauthorized)
             val req = call.receive<SyncRequest>()
 
-            if (principal.teamId != null && principal.teamId != req.teamId) {
+            val callerTeamId = principal.teamId ?: return@post call.respond(HttpStatusCode.Forbidden, "Missing team claim")
+            if (callerTeamId != req.teamId) {
                 return@post call.respond(HttpStatusCode.Forbidden, "Team ID mismatch")
             }
 
@@ -104,7 +106,8 @@ fun Route.archiveRoutes(
             try {
                 val db = customFirestore ?: FirestoreOptions.getDefaultInstance().service
 
-                if (principal.teamId != null && principal.teamId != req.teamId) {
+                val callerTeamId = principal.teamId ?: return@post call.respond(HttpStatusCode.Forbidden, "Missing team claim")
+                if (callerTeamId != req.teamId) {
                     return@post call.respond(HttpStatusCode.Forbidden, "You do not have permission to delete sessions for this team.")
                 }
 
@@ -137,7 +140,8 @@ fun Route.archiveRoutes(
             val sessionId = call.request.queryParameters["sessionId"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing sessionId")
             val teamId = call.request.queryParameters["teamId"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing teamId")
 
-            if (principal.teamId != null && principal.teamId != teamId) {
+            val callerTeamId = principal.teamId ?: return@get call.respond(HttpStatusCode.Forbidden, "Missing team claim")
+            if (callerTeamId != teamId) {
                 return@get call.respond(HttpStatusCode.Forbidden, "Team ID mismatch")
             }
 

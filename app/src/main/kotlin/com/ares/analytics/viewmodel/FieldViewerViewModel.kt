@@ -25,6 +25,7 @@ data class FieldViewerState(
     val trueX: Double = 0.0,
     val trueY: Double = 0.0,
     val trueHeading: Double = 0.0,
+    val simHeading: Double? = null,
     val ekfX: Double? = null,
     val ekfY: Double? = null,
     val ekfHeading: Double? = null,
@@ -51,6 +52,7 @@ private class FieldViewerStateBuilder(state: FieldViewerState) {
     var trueX: Double = state.trueX
     var trueY: Double = state.trueY
     var trueHeading: Double = state.trueHeading
+    var simHeading: Double? = state.simHeading
     var ekfX: Double? = state.ekfX
     var ekfY: Double? = state.ekfY
     var ekfHeading: Double? = state.ekfHeading
@@ -71,6 +73,7 @@ private class FieldViewerStateBuilder(state: FieldViewerState) {
             trueX = trueX,
             trueY = trueY,
             trueHeading = trueHeading,
+            simHeading = simHeading,
             ekfX = ekfX,
             ekfY = ekfY,
             ekfHeading = ekfHeading,
@@ -129,7 +132,14 @@ class FieldViewerViewModel(
                 when (key) {
                     "ARES/EstimatedPose/0", "Drive/Pose_X" -> { currentBuilder.trueX = value; if (key == "Drive/Pose_X") currentBuilder.ekfX = value }
                     "ARES/EstimatedPose/1", "Drive/Pose_Y" -> { currentBuilder.trueY = value; if (key == "Drive/Pose_Y") currentBuilder.ekfY = value }
-                    "ARES/EstimatedPose/2", "Drive/Pose_Heading", "Drive/Drive_Heading" -> { currentBuilder.trueHeading = value; if (key != "ARES/EstimatedPose/2") currentBuilder.ekfHeading = value }
+                    "ARES/EstimatedPose/2" -> { 
+                        currentBuilder.simHeading = value
+                        if (currentBuilder.ekfHeading == null) currentBuilder.trueHeading = value 
+                    }
+                    "Drive/Pose_Heading", "Drive/Drive_Heading" -> { 
+                        currentBuilder.ekfHeading = value
+                        currentBuilder.trueHeading = value
+                    }
                     "Drive/Odom_X", "pinpoint_x", "pinpoint/x" -> currentBuilder.odomX = value
                     "Drive/Odom_Y", "pinpoint_y", "pinpoint/y" -> currentBuilder.odomY = value
                     "Drive/Odom_Heading", "pinpoint_heading", "pinpoint/heading" -> currentBuilder.odomHeading = value

@@ -83,7 +83,7 @@ class GatewayLoadTest {
             (1..10).map {
                 async {
                     client.post("/api/archive/sync") {
-                        header(HttpHeaders.Authorization, "Bearer mock-token:uid:email:name")
+                        header(HttpHeaders.Authorization, "Bearer mock-token:uid:email:name:9999")
                         contentType(ContentType.Application.Json)
                         setBody(reqJson)
                     }

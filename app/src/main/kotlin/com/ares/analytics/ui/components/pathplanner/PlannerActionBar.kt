@@ -26,7 +26,8 @@ fun PlannerActionBar(
     onSavePath: () -> Unit,
     onTogglePlayback: () -> Unit,
     onSeekPlayback: (Double) -> Unit,
-    onStopPlayback: () -> Unit
+    onStopPlayback: () -> Unit,
+    onBrowseClicked: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("$mode Name", fontSize = 11.sp, color = AresTextSecondary, fontWeight = FontWeight.Bold)
@@ -58,6 +59,13 @@ fun PlannerActionBar(
                     )
                 }
             }
+        }
+        Button(
+            onClick = onBrowseClicked,
+            colors = ButtonDefaults.buttonColors(containerColor = AresSurfaceElevated, contentColor = AresTextPrimary),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Browse visually...")
         }
         Row(
             modifier = Modifier.fillMaxWidth(),

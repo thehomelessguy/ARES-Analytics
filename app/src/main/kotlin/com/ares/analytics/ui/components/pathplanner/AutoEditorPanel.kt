@@ -64,7 +64,8 @@ fun AutoEditorPanel(
                 onSavePath = { onIntent(PathPlannerIntent.SaveAuto(projectPath, league)) },
                 onTogglePlayback = { onIntent(PathPlannerIntent.TogglePlayback) },
                 onSeekPlayback = { onIntent(PathPlannerIntent.SeekPlayback(it)) },
-                onStopPlayback = { onIntent(PathPlannerIntent.StopPlayback) }
+                onStopPlayback = { onIntent(PathPlannerIntent.StopPlayback) },
+                onBrowseClicked = { onIntent(PathPlannerIntent.ToggleBrowser) }
             )
         }
         

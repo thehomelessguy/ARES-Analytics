@@ -252,6 +252,51 @@ fun DrawScope.drawActualPathAndDeviations(
     }
 }
 
+fun DrawScope.drawContextPath(
+    pathCache: PathCacheHolder,
+    contextPath: List<Waypoint>,
+    contextWaypoints: List<Waypoint>?,
+    w: Float,
+    h: Float,
+    fieldWidthM: Double,
+    fieldHeightM: Double,
+    league: League
+) {
+    if (contextPath.size >= 2) {
+        val path = pathCache.reusablePath.apply { reset() }
+        val firstOffset = getCanvasOffsetBase(contextPath.first(), w, h, fieldWidthM, fieldHeightM, league)
+        path.moveTo(firstOffset.x, firstOffset.y)
+        for (i in 1 until contextPath.size) {
+            val offset = getCanvasOffsetBase(contextPath[i], w, h, fieldWidthM, fieldHeightM, league)
+            path.lineTo(offset.x, offset.y)
+        }
+        drawPath(
+            path = path,
+            color = AresPathPlanned.copy(alpha = 0.35f),
+            style = Stroke(
+                width = 3.dp.toPx(),
+                pathEffect = pathCache.dashEffect5
+            )
+        )
+    }
+
+    if (contextWaypoints != null) {
+        for (wp in contextWaypoints) {
+            val offset = getCanvasOffsetBase(wp, w, h, fieldWidthM, fieldHeightM, league)
+            drawCircle(
+                color = AresPathPlanned.copy(alpha = 0.5f),
+                radius = 5.dp.toPx(),
+                center = offset
+            )
+            drawCircle(
+                color = AresBackground.copy(alpha = 0.5f),
+                radius = 2.dp.toPx(),
+                center = offset
+            )
+        }
+    }
+}
+
 fun DrawScope.drawRobotRepresentations(
     pathCache: PathCacheHolder,
     actualPath: List<Waypoint>,
@@ -431,6 +476,7 @@ fun DrawScope.drawWaypoints(
     waypoints: List<Waypoint>,
     selectedWaypointIndex: Int,
     isDraggingHeading: Boolean,
+    isDraggingPrevHeading: Boolean,
     w: Float,
     h: Float,
     fieldWidthM: Double,
@@ -447,7 +493,7 @@ fun DrawScope.drawWaypoints(
         // --- Tangent heading handle (amber arrowhead) ---
         val resolvedHeading = resolveHeading(waypoints, idx)
         val hasExplicitHeading = wp.headingRad != null
-        val handleMeters = Waypoint(wp.x + wp.tangentMagnitude * cos(resolvedHeading), wp.y + wp.tangentMagnitude * sin(resolvedHeading))
+        val handleMeters = Waypoint(wp.x + wp.nextControlLength * cos(resolvedHeading), wp.y + wp.nextControlLength * sin(resolvedHeading))
         val arrowEnd = getCanvasOffsetBase(handleMeters, w, h, fieldWidthM, fieldHeightM, league)
 
         // Tangent line
@@ -490,6 +536,37 @@ fun DrawScope.drawWaypoints(
             drawPath(path = arrowPath, color = handleColor, style = Stroke(width = 1.5f))
         } else {
             drawCircle(color = handleColor.copy(alpha = handleAlpha), radius = arrowSize, center = arrowEnd)
+        }
+
+        // --- Prev tangent heading handle ---
+        val prevHandleMeters = Waypoint(wp.x + wp.prevControlLength * cos(resolvedHeading + Math.PI), wp.y + wp.prevControlLength * sin(resolvedHeading + Math.PI))
+        val prevArrowEnd = getCanvasOffsetBase(prevHandleMeters, w, h, fieldWidthM, fieldHeightM, league)
+        
+        drawLine(color = color.copy(alpha = tangentAlpha), start = offset, end = prevArrowEnd, strokeWidth = if (hasExplicitHeading) 2.dp.toPx() else 1.dp.toPx())
+
+        val prevHandleColor = when {
+            isSelected && isDraggingPrevHeading -> AresCyan
+            !hasExplicitHeading -> Color.Gray
+            else -> AresAmber
+        }
+        val prevDx = prevArrowEnd.x - offset.x
+        val prevDy = prevArrowEnd.y - offset.y
+        val prevLen = sqrt(prevDx * prevDx + prevDy * prevDy)
+        if (prevLen > 1f) {
+            val ux = prevDx / prevLen; val uy = prevDy / prevLen
+            val perpX = -uy; val perpY = ux
+            val arrowPath = pathCache.reusableArrowPath.apply {
+                reset()
+                moveTo(prevArrowEnd.x, prevArrowEnd.y)
+                lineTo(prevArrowEnd.x - ux * arrowSize * 1.8f + perpX * arrowSize, prevArrowEnd.y - uy * arrowSize * 1.8f + perpY * arrowSize)
+                lineTo(prevArrowEnd.x - ux * arrowSize * 0.8f, prevArrowEnd.y - uy * arrowSize * 0.8f)
+                lineTo(prevArrowEnd.x - ux * arrowSize * 1.8f - perpX * arrowSize, prevArrowEnd.y - uy * arrowSize * 1.8f - perpY * arrowSize)
+                close()
+            }
+            drawPath(path = arrowPath, color = prevHandleColor.copy(alpha = handleAlpha))
+            drawPath(path = arrowPath, color = prevHandleColor, style = Stroke(width = 1.5f))
+        } else {
+            drawCircle(color = prevHandleColor.copy(alpha = handleAlpha), radius = arrowSize, center = prevArrowEnd)
         }
 
         // --- Waypoint center dot (drawn on top) ---

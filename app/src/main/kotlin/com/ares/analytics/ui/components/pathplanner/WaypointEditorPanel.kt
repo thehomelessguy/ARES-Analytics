@@ -1,5 +1,6 @@
 package com.ares.analytics.ui.components.pathplanner
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -51,8 +52,54 @@ fun WaypointEditorPanel(
                     onSavePath = { onIntent(PathPlannerIntent.SavePath(projectPath, league)) },
                     onTogglePlayback = { onIntent(PathPlannerIntent.TogglePlayback) },
                     onSeekPlayback = { onIntent(PathPlannerIntent.SeekPlayback(it)) },
-                    onStopPlayback = { onIntent(PathPlannerIntent.StopPlayback) }
+                    onStopPlayback = { onIntent(PathPlannerIntent.StopPlayback) },
+                    onBrowseClicked = { onIntent(PathPlannerIntent.ToggleBrowser) }
                 )
+            }
+            
+            item {
+                var contextDropdownExpanded by remember { mutableStateOf(false) }
+                Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp)) {
+                    Text("Background Auto Overlay", fontSize = 11.sp, color = AresTextSecondary, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 4.dp))
+                    
+                    @OptIn(ExperimentalMaterial3Api::class)
+                    ExposedDropdownMenuBox(
+                        expanded = contextDropdownExpanded,
+                        onExpandedChange = { contextDropdownExpanded = !contextDropdownExpanded }
+                    ) {
+                        OutlinedTextField(
+                            value = state.contextAutoName ?: "None",
+                            onValueChange = {},
+                            readOnly = true,
+                            modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
+                            singleLine = true,
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(color = AresTextPrimary),
+                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AresCyan, unfocusedBorderColor = AresBorder),
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = contextDropdownExpanded) }
+                        )
+                        ExposedDropdownMenu(
+                            expanded = contextDropdownExpanded,
+                            onDismissRequest = { contextDropdownExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("None", color = AresTextPrimary) },
+                                onClick = {
+                                    contextDropdownExpanded = false
+                                    onIntent(PathPlannerIntent.UpdateContextAuto(null, projectPath, league))
+                                }
+                            )
+                            state.availableAutos.forEach { auto ->
+                                DropdownMenuItem(
+                                    text = { Text(auto, color = AresTextPrimary) },
+                                    onClick = {
+                                        contextDropdownExpanded = false
+                                        onIntent(PathPlannerIntent.UpdateContextAuto(auto, projectPath, league))
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
             }
             
             // WAYPOINTS
@@ -71,6 +118,13 @@ fun WaypointEditorPanel(
                         )
                     }
                     Spacer(modifier = Modifier.height(4.dp))
+                    OutlinedButton(
+                        onClick = { onIntent(PathPlannerIntent.OptimizePath) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = AresCyan)
+                    ) {
+                        Text("Optimize Path", fontWeight = FontWeight.Bold)
+                    }
                     Button(
                         onClick = {
                             val last = state.waypoints.lastOrNull() ?: Waypoint(0.0, 0.0)

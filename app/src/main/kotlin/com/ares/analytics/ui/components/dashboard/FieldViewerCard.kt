@@ -315,7 +315,7 @@ fun FieldViewerCard(
                         val pose = Pose2d(wp.x, wp.y, Rotation2d(wp.headingRad ?: 0.0))
                         val mirrored = AllianceMirroring.mirror(pose, Alliance.RED, FieldSymmetry.MIRRORED)
                         val mirroredRot = wp.rotationDeg?.let { r -> -r }
-                        Waypoint(mirrored.x, mirrored.y, if (wp.headingRad == null) null else mirrored.heading.radians, wp.tangentMagnitude, rotationDeg = mirroredRot)
+                        Waypoint(mirrored.x, mirrored.y, if (wp.headingRad == null) null else mirrored.heading.radians, wp.prevControlLength, wp.nextControlLength, rotationDeg = mirroredRot)
                     }
                 }
 
