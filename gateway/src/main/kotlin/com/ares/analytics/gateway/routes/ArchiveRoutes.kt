@@ -163,7 +163,10 @@ fun Route.archiveRoutes(
         }
 
         get("/api/team/{teamId}/robots") {
+            val principal = call.principal<FirebasePrincipal>() ?: return@get call.respond(HttpStatusCode.Unauthorized)
             val teamId = call.parameters["teamId"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing teamId")
+            val callerTeamId = principal.teamId ?: return@get call.respond(HttpStatusCode.Forbidden, "Missing team claim")
+            if (callerTeamId != teamId) return@get call.respond(HttpStatusCode.Forbidden, "Team ID mismatch")
             try {
                 val db = customFirestore ?: FirestoreOptions.getDefaultInstance().service
                 val querySnapshot = withContext(Dispatchers.IO) {
@@ -187,6 +190,9 @@ fun Route.archiveRoutes(
         post("/api/team/robots/add") {
             val principal = call.principal<FirebasePrincipal>() ?: return@post call.respond(HttpStatusCode.Unauthorized)
             val req = call.receive<AddRobotRequest>()
+            
+            val callerTeamId = principal.teamId ?: return@post call.respond(HttpStatusCode.Forbidden, "Missing team claim")
+            if (callerTeamId != req.teamId) return@post call.respond(HttpStatusCode.Forbidden, "Team ID mismatch")
             try {
                 val db = customFirestore ?: FirestoreOptions.getDefaultInstance().service
                 if (!isUserAdmin(db, principal.uid)) {
@@ -210,6 +216,9 @@ fun Route.archiveRoutes(
         post("/api/team/robots/delete") {
             val principal = call.principal<FirebasePrincipal>() ?: return@post call.respond(HttpStatusCode.Unauthorized)
             val req = call.receive<DeleteRobotRequest>()
+
+            val callerTeamId = principal.teamId ?: return@post call.respond(HttpStatusCode.Forbidden, "Missing team claim")
+            if (callerTeamId != req.teamId) return@post call.respond(HttpStatusCode.Forbidden, "Team ID mismatch")
             try {
                 val db = customFirestore ?: FirestoreOptions.getDefaultInstance().service
                 if (!isUserAdmin(db, principal.uid)) {
@@ -228,6 +237,9 @@ fun Route.archiveRoutes(
         post("/api/archive/upload-raw-urls") {
             val principal = call.principal<FirebasePrincipal>() ?: return@post call.respond(HttpStatusCode.Unauthorized)
             val req = call.receive<RawUploadUrlsRequest>()
+
+            val callerTeamId = principal.teamId ?: return@post call.respond(HttpStatusCode.Forbidden, "Missing team claim")
+            if (callerTeamId != req.teamId) return@post call.respond(HttpStatusCode.Forbidden, "Team ID mismatch")
 
             try {
                 val uploadUrls = mutableMapOf<String, String>()

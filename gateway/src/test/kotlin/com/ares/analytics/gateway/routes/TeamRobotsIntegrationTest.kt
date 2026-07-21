@@ -72,7 +72,7 @@ class TeamRobotsIntegrationTest {
         }
 
         val response = client.get("/api/team/9999/robots") {
-            header(HttpHeaders.Authorization, "Bearer mock-token:uid:email:name")
+            header(HttpHeaders.Authorization, "Bearer mock-token:uid:email:name:9999")
         }
 
         assertEquals(HttpStatusCode.OK, response.status)
@@ -138,7 +138,7 @@ class TeamRobotsIntegrationTest {
             robot = RobotProfile("ares-bot", League.FTC, "2026", "Ares FTC")
         )
         val addResponse = client.post("/api/team/robots/add") {
-            header(HttpHeaders.Authorization, "Bearer mock-token:uid:email:name")
+            header(HttpHeaders.Authorization, "Bearer mock-token:uid:email:name:9999")
             contentType(ContentType.Application.Json)
             setBody(Json.encodeToString(AddRobotRequest.serializer(), addReq))
         }
@@ -153,7 +153,7 @@ class TeamRobotsIntegrationTest {
             robotId = "ares-bot"
         )
         val deleteResponse = client.post("/api/team/robots/delete") {
-            header(HttpHeaders.Authorization, "Bearer mock-token:uid:email:name")
+            header(HttpHeaders.Authorization, "Bearer mock-token:uid:email:name:9999")
             contentType(ContentType.Application.Json)
             setBody(Json.encodeToString(DeleteRobotRequest.serializer(), deleteReq))
         }

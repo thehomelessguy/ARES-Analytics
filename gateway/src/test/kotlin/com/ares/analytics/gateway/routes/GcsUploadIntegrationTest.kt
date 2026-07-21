@@ -216,4 +216,64 @@ class GcsUploadIntegrationTest {
         // Assert that a missing/mismatched team claim returns 403 Forbidden instead of 200/500
         assertEquals(HttpStatusCode.Forbidden, response.status)
     }
+
+    @Test
+    fun testIdorAuthorizationMultipleEndpoints() = testApplication {
+        val mockStorage = mock(Storage::class.java)
+        val mockFirestore = mock(Firestore::class.java)
+        
+        application {
+            install(ContentNegotiation) {
+                json(Json {
+                    prettyPrint = false
+                    ignoreUnknownKeys = true
+                })
+            }
+            installFirebaseAuthentication()
+            install(RateLimit) {
+                register(RateLimitName("archive")) {
+                    rateLimiter(limit = 30, refillPeriod = 60.seconds)
+                }
+            }
+            routing {
+                archiveRoutes(mockStorage, mockFirestore)
+            }
+        }
+        
+        // 1. GET /api/team/{teamId}/robots with mismatched team token
+        val getRobotsResp = client.get("/api/team/9999/robots") {
+            header(HttpHeaders.Authorization, "Bearer mock-token:uid:email:name:1111")
+        }
+        assertEquals(HttpStatusCode.Forbidden, getRobotsResp.status)
+
+        // 2. POST /api/team/robots/add with mismatched team token
+        val addReq = AddRobotRequest(
+            teamId = "9999",
+            robot = RobotProfile("robot1", League.FTC, "2026", "Bot")
+        )
+        val addResp = client.post("/api/team/robots/add") {
+            header(HttpHeaders.Authorization, "Bearer mock-token:uid:email:name:1111")
+            contentType(ContentType.Application.Json)
+            setBody(Json.encodeToString(AddRobotRequest.serializer(), addReq))
+        }
+        assertEquals(HttpStatusCode.Forbidden, addResp.status)
+
+        // 3. POST /api/team/robots/delete with mismatched team token
+        val delReq = DeleteRobotRequest(teamId = "9999", robotId = "robot1")
+        val delResp = client.post("/api/team/robots/delete") {
+            header(HttpHeaders.Authorization, "Bearer mock-token:uid:email:name:1111")
+            contentType(ContentType.Application.Json)
+            setBody(Json.encodeToString(DeleteRobotRequest.serializer(), delReq))
+        }
+        assertEquals(HttpStatusCode.Forbidden, delResp.status)
+
+        // 4. POST /api/archive/upload-raw-urls with mismatched team token
+        val rawReq = RawUploadUrlsRequest(teamId = "9999", runTimestamp = "123", fileNames = listOf("file1"))
+        val rawResp = client.post("/api/archive/upload-raw-urls") {
+            header(HttpHeaders.Authorization, "Bearer mock-token:uid:email:name:1111")
+            contentType(ContentType.Application.Json)
+            setBody(Json.encodeToString(RawUploadUrlsRequest.serializer(), rawReq))
+        }
+        assertEquals(HttpStatusCode.Forbidden, rawResp.status)
+    }
 }
