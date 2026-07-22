@@ -175,8 +175,9 @@ fun FtcDriverStationWidget(
     LaunchedEffect(nt4Client) {
         launch {
             nt4Client.telemetryFlow.collect { frame ->
-                when (frame.key) {
-                    "ARES/DriverStation/TeleOpList" -> {
+                val cleanKey = frame.key.trimStart('/')
+                when {
+                    cleanKey == "ARES/DriverStation/TeleOpList" || cleanKey.endsWith("TeleOpList") -> {
                         frame.stringValue?.let {
                             try {
                                 println("Received TeleOpList JSON: $it")
@@ -187,7 +188,7 @@ fun FtcDriverStationWidget(
                             }
                         }
                     }
-                    "ARES/DriverStation/AutonomousList" -> {
+                    cleanKey == "ARES/DriverStation/AutonomousList" || cleanKey.endsWith("AutonomousList") -> {
                         frame.stringValue?.let {
                             try {
                                 println("Received AutonomousList JSON: $it")
@@ -200,6 +201,7 @@ fun FtcDriverStationWidget(
                     }
                 }
             }
+
         }
         
         // Listen to telemetry lines which arrive as .../Telemetry/0, 1, 2...
@@ -275,6 +277,9 @@ fun FtcDriverStationWidget(
         }
 
         // Dropdown Selectors
+        val displayAutos = if (autos.isNotEmpty()) autos else listOf("ARESMecanumAuto", "AresHardwareTestOpMode")
+        val displayTeleOps = if (teleOps.isNotEmpty()) teleOps else listOf("ARESMecanumTeleOp", "AresHardwareTestOpMode")
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -285,9 +290,7 @@ fun FtcDriverStationWidget(
                     value = selectedAutoOpMode?.substringAfterLast(".") ?: "Select Auto",
                     onValueChange = {},
                     readOnly = true,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { isAutoExpanded = true },
+                    modifier = Modifier.fillMaxWidth(),
                     enabled = false,
                     colors = OutlinedTextFieldDefaults.colors(
                         disabledTextColor = if (selectedAutoOpMode != null) AresTextPrimary else AresTextSecondary,
@@ -296,17 +299,21 @@ fun FtcDriverStationWidget(
                     ),
                     trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = AresTextSecondary) }
                 )
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clickable { isAutoExpanded = true }
+                )
                 DropdownMenu(
                     expanded = isAutoExpanded,
                     onDismissRequest = { isAutoExpanded = false },
                     modifier = Modifier.background(AresSurfaceElevated)
                 ) {
-                    autos.forEach { opMode ->
+                    displayAutos.forEach { opMode ->
                         DropdownMenuItem(
                             text = { Text(opMode.substringAfterLast("."), color = AresTextPrimary) },
                             onClick = {
                                 selectedAutoOpMode = opMode
-                                // Also set manual selectedOpMode for INIT button compatibility
                                 selectedOpMode = opMode
                                 isAutoExpanded = false
                             }
@@ -321,9 +328,7 @@ fun FtcDriverStationWidget(
                     value = selectedTeleOpMode?.substringAfterLast(".") ?: "Select TeleOp",
                     onValueChange = {},
                     readOnly = true,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { isTeleOpExpanded = true },
+                    modifier = Modifier.fillMaxWidth(),
                     enabled = false,
                     colors = OutlinedTextFieldDefaults.colors(
                         disabledTextColor = if (selectedTeleOpMode != null) AresTextPrimary else AresTextSecondary,
@@ -332,17 +337,21 @@ fun FtcDriverStationWidget(
                     ),
                     trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = AresTextSecondary) }
                 )
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clickable { isTeleOpExpanded = true }
+                )
                 DropdownMenu(
                     expanded = isTeleOpExpanded,
                     onDismissRequest = { isTeleOpExpanded = false },
                     modifier = Modifier.background(AresSurfaceElevated)
                 ) {
-                    teleOps.forEach { opMode ->
+                    displayTeleOps.forEach { opMode ->
                         DropdownMenuItem(
                             text = { Text(opMode.substringAfterLast("."), color = AresTextPrimary) },
                             onClick = {
                                 selectedTeleOpMode = opMode
-                                // Also set manual selectedOpMode for INIT button compatibility
                                 selectedOpMode = opMode
                                 isTeleOpExpanded = false
                             }
@@ -351,6 +360,7 @@ fun FtcDriverStationWidget(
                 }
             }
         }
+
 
         Spacer(modifier = Modifier.height(16.dp))
 
