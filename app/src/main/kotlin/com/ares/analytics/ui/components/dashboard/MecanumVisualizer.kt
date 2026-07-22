@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import com.ares.analytics.service.Nt4ClientService
 import com.ares.analytics.service.ReplayFrame
 import com.ares.analytics.ui.theme.*
+import com.areslib.kinematics.MecanumKinematics
 import kotlinx.coroutines.launch
 import kotlin.math.cos
 import kotlin.math.sin
@@ -234,18 +235,15 @@ fun MecanumVisualizer(
                         }
                     }
 
-                    // Calculate and draw net force vector in the center
-                    var netForceX = 0f
-                    var netForceY = 0f
-                    for (w in wheels) {
-                        val normalizedSpeed = (w.speed / speedScale).toFloat()
-                        if (Math.abs(normalizedSpeed) > 0.05f) {
-                            val forceAngle = getForceAngle(w.name, w.speed)
-                            val forceLen = Math.abs(normalizedSpeed)
-                            netForceX += forceLen * cos(forceAngle).toFloat()
-                            netForceY += forceLen * sin(forceAngle).toFloat()
-                        }
-                    }
+                    // Calculate and draw net force vector in the center using Mecanum forward kinematics
+                    val fl = (wheels.find { it.name.contains("FL", ignoreCase = true) }?.speed ?: 0.0) / speedScale
+                    val fr = (wheels.find { it.name.contains("FR", ignoreCase = true) }?.speed ?: 0.0) / speedScale
+                    val bl = (wheels.find { it.name.contains("BL", ignoreCase = true) || it.name.contains("RL", ignoreCase = true) }?.speed ?: 0.0) / speedScale
+                    val br = (wheels.find { it.name.contains("BR", ignoreCase = true) || it.name.contains("RR", ignoreCase = true) }?.speed ?: 0.0) / speedScale
+                    
+                    val netForceX = ((fl + fr + bl + br) / 4.0).toFloat()
+                    val netForceY = ((-fl + fr + bl - br) / 4.0).toFloat()
+                    
                     val netMagnitude = Math.sqrt((netForceX * netForceX + netForceY * netForceY).toDouble()).toFloat()
                     if (netMagnitude > 0.05f) {
                         val maxNetArrowLen = 100f
