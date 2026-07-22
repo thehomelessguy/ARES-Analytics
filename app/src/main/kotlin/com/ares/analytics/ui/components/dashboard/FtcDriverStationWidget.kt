@@ -286,24 +286,30 @@ fun FtcDriverStationWidget(
         ) {
             // Autonomous Dropdown
             Box(modifier = Modifier.weight(1f)) {
-                OutlinedTextField(
-                    value = selectedAutoOpMode?.substringAfterLast(".") ?: "Select Auto",
-                    onValueChange = {},
-                    readOnly = true,
-                    enabled = true,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { isAutoExpanded = !isAutoExpanded },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = if (selectedAutoOpMode != null) AresTextPrimary else AresTextSecondary,
-                        unfocusedTextColor = if (selectedAutoOpMode != null) AresTextPrimary else AresTextSecondary,
-                        focusedBorderColor = AresBorder,
-                        unfocusedBorderColor = AresBorder,
-                        focusedContainerColor = AresSurfaceElevated,
-                        unfocusedContainerColor = AresSurfaceElevated,
-                    ),
-                    trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = AresTextSecondary) }
-                )
+                Surface(
+                    onClick = { isAutoExpanded = !isAutoExpanded },
+                    shape = RoundedCornerShape(4.dp),
+                    color = AresSurfaceElevated,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, AresBorder),
+                    modifier = Modifier.fillMaxWidth().height(56.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = selectedAutoOpMode?.substringAfterLast(".") ?: "Select Auto",
+                            color = if (selectedAutoOpMode != null) AresTextPrimary else AresTextSecondary,
+                            fontSize = 16.sp
+                        )
+                        Icon(
+                            imageVector = Icons.Default.ArrowDropDown,
+                            contentDescription = null,
+                            tint = AresTextSecondary
+                        )
+                    }
+                }
                 DropdownMenu(
                     expanded = isAutoExpanded,
                     onDismissRequest = { isAutoExpanded = false },
@@ -324,24 +330,30 @@ fun FtcDriverStationWidget(
 
             // TeleOp Dropdown
             Box(modifier = Modifier.weight(1f)) {
-                OutlinedTextField(
-                    value = selectedTeleOpMode?.substringAfterLast(".") ?: "Select TeleOp",
-                    onValueChange = {},
-                    readOnly = true,
-                    enabled = true,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { isTeleOpExpanded = !isTeleOpExpanded },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = if (selectedTeleOpMode != null) AresTextPrimary else AresTextSecondary,
-                        unfocusedTextColor = if (selectedTeleOpMode != null) AresTextPrimary else AresTextSecondary,
-                        focusedBorderColor = AresBorder,
-                        unfocusedBorderColor = AresBorder,
-                        focusedContainerColor = AresSurfaceElevated,
-                        unfocusedContainerColor = AresSurfaceElevated,
-                    ),
-                    trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = AresTextSecondary) }
-                )
+                Surface(
+                    onClick = { isTeleOpExpanded = !isTeleOpExpanded },
+                    shape = RoundedCornerShape(4.dp),
+                    color = AresSurfaceElevated,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, AresBorder),
+                    modifier = Modifier.fillMaxWidth().height(56.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = selectedTeleOpMode?.substringAfterLast(".") ?: "Select TeleOp",
+                            color = if (selectedTeleOpMode != null) AresTextPrimary else AresTextSecondary,
+                            fontSize = 16.sp
+                        )
+                        Icon(
+                            imageVector = Icons.Default.ArrowDropDown,
+                            contentDescription = null,
+                            tint = AresTextSecondary
+                        )
+                    }
+                }
                 DropdownMenu(
                     expanded = isTeleOpExpanded,
                     onDismissRequest = { isTeleOpExpanded = false },
