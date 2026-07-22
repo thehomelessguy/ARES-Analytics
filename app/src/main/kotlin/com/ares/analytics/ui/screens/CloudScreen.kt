@@ -30,6 +30,14 @@ import com.ares.analytics.viewmodel.CloudViewModel
 import com.ares.analytics.viewmodel.RobotLogFileInfo
 
 @Composable
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun CloudScreen(
     viewModel: CloudViewModel,
     teamId: String,
@@ -400,6 +408,14 @@ fun CloudScreen(
 }
 
 @Composable
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun RobotRunRow(
     run: com.ares.analytics.viewmodel.RobotRun,
     isChecked: Boolean,
@@ -461,6 +477,14 @@ fun RobotRunRow(
 }
 
 @Composable
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun SessionSyncRow(
     info: com.ares.analytics.viewmodel.SessionSyncInfo,
     isChecked: Boolean,

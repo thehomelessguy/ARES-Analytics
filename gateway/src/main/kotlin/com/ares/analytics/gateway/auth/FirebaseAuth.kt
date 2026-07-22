@@ -6,8 +6,24 @@ import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.response.*
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 data class FirebasePrincipal(val uid: String, val email: String?, val name: String?, val teamId: String?) : Principal
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 class FirebaseAuthenticationProvider(config: Config) : AuthenticationProvider(config) {
     override suspend fun onAuthenticate(context: AuthenticationContext) {
         val authHeader = context.call.request.headers[HttpHeaders.Authorization]
@@ -51,9 +67,25 @@ class FirebaseAuthenticationProvider(config: Config) : AuthenticationProvider(co
         }
     }
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     class Config(name: String?) : AuthenticationProvider.Config(name)
 }
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun AuthenticationConfig.firebase(
     name: String? = "firebase",
     configure: FirebaseAuthenticationProvider.Config.() -> Unit = {}
@@ -62,6 +94,14 @@ fun AuthenticationConfig.firebase(
     register(provider)
 }
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun Application.installFirebaseAuthentication() {
     install(Authentication) {
         firebase("firebase")

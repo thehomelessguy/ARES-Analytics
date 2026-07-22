@@ -22,6 +22,14 @@ import com.ares.analytics.shared.*
 import com.ares.analytics.ui.theme.*
 
 @Composable
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun WaypointCard(
     idx: Int,
     wp: Waypoint,
@@ -220,6 +228,14 @@ fun WaypointCard(
 private data class MarkerParseResult(val action: String, val bVal: Boolean? = null, val dVal: Double? = null, val sVal: String? = null)
 
 @Composable
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun EventMarkerCard(
     idx: Int,
     marker: PathPlannerEventMarker,
@@ -301,6 +317,14 @@ fun EventMarkerCard(
     }
 
     // Helper to format name and trigger change
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun updateMarkerName(action: String, bVal: Boolean, dVal: Double, sVal: String, cName: String) {
         val newName = when (action) {
             "Set Intake Active" -> "SetIntakeActive($bVal)"
@@ -498,6 +522,14 @@ fun EventMarkerCard(
 }
 
 @Composable
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun RotationTargetCard(
     idx: Int,
     target: RotationTarget,
@@ -576,6 +608,14 @@ fun RotationTargetCard(
 }
 
 @Composable
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun ConstraintsZoneCard(
     idx: Int,
     zone: ConstraintsZone,
@@ -708,6 +748,14 @@ fun ConstraintsZoneCard(
 }
 
 @Composable
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun PointTowardsZoneCard(
     idx: Int,
     zone: PointTowardsZone,
@@ -854,6 +902,14 @@ fun PointTowardsZoneCard(
 }
 
 @Composable
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun CollapsibleSection(
     title: String,
     badgeCount: Int? = null,

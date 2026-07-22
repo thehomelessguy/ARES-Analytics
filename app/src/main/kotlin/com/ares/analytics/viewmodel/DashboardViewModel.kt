@@ -13,6 +13,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 data class DashboardState(
     val currentRoleProfile: String = "Standard",
     val currentLayout: DashboardLayoutConfig? = null,
@@ -31,22 +39,142 @@ data class DashboardState(
 )
 
 sealed class DashboardIntent {
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     data class ChangeProfile(val profile: String) : DashboardIntent()
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     data class SetPickerOpen(val isOpen: Boolean) : DashboardIntent()
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     data class SetProfileExpanded(val isExpanded: Boolean) : DashboardIntent()
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     data class SelectPrimarySession(val sessionId: String?) : DashboardIntent()
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     data class SetSessionMode(val mode: SessionMode) : DashboardIntent()
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     data class SelectCompareSession(val sessionId: String?) : DashboardIntent()
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     data class UpdateLayout(val newWidgets: List<WidgetConfig>) : DashboardIntent()
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     data class AddWidget(val type: String) : DashboardIntent()
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     data class RemoveWidget(val widgetId: String) : DashboardIntent()
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     object ResetProfile : DashboardIntent()
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     data class ImportLogFiles(val files: List<File>, val teamId: String, val seasonId: String, val robotId: String) : DashboardIntent()
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     object ClearImportSuccess : DashboardIntent()
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     data class SaveLayoutAs(val profileName: String) : DashboardIntent()
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     data class DeleteLayout(val profileName: String) : DashboardIntent()
 }
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 class DashboardViewModel(
     private val databaseService: DatabaseService,
     private val nt4ClientService: Nt4ClientService,
@@ -80,6 +208,14 @@ class DashboardViewModel(
         refreshAvailableProfiles()
     }
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun onIntent(intent: DashboardIntent) {
         scope.launch {
             when (intent) {

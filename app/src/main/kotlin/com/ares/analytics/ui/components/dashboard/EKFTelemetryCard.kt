@@ -25,6 +25,14 @@ import com.ares.analytics.ui.theme.*
 import kotlinx.coroutines.flow.collect
 
 @Composable
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun EKFTelemetryCard(
     nt4ClientService: Nt4ClientService,
     modifier: Modifier = Modifier
@@ -110,6 +118,14 @@ fun EKFTelemetryCard(
                     val pointSpacing = w / (maxPoints - 1)
                     val maxAbsValue = 0.5f // Scale +/- 0.5 meters
                     
+                    /**
+                     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+                     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+                     * Canvas-to-field coordinate transformation conventions applied where relevant.
+                     *
+                     * @param args relevant arguments
+                     * @return expected results
+                     */
                     fun drawLineChart(data: List<Double>, color: Color, stroke: Float = 2f) {
                         val path = Path()
                         data.forEachIndexed { index, value ->

@@ -17,6 +17,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 data class MainState(
     val config: WorkspaceConfig? = null,
     val workspaces: List<WorkspaceConfig> = emptyList(),
@@ -31,22 +39,142 @@ data class MainState(
 )
 
 sealed class MainIntent {
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     object LoadConfig : MainIntent()
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     data class SetActiveNav(val nav: NavigationTarget) : MainIntent()
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     data class SetMatches(val matches: List<MatchInfo>) : MainIntent()
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     object TriggerRunsIndexReload : MainIntent()
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     data class SetDiagnosticsResponse(val response: ForensicsResponse?) : MainIntent()
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     data class SetTerminalOpen(val isOpen: Boolean) : MainIntent()
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     data class SetKeybindingsOpen(val isOpen: Boolean) : MainIntent()
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     object RefreshKeybindings : MainIntent()
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     data class SetShowUpdateBanner(val show: Boolean) : MainIntent()
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     data class SaveConfig(val config: WorkspaceConfig) : MainIntent()
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     data class SelectWorkspace(val id: String) : MainIntent()
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     data class DeleteWorkspace(val id: String) : MainIntent()
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     object AddNewWorkspace : MainIntent()
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     object CancelAddNewWorkspace : MainIntent()
 }
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 class MainViewModel(
     private val environmentService: EnvironmentService,
     private val eventApiService: EventApiService,
@@ -60,6 +188,14 @@ class MainViewModel(
         onIntent(MainIntent.LoadConfig)
     }
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun onIntent(intent: MainIntent) {
         scope.launch {
             when (intent) {

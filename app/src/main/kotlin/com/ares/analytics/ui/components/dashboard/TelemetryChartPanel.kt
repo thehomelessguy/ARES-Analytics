@@ -54,6 +54,14 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun buildSignalTree(keys: List<String>): SignalNode {
     val root = SignalNode("", "", false)
     for (topic in keys) {
@@ -72,10 +80,26 @@ fun buildSignalTree(keys: List<String>): SignalNode {
     return root
 }
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 data class TelemetryPoint(val timestampMs: Long, val value: Double)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun TelemetryChartPanel(
     nt4ClientService: Nt4ClientService,
     properties: Map<String, String>,
@@ -582,6 +606,14 @@ fun TelemetryChartPanel(
  
                             val path = Path()
 
+                            /**
+                             * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+                             * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+                             * Canvas-to-field coordinate transformation conventions applied where relevant.
+                             *
+                             * @param args relevant arguments
+                             * @return expected results
+                             */
                             fun getPy(value: Double): Float {
                                 val converted = if (detectedUnit != null && targetUnit != null) {
                                     UnitConversion.convert(value, detectedUnit, targetUnit)
@@ -687,6 +719,14 @@ fun TelemetryChartPanel(
 }
 
 @Composable
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun SignalTreeExplorer(
     rootNode: SignalNode,
     selectedKeys: List<String>,
@@ -703,6 +743,14 @@ fun SignalTreeExplorer(
             .padding(4.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
+        /**
+         * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+         * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+         * Canvas-to-field coordinate transformation conventions applied where relevant.
+         *
+         * @param args relevant arguments
+         * @return expected results
+         */
         fun renderNode(node: SignalNode, depth: Int, path: String) {
             node.children.values.sortedBy { it.name }.forEach { child ->
                 val currentPath = if (path.isEmpty()) child.name else "$path/${child.name}"

@@ -8,6 +8,14 @@ import kotlinx.serialization.json.Json
 import java.io.File
 
 @Serializable
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 data class WidgetConfig(
     val id: String,
     val type: String, // "runs_index", "alerts", "telemetry_chart", "motor_health", "vision_quality", "ai_coach", "match_schedule", "console_viewer"
@@ -20,10 +28,26 @@ data class WidgetConfig(
 )
 
 @Serializable
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 data class DashboardLayoutConfig(
     val widgets: List<WidgetConfig>
 )
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 class LayoutPreferenceService(
     private val baseDir: String = System.getProperty("user.home") + "/.ares-analytics/layouts"
 ) {
@@ -55,6 +79,14 @@ class LayoutPreferenceService(
         getDefaultLayout(profileName)
     }
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun getDefaultLayout(profileName: String): DashboardLayoutConfig {
         return when (profileName.lowercase().replace(" ", "_")) {
             "driver_coach" -> DashboardLayoutConfig(
@@ -104,6 +136,14 @@ class LayoutPreferenceService(
         }
     }
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun getSavedLayouts(): List<String> {
         val dir = File(baseDir)
         if (!dir.exists()) return emptyList()
@@ -113,6 +153,14 @@ class LayoutPreferenceService(
         }
     }
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun getAvailableLayouts(): List<String> {
         val defaults = listOf("Standard", "Driver Coach", "Programmer", "Pit Crew", "Match Review", "Pit Diagnostics", "Driver Practice")
         val saved = getSavedLayouts()

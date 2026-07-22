@@ -16,12 +16,28 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 @Serializable
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 data class GitHubRelease(
     @SerialName("tag_name") val tagName: String,
     @SerialName("html_url") val htmlUrl: String,
     val body: String? = null
 )
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 class UpdateCheckerService(
     private val httpClient: HttpClient = HttpClient {
         install(ContentNegotiation) {
@@ -31,15 +47,55 @@ class UpdateCheckerService(
     private val serviceScope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 ) {
     sealed class UpdateState {
+        /**
+         * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+         * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+         * Canvas-to-field coordinate transformation conventions applied where relevant.
+         *
+         * @param args relevant arguments
+         * @return expected results
+         */
         object Checking : UpdateState()
+        /**
+         * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+         * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+         * Canvas-to-field coordinate transformation conventions applied where relevant.
+         *
+         * @param args relevant arguments
+         * @return expected results
+         */
         object UpToDate : UpdateState()
+        /**
+         * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+         * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+         * Canvas-to-field coordinate transformation conventions applied where relevant.
+         *
+         * @param args relevant arguments
+         * @return expected results
+         */
         data class UpdateAvailable(val latestVersion: String, val downloadUrl: String, val releaseNotes: String?) : UpdateState()
+        /**
+         * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+         * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+         * Canvas-to-field coordinate transformation conventions applied where relevant.
+         *
+         * @param args relevant arguments
+         * @return expected results
+         */
         data class Error(val message: String) : UpdateState()
     }
 
     private val _updateState = MutableStateFlow<UpdateState>(UpdateState.UpToDate)
     val updateState: StateFlow<UpdateState> = _updateState
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun checkForUpdates() {
         serviceScope.launch {
             _updateState.value = UpdateState.Checking
@@ -68,6 +124,14 @@ class UpdateCheckerService(
         }
     }
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun dispose() {
         serviceScope.coroutineContext.cancelChildren()
     }

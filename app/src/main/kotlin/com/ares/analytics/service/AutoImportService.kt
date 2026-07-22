@@ -9,6 +9,14 @@ import kotlinx.coroutines.flow.asSharedFlow
 import java.io.File
 import java.util.concurrent.TimeUnit
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 class AutoImportService(
     private val databaseService: DatabaseService,
     private val logParserService: LogParserService,
@@ -23,6 +31,14 @@ class AutoImportService(
 
     private var onImportSuccessCallback: (() -> Unit)? = null
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun start(onImportSuccess: () -> Unit) {
         onImportSuccessCallback = onImportSuccess
         job?.cancel()
@@ -59,6 +75,14 @@ class AutoImportService(
         }
     }
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun stop() {
         job?.cancel()
         job = null

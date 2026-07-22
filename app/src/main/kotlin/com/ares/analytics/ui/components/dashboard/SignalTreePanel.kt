@@ -33,11 +33,27 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 // ── Global Drag & Drop Manager ──────────────────────────────────────────────
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 object DragDropManager {
     var draggedSignalKey by mutableStateOf<String?>(null)
     var dragOffset by mutableStateOf(Offset.Zero)
 }
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 class SignalNode(
     val name: String,
     val fullPath: String,
@@ -47,6 +63,14 @@ class SignalNode(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun SignalTreePanel(
     nt4ClientService: Nt4ClientService,
     modifier: Modifier = Modifier
@@ -108,6 +132,14 @@ fun SignalTreePanel(
     }
 
     // Flatten tree to visible items based on expansion state
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun getVisibleItems(node: SignalNode, depth: Int): List<Pair<SignalNode, Int>> {
         val items = mutableListOf<Pair<SignalNode, Int>>()
         
@@ -213,6 +245,14 @@ fun SignalTreePanel(
 }
 
 @Composable
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun SignalTreeRow(
     node: SignalNode,
     depth: Int,

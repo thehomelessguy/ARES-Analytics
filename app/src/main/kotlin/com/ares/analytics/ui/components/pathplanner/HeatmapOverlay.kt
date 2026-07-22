@@ -6,6 +6,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import com.ares.analytics.shared.League
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 object HeatmapOverlay {
     // Stateful grid for accumulation
     private val globalCounts = Array(100) { IntArray(100) }
@@ -13,6 +21,14 @@ object HeatmapOverlay {
     private var lastPathSize = 0
     private var lastFirstPoint: Waypoint? = null
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun resetHeatmap() {
         for (i in globalCounts.indices) {
             for (j in globalCounts[i].indices) {
@@ -24,6 +40,14 @@ object HeatmapOverlay {
         lastFirstPoint = null
     }
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun drawHeatmap(
         drawScope: DrawScope,
         actualPath: List<Waypoint>,

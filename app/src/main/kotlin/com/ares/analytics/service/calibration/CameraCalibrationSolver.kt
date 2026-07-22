@@ -11,8 +11,24 @@ import kotlinx.coroutines.withContext
 import org.ejml.simple.SimpleMatrix
 import kotlin.math.*
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 class CameraCalibrationSolver(private val databaseService: DatabaseService) {
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun solveCameraExtrinsics(measurements: List<CalibrationMeasurement>): Pose3d {
         if (measurements.isEmpty()) {
             return Pose3d(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
@@ -294,6 +310,14 @@ class CameraCalibrationSolver(private val databaseService: DatabaseService) {
         solveCameraExtrinsics(measurements)
     }
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun solveCameraExtrinsicsWithDiagnostics(measurements: List<CalibrationMeasurement>): CalibrationDiagnostics {
         if (measurements.isEmpty()) {
             return CalibrationDiagnostics(

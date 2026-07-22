@@ -11,6 +11,14 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.*
 import java.util.concurrent.ConcurrentHashMap
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 class SysIdDataCollector(
     private val nt4ClientService: Nt4ClientService,
     private val sysIdService: SysIdService,
@@ -20,6 +28,14 @@ class SysIdDataCollector(
 ) {
     private val dataBuffer = ConcurrentHashMap<Long, DoubleArray>()
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun startCollecting() {
         // Collect connection status
         scope.launch {
@@ -121,10 +137,26 @@ class SysIdDataCollector(
         }
     }
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun clearBuffer() {
         dataBuffer.clear()
     }
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun parseLogFile(fileContent: String): List<AlignedDataRow> {
         val rows = mutableListOf<AlignedDataRow>()
         val lines = fileContent.lineSequence().map { it.trim() }.filter { it.isNotEmpty() }

@@ -2,7 +2,23 @@ package com.ares.analytics.service
 
 import kotlinx.serialization.json.*
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 object Nt4Decoder {
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun decodeMsgPackInt(bytes: ByteArray, offset: Int): Pair<Int, Int> {
         if (offset >= bytes.size) return Pair(0, 0)
         val marker = bytes[offset].toInt() and 0xFF
@@ -19,6 +35,14 @@ object Nt4Decoder {
         }
     }
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun decodeMsgPackLong(bytes: ByteArray, offset: Int): Pair<Long, Int> {
         if (offset >= bytes.size) return Pair(0L, 0)
         val marker = bytes[offset].toInt() and 0xFF
@@ -39,6 +63,14 @@ object Nt4Decoder {
         }
     }
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun parseMsgPackValue(bytes: ByteArray, offset: Int): Pair<Any?, Int> {
         if (offset >= bytes.size) return Pair(null, 0)
         val marker = bytes[offset].toInt() and 0xFF
@@ -129,11 +161,27 @@ object Nt4Decoder {
         return Pair(null, size)
     }
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun readInt16(bytes: ByteArray, offset: Int): Int {
         return (((bytes[offset].toInt() and 0xFF) shl 8) or
                 (bytes[offset + 1].toInt() and 0xFF))
     }
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun readInt32(bytes: ByteArray, offset: Int): Int {
         return (((bytes[offset].toInt() and 0xFF) shl 24) or
                 ((bytes[offset + 1].toInt() and 0xFF) shl 16) or
@@ -141,6 +189,14 @@ object Nt4Decoder {
                 (bytes[offset + 3].toInt() and 0xFF))
     }
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun readInt64(bytes: ByteArray, offset: Int): Long {
         return (((bytes[offset].toLong() and 0xFF) shl 56) or
                 ((bytes[offset + 1].toLong() and 0xFF) shl 48) or
@@ -152,6 +208,14 @@ object Nt4Decoder {
                 (bytes[offset + 7].toLong() and 0xFF))
     }
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun getStringLengthAndHeader(marker: Int, bytes: ByteArray, offset: Int): Pair<Int, Int> {
         return when {
             marker in 0xa0..0xbf -> Pair(marker - 0xa0, 1)
@@ -171,6 +235,14 @@ object Nt4Decoder {
         }
     }
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun getArrayLengthAndHeader(marker: Int, bytes: ByteArray, offset: Int): Pair<Int, Int> {
         return when {
             marker in 0x90..0x9f -> Pair(marker - 0x90, 1)
@@ -186,6 +258,14 @@ object Nt4Decoder {
         }
     }
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun getMsgPackValueLength(bytes: ByteArray, offset: Int): Int {
         if (offset >= bytes.size) return 0
         val marker = bytes[offset].toInt() and 0xFF

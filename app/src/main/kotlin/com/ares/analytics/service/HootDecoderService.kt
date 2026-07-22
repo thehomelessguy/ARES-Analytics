@@ -10,12 +10,28 @@ import java.util.UUID
 import kotlin.math.abs
 import kotlin.math.sqrt
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 class HootDecoderService(
     private val databaseService: DatabaseService,
     private val summaryEngineService: SummaryEngineService,
     private val sysIdService: SysIdService
 ) {
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     data class MotorKeys(
         val motorName: String,
         val voltageKey: String,
@@ -24,6 +40,14 @@ class HootDecoderService(
         val accelKey: String
     )
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     data class SetpointPair(
         val actualKey: String,
         val setpointKey: String

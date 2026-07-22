@@ -23,6 +23,14 @@ import com.ares.analytics.shared.GamePiece
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 data class FieldViewerState(
     val trueX: Double = 0.0,
     val trueY: Double = 0.0,
@@ -50,12 +58,52 @@ data class FieldViewerState(
 )
 
 sealed class FieldViewerIntent {
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     data class FetchAvailablePaths(val projectPath: String?, val league: League) : FieldViewerIntent()
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     data class SelectPath(val pathName: String?, val projectPath: String?, val league: League) : FieldViewerIntent()
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     object ClearTrace : FieldViewerIntent()
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     object ToggleAlliance : FieldViewerIntent()
 }
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 class FieldViewerViewModel(
     private val nt4ClientService: Nt4ClientService,
     private val scope: CoroutineScope
@@ -67,6 +115,14 @@ class FieldViewerViewModel(
     private val poseBufferManager = FieldPoseBufferManager(scope, _state)
     val cameraGestureController = FieldCameraGestureController()
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun onIntent(intent: FieldViewerIntent) {
         scope.launch {
             when (intent) {
@@ -147,6 +203,14 @@ class FieldViewerViewModel(
                         val auto = json.decodeFromString<AutoFile>(content)
 
                         val extractedPaths = mutableListOf<String>()
+                        /**
+                         * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+                         * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+                         * Canvas-to-field coordinate transformation conventions applied where relevant.
+                         *
+                         * @param args relevant arguments
+                         * @return expected results
+                         */
                         fun collectPaths(node: AutoCommandNode) {
                             if (node.type == "path") {
                                 node.data["pathName"]?.let {

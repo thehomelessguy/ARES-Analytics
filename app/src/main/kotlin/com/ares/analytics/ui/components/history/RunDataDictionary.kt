@@ -4,8 +4,24 @@ import com.ares.analytics.shared.Session
 import com.ares.analytics.shared.SessionSummary
 import com.ares.analytics.ui.screens.RowDefinition
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 object RunDataDictionary {
     
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun canonicalizeMotorName(name: String): String {
         return when (name.lowercase()) {
             "bl" -> "rl"
@@ -16,6 +32,14 @@ object RunDataDictionary {
         }
     }
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun getDiagnosticValue(diag: Map<String, Double>, canonicalMotor: String, param: String): Double? {
         val namesToCheck = when (canonicalMotor) {
             "rl" -> listOf("rl", "bl")
@@ -31,6 +55,14 @@ object RunDataDictionary {
         return null
     }
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun getMotorCurrentAverage(summary: SessionSummary?, canonicalMotor: String): Double? {
         if (summary == null) return null
         val namesToCheck = when (canonicalMotor) {
@@ -47,6 +79,14 @@ object RunDataDictionary {
         return null
     }
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun buildBaseRowDefinitions(): List<RowDefinition> {
         return listOf(
             RowDefinition("Match Number", "Session Info", { session, _, _ -> session.matchNumber?.toString() ?: "N/A" }),
@@ -96,6 +136,14 @@ object RunDataDictionary {
         )
     }
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun buildMotorCurrentRows(allMotorNames: List<String>): List<RowDefinition> {
         return allMotorNames.map { motor ->
             RowDefinition(
@@ -111,6 +159,14 @@ object RunDataDictionary {
         }
     }
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun buildMotorSysIdRows(allMotorNames: List<String>): List<RowDefinition> {
         return allMotorNames.flatMap { motor ->
             listOf(

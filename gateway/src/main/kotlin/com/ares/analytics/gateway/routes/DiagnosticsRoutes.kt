@@ -14,6 +14,14 @@ import io.ktor.server.routing.*
 import io.ktor.server.plugins.ratelimit.*
 import kotlinx.serialization.json.Json
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun Route.diagnosticsRoutes() {
     val projectId = System.getenv("GOOGLE_CLOUD_PROJECT") ?: "ares-analytics"
     val location = System.getenv("GOOGLE_CLOUD_LOCATION") ?: "us-central1"

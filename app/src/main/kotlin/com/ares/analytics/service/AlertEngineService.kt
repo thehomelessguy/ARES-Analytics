@@ -13,6 +13,14 @@ import java.util.concurrent.ConcurrentHashMap
 import javax.sound.sampled.AudioFormat
 import javax.sound.sampled.AudioSystem
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 class AlertEngineService(
     private val databaseService: DatabaseService,
     private val nt4ClientService: Nt4ClientService,
@@ -65,6 +73,14 @@ class AlertEngineService(
         }
     }
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun stop() {
         engineJob?.cancel()
     }

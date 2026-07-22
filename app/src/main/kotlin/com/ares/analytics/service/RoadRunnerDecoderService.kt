@@ -5,16 +5,88 @@ import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 class RoadRunnerDecoderService {
 
     sealed interface RRSchema
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     object IntSchema : RRSchema
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     object LongSchema : RRSchema
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     object DoubleSchema : RRSchema
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     object StringSchema : RRSchema
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     object BooleanSchema : RRSchema
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     class EnumSchema(val constants: List<String>) : RRSchema
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     class ArraySchema(val elementSchema: RRSchema) : RRSchema
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     class StructSchema(val fields: List<Pair<String, RRSchema>>) : RRSchema
 
     suspend fun parseRoadRunnerLog(
@@ -26,6 +98,14 @@ class RoadRunnerDecoderService {
         val buffer = ByteBuffer.wrap(bytes).order(ByteOrder.BIG_ENDIAN)
         
         var offset = 0
+        /**
+         * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+         * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+         * Canvas-to-field coordinate transformation conventions applied where relevant.
+         *
+         * @param args relevant arguments
+         * @return expected results
+         */
         fun readString(): String {
             val len = buffer.getInt(offset)
             offset += 4
@@ -34,6 +114,14 @@ class RoadRunnerDecoderService {
             return str
         }
 
+        /**
+         * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+         * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+         * Canvas-to-field coordinate transformation conventions applied where relevant.
+         *
+         * @param args relevant arguments
+         * @return expected results
+         */
         fun readSchema(): RRSchema {
             val schemaType = buffer.getInt(offset)
             offset += 4
@@ -66,6 +154,14 @@ class RoadRunnerDecoderService {
             }
         }
 
+        /**
+         * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+         * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+         * Canvas-to-field coordinate transformation conventions applied where relevant.
+         *
+         * @param args relevant arguments
+         * @return expected results
+         */
         fun arraySchemaCount(schema: RRSchema): Int {
             return when (schema) {
                 is StructSchema -> {
@@ -80,6 +176,14 @@ class RoadRunnerDecoderService {
             }
         }
 
+        /**
+         * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+         * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+         * Canvas-to-field coordinate transformation conventions applied where relevant.
+         *
+         * @param args relevant arguments
+         * @return expected results
+         */
         fun readMsg(schema: RRSchema): Any {
             return when (schema) {
                 is StructSchema -> {

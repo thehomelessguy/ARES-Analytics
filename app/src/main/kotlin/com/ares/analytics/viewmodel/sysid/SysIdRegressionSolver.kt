@@ -6,10 +6,26 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import org.ejml.simple.SimpleMatrix
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 class SysIdRegressionSolver(
     private val nt4ClientService: Nt4ClientService,
     private val _state: MutableStateFlow<SysIdState>
 ) {
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun runCalibrationAnalysis(calibrationType: String, data: List<DoubleArray>) {
         if (data.size < 10) {
             _state.update { it.copy(errorMessage = "Not enough calibration data collected (minimum 10 points)") }

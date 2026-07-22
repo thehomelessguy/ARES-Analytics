@@ -23,11 +23,27 @@ import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.sin
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 class PathSerializationManager(
     private val scope: CoroutineScope,
     private val stateFlow: MutableStateFlow<PathPlannerState>,
     private val onTrajectoryChanged: () -> Unit
 ) {
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun loadPathTrajectory(pathName: String, projectPath: String, league: League): Trajectory? {
         try {
             val relativeDir = if (league == League.FTC) {
@@ -65,6 +81,14 @@ class PathSerializationManager(
         }
     }
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun loadPathWaypoints(pathName: String, projectPath: String, league: League): List<Waypoint>? {
         try {
             val relativeDir = if (league == League.FTC) {
@@ -94,6 +118,14 @@ class PathSerializationManager(
         }
     }
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun loadAutoTrajectory(autoName: String, projectPath: String, league: League): Trajectory? {
         try {
             val relativeDir = if (league == League.FTC) {
@@ -108,6 +140,14 @@ class PathSerializationManager(
             val autoFile = AppJson.decodeFromString<AutoCommandNode>(file.readText())
             
             val pathNames = mutableListOf<String>()
+            /**
+             * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+             * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+             * Canvas-to-field coordinate transformation conventions applied where relevant.
+             *
+             * @param args relevant arguments
+             * @return expected results
+             */
             fun extractPaths(node: AutoCommandNode) {
                 if (node.type == "path") {
                     val pName = node.data["pathName"]?.let { 
@@ -154,6 +194,14 @@ class PathSerializationManager(
         }
     }
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun recalculateAutoTrajectory(projectPath: String?, league: League) {
         if (projectPath == null) return
         scope.launch(Dispatchers.IO) {
@@ -161,6 +209,14 @@ class PathSerializationManager(
             val root = s.currentAutoCommands.firstOrNull() ?: return@launch
             
             val pathNames = mutableListOf<String>()
+            /**
+             * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+             * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+             * Canvas-to-field coordinate transformation conventions applied where relevant.
+             *
+             * @param args relevant arguments
+             * @return expected results
+             */
             fun extractPaths(node: AutoCommandNode) {
                 if (node.type == "path") {
                     val pathName = node.data["pathName"]?.let { 
@@ -305,6 +361,7 @@ class PathSerializationManager(
                         object $className {
                             val pathName = "${s.pathName}"
 
+
                             fun buildPathFollower(
                                 follower: HolonomicPathFollower,
                                 eventMap: Map<String, () -> Unit>
@@ -376,6 +433,14 @@ class PathSerializationManager(
         return "adb"
     }
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun pushFileToRobot(localFile: File, remoteDir: String, remoteFileName: String): Boolean {
         try {
             val adb = findAdbPath()

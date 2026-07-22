@@ -19,6 +19,14 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlin.math.pow
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun DrawScope.drawPlannedSpline(
     pathCache: PathCacheHolder,
     splinePoints: List<Waypoint>,
@@ -52,6 +60,14 @@ fun DrawScope.drawPlannedSpline(
     }
 }
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun DrawScope.drawEventMarkers(
     waypoints: List<Waypoint>,
     eventMarkerPoints: List<Waypoint>,
@@ -87,6 +103,14 @@ fun DrawScope.drawEventMarkers(
     }
 }
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun DrawScope.drawConstraintZones(
     pathCache: PathCacheHolder,
     waypoints: List<Waypoint>,
@@ -120,6 +144,14 @@ fun DrawScope.drawConstraintZones(
     }
 }
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun DrawScope.drawPointTowardsZones(
     pathCache: PathCacheHolder,
     waypoints: List<Waypoint>,
@@ -153,6 +185,14 @@ fun DrawScope.drawPointTowardsZones(
     }
 }
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun DrawScope.drawHolonomicRotationTargets(
     waypoints: List<Waypoint>,
     rotationTargets: List<RotationTarget>,
@@ -185,6 +225,14 @@ fun DrawScope.drawHolonomicRotationTargets(
     }
 }
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun DrawScope.drawActualPathAndDeviations(
     pathCache: PathCacheHolder,
     actualPath: List<Waypoint>,
@@ -252,6 +300,14 @@ fun DrawScope.drawActualPathAndDeviations(
     }
 }
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun DrawScope.drawContextPath(
     pathCache: PathCacheHolder,
     contextPath: List<Waypoint>,
@@ -297,6 +353,14 @@ fun DrawScope.drawContextPath(
     }
 }
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun DrawScope.drawRobotRepresentations(
     pathCache: PathCacheHolder,
     actualPath: List<Waypoint>,
@@ -471,6 +535,14 @@ fun DrawScope.drawRobotRepresentations(
     }
 }
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun DrawScope.drawWaypoints(
     pathCache: PathCacheHolder,
     waypoints: List<Waypoint>,

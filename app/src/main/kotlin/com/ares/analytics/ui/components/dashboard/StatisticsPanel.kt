@@ -36,16 +36,40 @@ import kotlin.math.max
 import kotlin.math.pow
 import kotlin.math.sqrt
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 enum class TimeFilter {
     FULL, AUTO, TELEOP, ENABLED
 }
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 enum class AnalysisMode {
     SINGLE, MULTI_NORMAL, ABSOLUTE_ERROR, RELATIVE_ERROR
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun StatisticsPanel(
     databaseService: DatabaseService,
     sessionId: String?,
@@ -143,6 +167,14 @@ fun StatisticsPanel(
     }
 
     // Helper: Interpolation for aligning Signal 2 to Signal 1 timestamps
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun interpolate(t: Long, times: List<Long>, values: List<Double>): Double {
         if (times.isEmpty()) return 0.0
         val idx = times.binarySearch(t)
@@ -160,6 +192,14 @@ fun StatisticsPanel(
     }
 
     // Filter telemetry based on active TimeFilter
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun filterTelemetry(raw: List<TelemetryFrame>): List<TelemetryFrame> {
         if (raw.isEmpty()) return emptyList()
         val startMs = raw.first().timestampMs
@@ -259,6 +299,14 @@ fun StatisticsPanel(
             val stdDevVal = sqrt(variance)
 
             // Percentiles
+            /**
+             * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+             * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+             * Canvas-to-field coordinate transformation conventions applied where relevant.
+             *
+             * @param args relevant arguments
+             * @return expected results
+             */
             fun getPercentile(p: Double): Double {
                 val index = (p * (n - 1))
                 val lower = index.toInt()

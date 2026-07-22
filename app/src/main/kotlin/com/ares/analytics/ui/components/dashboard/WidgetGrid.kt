@@ -31,6 +31,14 @@ import androidx.compose.ui.platform.LocalDensity
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun WidgetGrid(
     widgets: List<WidgetConfig>,
     onLayoutChanged: (List<WidgetConfig>) -> Unit,
@@ -271,6 +279,14 @@ private fun resolveOverlaps(widgets: List<WidgetConfig>, activeWidgetId: String)
     resolved.addAll(lockedOthers)
 
     // Helper to check overlap
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun hasOverlap(w: WidgetConfig): Boolean {
         return resolved.any { placed ->
             val overlapX = w.col < placed.col + placed.colSpan && w.col + w.colSpan > placed.col

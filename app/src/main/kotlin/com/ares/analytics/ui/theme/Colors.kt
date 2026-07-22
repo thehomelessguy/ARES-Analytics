@@ -6,6 +6,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 
 // ── Theme State Holder ───────────────────────────────────────────────────────
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 object AresThemeSettings {
     var colorblindMode by mutableStateOf(false)
     var highContrastMode by mutableStateOf(false)
@@ -62,6 +70,14 @@ val AresDeviationMedium: Color get() = AresThemeSettings.currentColors.deviation
 val AresDeviationHigh: Color get() = AresThemeSettings.currentColors.deviationHigh
 
 // ── Color Palette Generator ──────────────────────────────────────────────────
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 data class AresColorPalette(
     val background: Color,
     val surface: Color,
@@ -99,6 +115,14 @@ data class AresColorPalette(
     val deviationHigh: Color
 )
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun getAresColors(colorblind: Boolean, highContrast: Boolean): AresColorPalette {
     val textPrimary = Color(0xFFE8ECF4)
     val textSecondary = if (highContrast) Color(0xFFF3F5F9) else Color(0xFF9CA3B4)

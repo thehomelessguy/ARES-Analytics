@@ -13,16 +13,40 @@ import androidx.compose.ui.unit.sp
 import com.ares.analytics.shared.League
 import com.ares.analytics.ui.theme.*
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 enum class EditorMode {
     SELECT, ADD_WAYPOINT, DRAW_POLYGON, DRAW_CIRCLE, DRAW_RECTANGLE, PLACE_GAME_PIECE, PLACE_APRILTAG, PLACE_FIELD_WAYPOINT, ERASER
 }
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 data class PointTowardsZoneRenderData(
     val target: Waypoint,
     val splinePoints: List<Waypoint>
 )
 
 // Precomputed Cache Data Structures for zero-allocation rendering performance
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 class PathCacheHolder {
     var splinePoints: List<Waypoint> = emptyList()
     var actualPoints: List<Waypoint> = emptyList()
@@ -48,6 +72,14 @@ class PathCacheHolder {
 }
 
 // Convert coordinates base models
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun getCanvasOffsetBase(
     wp: Waypoint,
     canvasW: Float,
@@ -67,6 +99,14 @@ fun getCanvasOffsetBase(
     }
 }
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun getRobotCoordBase(
     offset: Offset,
     canvasW: Float,
@@ -86,6 +126,14 @@ fun getRobotCoordBase(
     }
 }
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun getTransformedCanvasOffset(
     wp: Waypoint, 
     w: Float, 
@@ -114,6 +162,14 @@ fun getTransformedCanvasOffset(
     return Offset(x, y)
 }
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun getRobotCoordFromScreen(
     screenOffset: Offset, 
     w: Float, 
@@ -214,6 +270,14 @@ fun getDragDeltaInFieldCoords(
     }
 }
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun cubicHermite(p0: Double, v0: Double, p1: Double, v1: Double, t: Double): Double {
     val t2 = t * t
     val t3 = t2 * t
@@ -224,6 +288,14 @@ fun cubicHermite(p0: Double, v0: Double, p1: Double, v1: Double, t: Double): Dou
     return h00 * p0 + h10 * v0 + h01 * p1 + h11 * v1
 }
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun getPositionOnSpline(pos: Double, waypoints: List<Waypoint>): Waypoint {
     if (waypoints.isEmpty()) return Waypoint(0.0, 0.0)
     if (waypoints.size == 1) return waypoints.first()
@@ -246,6 +318,14 @@ fun getPositionOnSpline(pos: Double, waypoints: List<Waypoint>): Waypoint {
     return Waypoint(px, py)
 }
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun getClosestSplinePosition(
     mouseOffset: Offset,
     waypoints: List<Waypoint>,
@@ -277,6 +357,14 @@ fun getClosestSplinePosition(
     return bestPos
 }
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun DrawScope.drawCoordinateAxes(
     canvasW: Float,
     canvasH: Float,

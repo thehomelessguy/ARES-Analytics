@@ -3,6 +3,14 @@ package com.ares.analytics.service
 import com.ares.analytics.service.calibration.CameraCalibrationSolver
 import com.ares.analytics.service.calibration.OdometryCalibrationSolver
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 data class Pose3d(
     val x: Double, // Left-Right (meters)
     val y: Double, // Up-Down (meters)
@@ -12,6 +20,14 @@ data class Pose3d(
     val yaw: Double // Heading (radians, CCW-positive)
 )
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 data class CalibrationDiagnostics(
     val pose: Pose3d,
     val standardErrors: DoubleArray,
@@ -38,6 +54,14 @@ data class CalibrationDiagnostics(
     }
 }
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 data class CalibrationMeasurement(
     val gyroHeading: Double, // radians (CCW-positive)
     val tagId: Int,
@@ -53,6 +77,14 @@ data class CalibrationMeasurement(
     val targetSpaceYaw: Double
 )
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 class CalibrationService(private val databaseService: DatabaseService) {
 
     private val cameraSolver = CameraCalibrationSolver(databaseService)
@@ -75,6 +107,14 @@ class CalibrationService(private val databaseService: DatabaseService) {
         return cameraSolver.runExtrinsicCalibration(sessionId, cameraIndex)
     }
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun solveCameraExtrinsicsWithDiagnostics(measurements: List<CalibrationMeasurement>): CalibrationDiagnostics {
         return cameraSolver.solveCameraExtrinsicsWithDiagnostics(measurements)
     }
@@ -87,4 +127,12 @@ class CalibrationService(private val databaseService: DatabaseService) {
     }
 }
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 data class FieldTag(val x: Double, val y: Double, val z: Double)

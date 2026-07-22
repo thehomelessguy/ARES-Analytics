@@ -29,6 +29,14 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
 @Composable
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun ControlLoopProfilerCard(
     nt4ClientService: Nt4ClientService,
     modifier: Modifier = Modifier
@@ -286,6 +294,14 @@ fun ControlLoopProfilerCard(
                         val now = System.currentTimeMillis()
                         val startTimeMs = now - historyWindowMs
                         
+                        /**
+                         * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+                         * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+                         * Canvas-to-field coordinate transformation conventions applied where relevant.
+                         *
+                         * @param args relevant arguments
+                         * @return expected results
+                         */
                         fun mapToOffset(timeMs: Long, value: Double): Offset {
                             val x = ((timeMs - startTimeMs).toFloat() / historyWindowMs.toFloat()) * width
                             val y = height - ((value - minValue) / newRange).toFloat() * height

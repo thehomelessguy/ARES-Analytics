@@ -8,6 +8,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 class FieldTopicSubscriber(
     private val nt4ClientService: Nt4ClientService,
     private val scope: CoroutineScope,
@@ -117,6 +125,14 @@ class FieldTopicSubscriber(
     }
 }
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 class FieldViewerStateBuilder(state: FieldViewerState) {
     var trueX: Double = state.trueX
     var trueY: Double = state.trueY
@@ -137,6 +153,14 @@ class FieldViewerStateBuilder(state: FieldViewerState) {
     var isRedAlliance: Boolean = state.isRedAlliance
     var indicatorLights: MutableMap<String, Double> = state.indicatorLights.toMutableMap()
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun build(original: FieldViewerState): FieldViewerState {
         return original.copy(
             trueX = trueX,

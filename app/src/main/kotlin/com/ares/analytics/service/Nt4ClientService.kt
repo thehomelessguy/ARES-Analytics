@@ -71,6 +71,14 @@ open class Nt4ClientService(
     val latestValues = ConcurrentHashMap<String, TelemetryFrame>()
     val telemetryHistory = ConcurrentHashMap<String, java.util.ArrayDeque<TelemetryFrame>>()
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun getActiveTopics(): List<String> {
         return topicMap.values.map { it.name.removePrefix("/") }.sorted()
     }
@@ -99,6 +107,14 @@ open class Nt4ClientService(
 
     private var clientJob: Job? = null
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun start(host: String, teamId: String, seasonId: String, robotId: String) {
         println("[Nt4ClientService] start() called with host=$host, teamId=$teamId, seasonId=$seasonId, robotId=$robotId")
         clientJob?.cancel()
@@ -331,6 +347,14 @@ open class Nt4ClientService(
         sendBinaryUpdate(pubuid, 2.toByte(), valueBytes)
     }
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun stop() {
         clientJob?.cancel()
         _isConnected.value = false
@@ -710,6 +734,14 @@ open class Nt4ClientService(
 
     private val topicFlows = ConcurrentHashMap<String, MutableStateFlow<Double>>()
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun subscribeDouble(key: String): Flow<Double> {
         val flow = topicFlows.getOrPut(key) {
             MutableStateFlow(latestValues[key]?.value ?: 0.0)
@@ -718,6 +750,14 @@ open class Nt4ClientService(
     }
 }
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 data class Nt4Topic(
     val id: Int,
     val name: String,

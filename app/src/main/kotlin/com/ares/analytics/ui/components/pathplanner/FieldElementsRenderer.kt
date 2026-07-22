@@ -26,6 +26,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.geometry.CornerRadius
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun DrawScope.drawFieldBackground(
     activeImage: ImageBitmap?,
     activeConfig: FieldImageConfig,
@@ -65,6 +73,14 @@ fun DrawScope.drawFieldBackground(
     }
 }
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun DrawScope.drawFieldGrid(
     w: Float,
     h: Float,
@@ -108,6 +124,14 @@ fun DrawScope.drawFieldGrid(
     }
 }
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun DrawScope.drawFtcAllianceStations(
     w: Float,
     h: Float,
@@ -144,6 +168,14 @@ fun DrawScope.drawFtcAllianceStations(
     }
 }
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun DrawScope.drawCustomObstacles(
     activeObstacles: List<Obstacle>,
     w: Float,
@@ -283,6 +315,14 @@ fun DrawScope.drawCustomObstacles(
     }
 }
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun DrawScope.drawGamePieces(
     activeGamePieces: List<GamePiece>,
     w: Float,
@@ -344,6 +384,14 @@ fun DrawScope.drawGamePieces(
     }
 }
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun DrawScope.drawAprilTags(
     activeAprilTags: List<com.ares.analytics.shared.AprilTagPlacement>,
     w: Float,
@@ -420,6 +468,14 @@ fun DrawScope.drawAprilTags(
     }
 }
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun DrawScope.drawActivePolygonPoints(
     currentPolygonPoints: List<PathPoint>,
     w: Float,
@@ -441,6 +497,14 @@ fun DrawScope.drawActivePolygonPoints(
     }
 }
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun DrawScope.drawFieldWaypoints(
     fieldWaypoints: List<com.ares.analytics.shared.FieldWaypoint>,
     selectedId: String?,

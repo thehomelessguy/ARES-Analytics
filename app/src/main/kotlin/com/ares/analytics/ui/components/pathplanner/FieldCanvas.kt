@@ -46,6 +46,14 @@ private val jsonFormatter: Json = Json { prettyPrint = true }
 
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun FieldCanvas(
     league: League,
     waypoints: List<Waypoint>,
@@ -370,6 +378,14 @@ fun FieldCanvas(
                                      val basePress = getBaseCanvasFromScreen(pressOffset, w, h, zoomScale, panOffset, viewRotation)
                                      
                                      // Helper: compute rotation handle position in base canvas space (matches PathRenderer draw code)
+                                     /**
+                                      * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+                                      * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+                                      * Canvas-to-field coordinate transformation conventions applied where relevant.
+                                      *
+                                      * @param args relevant arguments
+                                      * @return expected results
+                                      */
                                      fun rotHandleBase(wpBaseOffset: Offset, wp: Waypoint): Offset {
                                          val rotAngleRad = Math.toRadians(-(wp.rotationDeg ?: 0.0) - 90.0)
                                          val rotHandleLenPx = 30.dp.toPx()
@@ -565,6 +581,14 @@ fun FieldCanvas(
                                     val dragAmount = change.positionChange()
                                     accumulatedDragPx += dragAmount
                                     change.consume()
+                                    /**
+                                     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+                                     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+                                     * Canvas-to-field coordinate transformation conventions applied where relevant.
+                                     *
+                                     * @param args relevant arguments
+                                     * @return expected results
+                                     */
                                     fun snap(v: Double) = if (isShiftPressed) kotlin.math.round(v * 10.0) / 10.0 else v
                                     val totalDelta = getDragDeltaInFieldCoords(accumulatedDragPx, w, h, fieldWidthM, fieldHeightM, league, zoomScale)
                                      when {

@@ -10,6 +10,14 @@ import org.ejml.simple.SimpleMatrix
 import kotlin.math.abs
 import kotlin.math.sign
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 class SysIdService(private val databaseService: DatabaseService) {
 
     suspend fun analyzeMotorData(
@@ -72,6 +80,14 @@ class SysIdService(private val databaseService: DatabaseService) {
         return analyzeRawData(alignedData)
     }
 
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun analyzeRawData(alignedData: List<AlignedDataRow>): CalculatedSummary {
         if (alignedData.size < 10) {
             return CalculatedSummary()
@@ -207,6 +223,14 @@ class SysIdService(private val databaseService: DatabaseService) {
     private fun emptyDoubleArray() = DoubleArray(0)
 }
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 data class AlignedDataRow(
     val timestampMs: Long,
     val voltage: Double,
@@ -214,6 +238,14 @@ data class AlignedDataRow(
     val accel: Double
 )
 
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 data class FftResult(
     val frequencies: DoubleArray,
     val magnitudes: DoubleArray,

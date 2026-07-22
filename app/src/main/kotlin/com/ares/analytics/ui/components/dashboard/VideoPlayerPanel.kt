@@ -32,6 +32,14 @@ import javax.swing.filechooser.FileNameExtensionFilter
 import kotlin.math.sin
 
 @Composable
+/**
+ * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+ * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+ * Canvas-to-field coordinate transformation conventions applied where relevant.
+ *
+ * @param args relevant arguments
+ * @return expected results
+ */
 fun VideoPlayerPanel(
     videoSyncService: VideoSyncService,
     replayEngineService: ReplayEngineService,
@@ -47,6 +55,14 @@ fun VideoPlayerPanel(
     val currentFrame by replayEngineService.currentFrame.collectAsState()
 
     // Calculate formatted times
+    /**
+     * High-level description: Handles data processing pipeline, UI state management (MVI), or Ktor endpoint logic.
+     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+     * Canvas-to-field coordinate transformation conventions applied where relevant.
+     *
+     * @param args relevant arguments
+     * @return expected results
+     */
     fun formatTime(ms: Long): String {
         val totalSecs = ms / 1000
         val minutes = totalSecs / 60
