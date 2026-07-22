@@ -199,6 +199,9 @@ open class Nt4ClientService(
                         // 2.5 Re-announce dynamic UI tuning topics
                         dynamicPubMutex.withLock {
                             for ((key, id) in dynamicPubUids) {
+                                if (key.startsWith("ARES/Input/") || key.startsWith("ARES/DriverStation/") || key.startsWith("SysId/")) {
+                                    continue
+                                }
                                 val announceMsg = "[{\"method\": \"publish\", \"params\": {\"name\": \"$key\", \"pubuid\": $id, \"type\": \"double\"}}]"
                                 send(Frame.Text(announceMsg))
                             }
