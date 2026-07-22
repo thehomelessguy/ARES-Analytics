@@ -276,19 +276,36 @@ fun FieldCanvas(
     val currentGoalEndState by rememberUpdatedState(goalEndState)
 
     LaunchedEffect(projectPath) {
-        if (!projectPath.isNullOrEmpty()) {
-            try {
+        try {
+            val searchDirs = if (!projectPath.isNullOrEmpty()) {
                 val relDir = if (league == League.FTC) {
                     if (File(projectPath, "TeamCode/src/main/assets").exists()) "TeamCode/src/main/assets/paths" else "src/main/assets/paths"
                 } else "src/main/deploy/paths"
-                val fObs = File(File(projectPath, relDir), "obstacles.json")
-                if (fObs.exists()) updateObstacles(Json.decodeFromString(fObs.readText()))
-                val fGp = File(File(projectPath, relDir), "game_pieces.json")
-                if (fGp.exists()) updateGamePieces(Json.decodeFromString(fGp.readText()))
-                val fAt = File(File(projectPath, relDir), "apriltags.json")
-                if (fAt.exists()) updateAprilTags(Json.decodeFromString(fAt.readText()))
-                val fWp = File(File(projectPath, relDir), "field_waypoints.json")
-                if (fWp.exists()) updateFieldWaypoints(Json.decodeFromString(fWp.readText()))
+                listOf(File(projectPath, relDir))
+            } else {
+                listOf(
+                    File("../ARES-FTC/TeamCode/src/main/assets/paths"),
+                    File("TeamCode/src/main/assets/paths"),
+                    File("src/main/assets/paths"),
+                    File("../src/main/assets/paths")
+                )
+            }
+
+            for (dir in searchDirs) {
+                if (dir.exists()) {
+                    val fObs = File(dir, "obstacles.json")
+                    if (fObs.exists()) updateObstacles(Json.decodeFromString(fObs.readText()))
+                    val fGp = File(dir, "game_pieces.json")
+                    if (fGp.exists()) updateGamePieces(Json.decodeFromString(fGp.readText()))
+                    val fAt = File(dir, "apriltags.json")
+                    if (fAt.exists()) updateAprilTags(Json.decodeFromString(fAt.readText()))
+                    val fWp = File(dir, "field_waypoints.json")
+                    if (fWp.exists()) updateFieldWaypoints(Json.decodeFromString(fWp.readText()))
+                    break
+                }
+            }
+
+            if (!projectPath.isNullOrEmpty()) {
                 val imgDir = if (league == League.FTC) {
                     if (File(projectPath, "TeamCode/src/main/assets").exists()) "TeamCode/src/main/assets" else "src/main/assets"
                 } else "src/main/deploy"
@@ -296,9 +313,10 @@ fun FieldCanvas(
                 localFieldImage = if (imgFile.exists()) org.jetbrains.skia.Image.makeFromEncoded(imgFile.readBytes()).toComposeImageBitmap() else null
                 val confFile = File(File(projectPath, imgDir), "field_image_config.json")
                 localFieldImageConfig = if (confFile.exists()) Json.decodeFromString(confFile.readText()) else FieldImageConfig()
-            } catch (e: Exception) { e.printStackTrace() }
-        }
+            }
+        } catch (e: Exception) { e.printStackTrace() }
     }
+
 
     Column(modifier = modifier.fillMaxSize()) {
         if (showToolbar) {
