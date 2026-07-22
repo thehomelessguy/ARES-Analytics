@@ -657,87 +657,10 @@ fun MainScreen(services: ServiceRegistry) {
         // ── Update Notification Banner ──────────────────────────────────────────
         val currentUpdateState = updateState
         if (currentUpdateState is UpdateCheckerService.UpdateState.UpdateAvailable && showUpdateBanner) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-                contentAlignment = Alignment.TopEnd
-            ) {
-                Card(
-                    modifier = Modifier
-                        .width(360.dp)
-                        .animateContentSize(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = AresSurface),
-                    border = BorderStroke(1.dp, AresCyan.copy(alpha = 0.5f)),
-                    elevation = CardDefaults.cardElevation(8.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Info,
-                                contentDescription = null,
-                                tint = AresCyan
-                            )
-                            Text(
-                                text = "Software Update Available",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = AresTextPrimary
-                            )
-                        }
-
-                        Text(
-                            text = "A new version (${currentUpdateState.latestVersion}) of ARES Analytics is available.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = AresTextSecondary
-                        )
-
-                        if (!currentUpdateState.releaseNotes.isNullOrEmpty()) {
-                            Text(
-                                text = currentUpdateState.releaseNotes,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = AresTextSecondary.copy(alpha = 0.7f),
-                                maxLines = 3,
-                                modifier = Modifier.padding(vertical = 4.dp)
-                            )
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            TextButton(
-                                onClick = { mainViewModel.onIntent(MainIntent.SetShowUpdateBanner(false)) }
-                            ) {
-                                Text("Dismiss", color = AresTextSecondary)
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Button(
-                                onClick = {
-                                    try {
-                                        if (java.awt.Desktop.isDesktopSupported()) {
-                                            java.awt.Desktop.getDesktop().browse(java.net.URI(currentUpdateState.downloadUrl))
-                                        }
-                                    } catch (e: Exception) {
-                                        e.printStackTrace()
-                                    }
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = AresCyan)
-                            ) {
-                                Text("Update", color = AresBackground)
-                            }
-                        }
-                    }
-                }
-            }
+            com.ares.analytics.ui.components.layout.UpdateNotificationBanner(
+                updateState = currentUpdateState,
+                onDismiss = { mainViewModel.onIntent(MainIntent.SetShowUpdateBanner(false)) }
+            )
         }
     }
 }

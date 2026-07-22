@@ -883,79 +883,34 @@ fun FieldCanvas(
             }
             }
 
-            DropdownMenu(
+            FieldCanvasContextMenu(
                 expanded = contextMenuExpanded,
                 onDismissRequest = { contextMenuExpanded = false },
                 offset = contextMenuOffset,
-                modifier = Modifier.background(AresSurfaceElevated).border(1.dp, AresBorder, RoundedCornerShape(4.dp))
-            ) {
-                when {
-                    contextTargetType == "Waypoint" && contextTargetIndex in waypoints.indices -> {
-                        DropdownMenuItem(onClick = { contextMenuExpanded = false }) { Text("Edit Waypoint...", color = AresTextPrimary) }
-                        if (waypoints[contextTargetIndex].rotationDeg != null) {
-                            DropdownMenuItem(onClick = {
-                                onWaypointsChanged(waypoints.toMutableList().apply {
-                                    set(contextTargetIndex, this[contextTargetIndex].copy(rotationDeg = null))
-                                })
-                                contextMenuExpanded = false
-                            }) { Text("Clear Rotation", color = AresTextPrimary) }
-                        }
-                        if (waypoints[contextTargetIndex].headingRad != null) {
-                            DropdownMenuItem(onClick = {
-                                onWaypointsChanged(waypoints.toMutableList().apply {
-                                    set(contextTargetIndex, this[contextTargetIndex].copy(headingRad = null))
-                                })
-                                contextMenuExpanded = false
-                            }) { Text("Reset to Auto Heading", color = AresTextPrimary) }
-                        }
-                        DropdownMenuItem(onClick = {
-                            onWaypointsChanged(waypoints.toMutableList().apply { removeAt(contextTargetIndex) })
-                            contextMenuExpanded = false; selectedWaypointIndex = -1
-                        }) { Text("Delete Waypoint", color = AresRed) }
-                    }
-                    contextTargetType == "Obstacle" && contextTargetId != null -> {
-                        DropdownMenuItem(onClick = {
-                            updateObstacles(currentActiveObstacles.filter { it.id != contextTargetId })
-                            contextMenuExpanded = false; selectedObstacleId = null
-                        }) { Text("Delete Obstacle", color = AresRed) }
-                    }
-                    contextTargetType == "AprilTag" && contextTargetId != null -> {
-                        DropdownMenuItem(onClick = {
-                            updateAprilTags(currentActiveAprilTags.filter { it.id != contextTargetId })
-                            contextMenuExpanded = false; selectedAprilTagId = null
-                        }) { Text("Delete AprilTag", color = AresRed) }
-                    }
-                    contextTargetType == "GamePiece" && contextTargetId != null -> {
-                        val gp = currentActiveGamePieces.find { it.id == contextTargetId }
-                        if (gp != null) {
-                            DropdownMenuItem(onClick = {
-                                val nextType = if (gp.type == "Sample") "Specimen" else "Sample"
-                                updateGamePieces(currentActiveGamePieces.map { if (it.id == contextTargetId) it.copy(type = nextType) else it })
-                                contextMenuExpanded = false
-                            }) { Text("Toggle Type: ${if (gp.type == "Sample") "Specimen" else "Sample"}", color = AresTextPrimary) }
-                        }
-                        DropdownMenuItem(onClick = {
-                            updateGamePieces(currentActiveGamePieces.filter { it.id != contextTargetId })
-                            contextMenuExpanded = false; selectedGamePieceId = null
-                        }) { Text("Delete Game Piece", color = AresRed) }
-                    }
-                    contextTargetType == "FieldWaypoint" && contextTargetId != null -> {
-                        DropdownMenuItem(onClick = {
-                            updateFieldWaypoints(currentActiveFieldWaypoints.filter { it.id != contextTargetId })
-                            contextMenuExpanded = false; selectedFieldWaypointId = null
-                        }) { Text("Delete Field Waypoint", color = AresRed) }
-                    }
-                    contextTargetType == "EventMarker" && contextTargetIndex in currentEventMarkers.indices -> {
-                        DropdownMenuItem(onClick = {
-                            onEventMarkersChanged?.invoke(currentEventMarkers.toMutableList().apply { removeAt(contextTargetIndex) })
-                            contextMenuExpanded = false; selectedEventMarkerIndex = -1
-                        }) { Text("Delete Event Marker", color = AresRed) }
-                    }
-                    else -> {
-                        DropdownMenuItem(onClick = { contextMenuExpanded = false }) { Text("Cancel", color = AresTextSecondary) }
-                    }
+                targetType = contextTargetType,
+                targetIndex = contextTargetIndex,
+                targetId = contextTargetId,
+                waypoints = waypoints,
+                eventMarkers = currentEventMarkers,
+                obstacles = currentActiveObstacles,
+                aprilTags = currentActiveAprilTags,
+                gamePieces = currentActiveGamePieces,
+                fieldWaypoints = currentActiveFieldWaypoints,
+                onWaypointsChanged = onWaypointsChanged,
+                onEventMarkersChanged = onEventMarkersChanged,
+                updateObstacles = updateObstacles,
+                updateAprilTags = updateAprilTags,
+                updateGamePieces = updateGamePieces,
+                updateFieldWaypoints = updateFieldWaypoints,
+                onClearSelected = {
+                    selectedWaypointIndex = -1
+                    selectedObstacleId = null
+                    selectedAprilTagId = null
+                    selectedGamePieceId = null
+                    selectedFieldWaypointId = null
+                    selectedEventMarkerIndex = -1
                 }
-            }
+            )
 
             PlannerExportPanel(
                 showPathControls = showPathControls,
