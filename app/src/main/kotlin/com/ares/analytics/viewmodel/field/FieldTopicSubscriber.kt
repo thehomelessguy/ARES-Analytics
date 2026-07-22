@@ -45,15 +45,15 @@ class FieldTopicSubscriber(
                 val value = frame.value
                 
                 when (key) {
-                    "ARES/EstimatedPose/0" -> currentBuilder.trueX = value
-                    "ARES/EstimatedPose/1" -> currentBuilder.trueY = value
-                    "ARES/EstimatedPose/2" -> {
+                    "ARES/TruePose/0" -> currentBuilder.trueX = value
+                    "ARES/TruePose/1" -> currentBuilder.trueY = value
+                    "ARES/TruePose/2" -> {
                         currentBuilder.simHeading = value
                         currentBuilder.trueHeading = value
                     }
-                    "Drive/Pose_X" -> currentBuilder.ekfX = value
-                    "Drive/Pose_Y" -> currentBuilder.ekfY = value
-                    "Drive/Pose_Heading", "Drive/Drive_Heading" -> currentBuilder.ekfHeading = value
+                    "ARES/EstimatedPose/0", "Drive/Pose_X" -> currentBuilder.ekfX = value
+                    "ARES/EstimatedPose/1", "Drive/Pose_Y" -> currentBuilder.ekfY = value
+                    "ARES/EstimatedPose/2", "Drive/Pose_Heading", "Drive/Drive_Heading" -> currentBuilder.ekfHeading = value
 
                     "Drive/Odom_X", "pinpoint_x", "pinpoint/x" -> currentBuilder.odomX = value
                     "Drive/Odom_Y", "pinpoint_y", "pinpoint/y" -> currentBuilder.odomY = value
