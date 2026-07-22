@@ -42,6 +42,7 @@ enum class NavigationTarget(val label: String, val icon: ImageVector) {
     RUN_HISTORY("Run History", Icons.Default.TableChart),
     DATABASE_VIEWER("Database", Icons.Default.Storage),
     TUNING("Tuning", Icons.Default.Tune),
+    SUBSYSTEM_GEN("Subsystem Gen", Icons.Default.Construction),
     PROFILE("Profile", Icons.Default.Person),
     ADMIN("Admin Panel", Icons.Default.SupervisorAccount)
 }

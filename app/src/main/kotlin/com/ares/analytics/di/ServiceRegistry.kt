@@ -128,8 +128,8 @@ class ServiceRegistry {
 
  */
 class KeyboardDriveState {
-    var enabled by androidx.compose.runtime.mutableStateOf(false)
-    var useGamepad by androidx.compose.runtime.mutableStateOf(true)
+    var enabled by androidx.compose.runtime.mutableStateOf(true)
+    var useGamepad by androidx.compose.runtime.mutableStateOf(false)
     
     // Left Stick (W/A/S/D)
     var isWPressed by androidx.compose.runtime.mutableStateOf(false)

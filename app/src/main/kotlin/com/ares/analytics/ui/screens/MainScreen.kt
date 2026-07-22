@@ -176,6 +176,9 @@ fun MainScreen(services: ServiceRegistry) {
             scope = scope
         )
     }
+    val subsystemGeneratorViewModel = remember {
+        SubsystemGeneratorViewModel(scope = scope)
+    }
     val dashboardState by dashboardViewModel.state.collectAsState()
     val primarySessionId = dashboardState.primarySessionId
     val compareSessionId = dashboardState.compareSessionId
@@ -239,30 +242,43 @@ fun MainScreen(services: ServiceRegistry) {
             .focusRequester(focusRequester)
             .focusable()
             .onPreviewKeyEvent { keyEvent ->
-                if (keyEvent.type == KeyEventType.KeyDown) {
-                    val isCtrl = keyEvent.isCtrlPressed
+                val ks = services.keyboardDriveState
+                val isCtrl = keyEvent.isCtrlPressed
+                if (keyEvent.type == KeyEventType.KeyDown && isCtrl) {
                     when (keyEvent.key) {
-                        Key.B -> if (isCtrl) {
+                        Key.B -> {
                             services.processManagerService.runBuild(currentConfig.projectPath, currentConfig.league)
                             mainViewModel.onIntent(MainIntent.SetTerminalOpen(true))
                             true
-                        } else false
-                        Key.D -> if (isCtrl) {
+                        }
+                        Key.D -> {
                             services.processManagerService.runSimulation(currentConfig.projectPath, currentConfig.league, currentConfig.simulatorCommand)
                             mainViewModel.onIntent(MainIntent.SetTerminalOpen(true))
                             true
-                        } else false
-                        Key.K -> if (isCtrl) {
+                        }
+                        Key.K -> {
                             services.processManagerService.killActiveBuild()
                             services.processManagerService.killActiveSim()
                             true
-                        } else false
-                        Key.Escape -> {
-                            if (isTerminalOpen) {
-                                mainViewModel.onIntent(MainIntent.SetTerminalOpen(false))
-                                true
-                            } else false
                         }
+                        else -> false
+                    }
+                } else if (keyEvent.key == Key.Escape && keyEvent.type == KeyEventType.KeyDown && isTerminalOpen) {
+                    mainViewModel.onIntent(MainIntent.SetTerminalOpen(false))
+                    true
+                } else if (ks.enabled && targetSelection == TargetSelection.LOCAL_SIM) {
+                    val isPressed = keyEvent.type == KeyEventType.KeyDown
+                    when (keyEvent.key) {
+                        Key.W -> { ks.isWPressed = isPressed; true }
+                        Key.S -> { ks.isSPressed = isPressed; true }
+                        Key.A -> { ks.isAPressed = isPressed; true }
+                        Key.D -> { ks.isDPressed = isPressed; true }
+                        Key.DirectionUp -> { ks.isWPressed = isPressed; true }
+                        Key.DirectionDown -> { ks.isSPressed = isPressed; true }
+                        Key.DirectionLeft -> { ks.isLeftPressed = isPressed; true }
+                        Key.DirectionRight -> { ks.isRightPressed = isPressed; true }
+                        Key.Q -> { ks.isLeftPressed = isPressed; true }
+                        Key.E -> { ks.isRightPressed = isPressed; true }
                         else -> false
                     }
                 } else false
@@ -615,6 +631,10 @@ fun MainScreen(services: ServiceRegistry) {
                             NavigationTarget.TUNING -> TuningScreen(
                                 viewModel = tuningViewModel,
                                 sysIdViewModel = sysIdViewModel,
+                                projectPath = currentConfig.projectPath ?: ""
+                            )
+                            NavigationTarget.SUBSYSTEM_GEN -> SubsystemGeneratorScreen(
+                                viewModel = subsystemGeneratorViewModel,
                                 projectPath = currentConfig.projectPath ?: ""
                             )
                             NavigationTarget.PROFILE -> ProfileScreen(
