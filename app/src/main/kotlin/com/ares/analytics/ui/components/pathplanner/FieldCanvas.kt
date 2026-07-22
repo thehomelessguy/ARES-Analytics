@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.input.pointer.PointerButton
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
+import com.areslib.math.wrapAngle
 import androidx.compose.ui.input.pointer.isShiftPressed
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalDensity
@@ -587,7 +588,7 @@ fun FieldCanvas(
                                                      val dx = posMeters.x - wp.x
                                                      val dy = posMeters.y - wp.y
                                                      val angle = kotlin.math.atan2(dy, dx) - Math.PI
-                                                     val normalizedAngle = ((angle + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI
+                                                     val normalizedAngle = wrapAngle(angle)
                                                      val mag = kotlin.math.sqrt(dx * dx + dy * dy)
                                                      onWaypointsChanged(currentWaypoints.toMutableList().apply { set(selectedWaypointIndex, wp.copy(headingRad = normalizedAngle, nextControlLength = if (isShiftPressed) snap(mag) else mag, prevControlLength = if (isShiftPressed) snap(mag) else mag)) })
                                                  }

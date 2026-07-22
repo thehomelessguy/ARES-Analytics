@@ -12,6 +12,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ares.analytics.shared.League
 import com.ares.analytics.ui.theme.*
+import com.areslib.pathing.BezierSpline
+import com.areslib.math.geometry.Translation2d
+import com.areslib.math.geometry.Rotation2d
+import com.areslib.math.wrapAngle
 
 /**
 
@@ -295,13 +299,14 @@ fun getPositionOnSpline(pos: Double, waypoints: List<Waypoint>): Waypoint {
     val p1 = waypoints[i + 1]
     val h0 = resolveHeading(waypoints, i)
     val h1 = resolveHeading(waypoints, i + 1)
-    val v0x = kotlin.math.cos(h0) * p0.nextControlLength
-    val v0y = kotlin.math.sin(h0) * p0.nextControlLength
-    val v1x = kotlin.math.cos(h1) * p1.prevControlLength
-    val v1y = kotlin.math.sin(h1) * p1.prevControlLength
-    val px = cubicHermite(p0.x, v0x, p1.x, v1x, t)
-    val py = cubicHermite(p0.y, v0y, p1.y, v1y, t)
-    return Waypoint(px, py)
+    val rot0 = Rotation2d(h0)
+    val rot1 = Rotation2d(h1)
+    val startAnchor = Translation2d(p0.x, p0.y)
+    val startControl = Translation2d(p0.x + rot0.cos * p0.nextControlLength, p0.y + rot0.sin * p0.nextControlLength)
+    val endControl = Translation2d(p1.x - rot1.cos * p1.prevControlLength, p1.y - rot1.sin * p1.prevControlLength)
+    val endAnchor = Translation2d(p1.x, p1.y)
+    val point = BezierSpline.evaluate(startAnchor, startControl, endControl, endAnchor, t)
+    return Waypoint(point.x, point.y)
 }
 
 /**
