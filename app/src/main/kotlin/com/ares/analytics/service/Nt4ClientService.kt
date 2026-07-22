@@ -672,6 +672,57 @@ open class Nt4ClientService(
         publishInputDouble(pubuid, value)
     }
 
+    suspend fun publishString(key: String, value: String) {
+        val pubuid = dynamicPubMutex.withLock {
+            var id = dynamicPubUids[key]
+            if (id == null) {
+                id = nextPubUid++
+                dynamicPubUids[key] = id
+                val announceMsg = "[{\"method\": \"publish\", \"params\": {\"name\": \"$key\", \"pubuid\": $id, \"type\": \"string\"}}]"
+                webSocketSession?.send(Frame.Text(announceMsg))
+            }
+            id
+        }
+        val cleanKey = key.removePrefix("/")
+        val frame = TelemetryFrame(
+            timestampMs = System.currentTimeMillis(),
+            sessionId = _currentSession.value?.sessionId ?: "live-telemetry",
+            key = cleanKey,
+            value = 0.0,
+            stringValue = value
+        )
+        latestValues[cleanKey] = frame
+        _telemetryFlow.emit(frame)
+        
+        publishInputString(pubuid, value)
+    }
+
+    suspend fun publishBoolean(key: String, value: Boolean) {
+        val pubuid = dynamicPubMutex.withLock {
+            var id = dynamicPubUids[key]
+            if (id == null) {
+                id = nextPubUid++
+                dynamicPubUids[key] = id
+                val announceMsg = "[{\"method\": \"publish\", \"params\": {\"name\": \"$key\", \"pubuid\": $id, \"type\": \"boolean\"}}]"
+                webSocketSession?.send(Frame.Text(announceMsg))
+            }
+            id
+        }
+        val cleanKey = key.removePrefix("/")
+        val frame = TelemetryFrame(
+            timestampMs = System.currentTimeMillis(),
+            sessionId = _currentSession.value?.sessionId ?: "live-telemetry",
+            key = cleanKey,
+            value = if (value) 1.0 else 0.0
+        )
+        latestValues[cleanKey] = frame
+        _telemetryFlow.emit(frame)
+        topicFlows[cleanKey]?.value = if (value) 1.0 else 0.0
+        
+        publishInputBoolean(pubuid, value)
+    }
+
+
     private val topicFlows = ConcurrentHashMap<String, MutableStateFlow<Double>>()
 
     /**

@@ -102,31 +102,31 @@ fun FtcDriverStationWidget(
 
     // Match Orchestrator
     LaunchedEffect(matchTimeRemaining) {
-        nt4Client.publishInputDouble(1013, matchTimeRemaining.toDouble())
+        nt4Client.publishDouble("ARES/DriverStation/MatchTimeRemaining", matchTimeRemaining.toDouble())
     }
     
     LaunchedEffect(matchState) {
-        nt4Client.publishInputString(1014, matchState.name)
+        nt4Client.publishString("ARES/DriverStation/MatchState", matchState.name)
         when (matchState) {
             MatchState.AUTO_INIT -> {
                 matchTimeRemaining = 30
                 selectedAutoOpMode?.let {
-                    nt4Client.publishInputString(1012, it)
-                    nt4Client.publishInputString(1011, "INIT")
+                    nt4Client.publishString("ARES/DriverStation/SelectedOpMode", it)
+                    nt4Client.publishString("ARES/DriverStation/Command", "INIT")
                     dsState = DsState.INIT
                 }
                 kotlinx.coroutines.delay(2000) // Wait 2s for init
                 matchState = MatchState.AUTO_RUNNING
             }
             MatchState.AUTO_RUNNING -> {
-                nt4Client.publishInputString(1011, "START")
+                nt4Client.publishString("ARES/DriverStation/Command", "START")
                 dsState = DsState.START
                 while (matchTimeRemaining > 0 && matchState == MatchState.AUTO_RUNNING) {
                     kotlinx.coroutines.delay(1000)
                     matchTimeRemaining--
                 }
                 if (matchState == MatchState.AUTO_RUNNING) {
-                    nt4Client.publishInputString(1011, "STOP")
+                    nt4Client.publishString("ARES/DriverStation/Command", "STOP")
                     dsState = DsState.STOP
                     matchState = MatchState.TRANSITION
                 }
@@ -144,22 +144,22 @@ fun FtcDriverStationWidget(
             MatchState.TELEOP_INIT -> {
                 matchTimeRemaining = 120
                 selectedTeleOpMode?.let {
-                    nt4Client.publishInputString(1012, it)
-                    nt4Client.publishInputString(1011, "INIT")
+                    nt4Client.publishString("ARES/DriverStation/SelectedOpMode", it)
+                    nt4Client.publishString("ARES/DriverStation/Command", "INIT")
                     dsState = DsState.INIT
                 }
                 kotlinx.coroutines.delay(2000) // Wait 2s for init
                 matchState = MatchState.TELEOP_RUNNING
             }
             MatchState.TELEOP_RUNNING -> {
-                nt4Client.publishInputString(1011, "START")
+                nt4Client.publishString("ARES/DriverStation/Command", "START")
                 dsState = DsState.START
                 while (matchTimeRemaining > 0 && matchState == MatchState.TELEOP_RUNNING) {
                     kotlinx.coroutines.delay(1000)
                     matchTimeRemaining--
                 }
                 if (matchState == MatchState.TELEOP_RUNNING) {
-                    nt4Client.publishInputString(1011, "STOP")
+                    nt4Client.publishString("ARES/DriverStation/Command", "STOP")
                     dsState = DsState.STOP
                     matchState = MatchState.IDLE
                 }
@@ -169,6 +169,7 @@ fun FtcDriverStationWidget(
             }
         }
     }
+
 
     // Listen to NT4 topics
     LaunchedEffect(nt4Client) {
@@ -363,7 +364,7 @@ fun FtcDriverStationWidget(
                     matchState = MatchState.IDLE
                     dsState = DsState.STOP
                     scope.launch {
-                        nt4Client.publishInputString(1011, "STOP")
+                        nt4Client.publishString("ARES/DriverStation/Command", "STOP")
                     }
                 }
             },
@@ -390,8 +391,8 @@ fun FtcDriverStationWidget(
                         dsState = DsState.INIT
                         telemetryLines.clear()
                         scope.launch {
-                            nt4Client.publishInputString(1012, selectedOpMode!!)
-                            nt4Client.publishInputString(1011, "INIT")
+                            nt4Client.publishString("ARES/DriverStation/SelectedOpMode", selectedOpMode!!)
+                            nt4Client.publishString("ARES/DriverStation/Command", "INIT")
                         }
                     }
                 },
@@ -411,7 +412,7 @@ fun FtcDriverStationWidget(
                 onClick = {
                     dsState = DsState.START
                     scope.launch {
-                        nt4Client.publishInputString(1011, "START")
+                        nt4Client.publishString("ARES/DriverStation/Command", "START")
                     }
                 },
                 enabled = dsState == DsState.INIT,
@@ -431,12 +432,13 @@ fun FtcDriverStationWidget(
                     dsState = DsState.STOP
                     matchState = MatchState.IDLE
                     scope.launch {
-                        nt4Client.publishInputString(1011, "STOP")
+                        nt4Client.publishString("ARES/DriverStation/Command", "STOP")
                     }
                 },
                 enabled = true, // Always allow emergency stop
                 colors = ButtonDefaults.buttonColors(
                     containerColor = AresError,
+
                     disabledContainerColor = AresSurfaceElevated
                 ),
                 modifier = Modifier.weight(1f).height(48.dp)
