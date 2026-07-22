@@ -38,11 +38,23 @@ class FieldTopicSubscriber(
         }
 
         scope.launch {
+            /**
+             * lastEmit var.
+             */
             var lastEmit = System.currentTimeMillis()
+            /**
+             * currentBuilder var.
+             */
             var currentBuilder = FieldViewerStateBuilder(stateFlow.value)
             
             nt4ClientService.telemetryFlow.collect { frame ->
+                /**
+                 * key val.
+                 */
                 val key = frame.key
+                /**
+                 * value val.
+                 */
                 val value = frame.value
                 
                 when (key) {
@@ -60,6 +72,9 @@ class FieldTopicSubscriber(
                     "Drive/Odom_Y", "pinpoint_y", "pinpoint/y" -> currentBuilder.odomY = value
                     "Drive/Odom_Heading", "pinpoint_heading", "pinpoint/heading" -> currentBuilder.odomHeading = value
                     "Vision/HasTarget" -> {
+                        /**
+                         * hasTarget val.
+                         */
                         val hasTarget = value > 0.5
                         currentBuilder.visionHasTarget = hasTarget
                         if (!hasTarget) {
@@ -76,12 +91,18 @@ class FieldTopicSubscriber(
                 }
 
                 if (key.startsWith("Superstructure/IndicatorLight/")) {
+                    /**
+                     * lightName val.
+                     */
                     val lightName = key.substringAfterLast("/")
                     currentBuilder.indicatorLights[lightName] = value
                 }
 
                 if (key.startsWith("Vision/PoseArray/") || key.startsWith("AdvantageScope/VisionPose/")) {
                     if (currentBuilder.visionHasTarget) {
+                        /**
+                         * idx val.
+                         */
                         val idx = key.substringAfterLast("/").toIntOrNull()
                         if (idx != null) {
                             currentBuilder.visionPoses[idx] = value
@@ -92,10 +113,22 @@ class FieldTopicSubscriber(
                 }
 
                 if (key.startsWith("ARES/GamePieces/")) {
+                    /**
+                     * arrayIdx val.
+                     */
                     val arrayIdx = key.substringAfterLast("/").toIntOrNull()
                     if (arrayIdx != null) {
+                        /**
+                         * pieceIdx val.
+                         */
                         val pieceIdx = arrayIdx / 7
+                        /**
+                         * attributeIdx val.
+                         */
                         val attributeIdx = arrayIdx % 7
+                        /**
+                         * currentPiece val.
+                         */
                         val currentPiece = currentBuilder.liveGamePieces[pieceIdx] ?: GamePiece(
                             id = pieceIdx.toString(),
                             name = "Piece $pieceIdx",
@@ -104,6 +137,9 @@ class FieldTopicSubscriber(
                             type = "Decode (Ball)"
                         )
                         
+                        /**
+                         * updatedPiece val.
+                         */
                         val updatedPiece = when (attributeIdx) {
                             0 -> currentPiece.copy(x = value)
                             1 -> currentPiece.copy(y = value)
@@ -114,6 +150,9 @@ class FieldTopicSubscriber(
                     }
                 }
                 
+                /**
+                 * now val.
+                 */
                 val now = System.currentTimeMillis()
                 if (now - lastEmit > 16) {
                     stateFlow.update { currentBuilder.build(it) }
@@ -134,23 +173,77 @@ class FieldTopicSubscriber(
  * @return expected results
  */
 class FieldViewerStateBuilder(state: FieldViewerState) {
+    /**
+     * trueX var.
+     */
     var trueX: Double = state.trueX
+    /**
+     * trueY var.
+     */
     var trueY: Double = state.trueY
+    /**
+     * trueHeading var.
+     */
     var trueHeading: Double = state.trueHeading
+    /**
+     * simHeading var.
+     */
     var simHeading: Double? = state.simHeading
+    /**
+     * ekfX var.
+     */
     var ekfX: Double? = state.ekfX
+    /**
+     * ekfY var.
+     */
     var ekfY: Double? = state.ekfY
+    /**
+     * ekfHeading var.
+     */
     var ekfHeading: Double? = state.ekfHeading
+    /**
+     * odomX var.
+     */
     var odomX: Double? = state.odomX
+    /**
+     * odomY var.
+     */
     var odomY: Double? = state.odomY
+    /**
+     * odomHeading var.
+     */
     var odomHeading: Double? = state.odomHeading
+    /**
+     * visionX var.
+     */
     var visionX: Double? = state.visionX
+    /**
+     * visionY var.
+     */
     var visionY: Double? = state.visionY
+    /**
+     * visionHeading var.
+     */
     var visionHeading: Double? = state.visionHeading
+    /**
+     * visionPoses var.
+     */
     var visionPoses: MutableMap<Int, Double> = state.visionPoses.toMutableMap()
+    /**
+     * visionHasTarget var.
+     */
     var visionHasTarget: Boolean = state.visionHasTarget
+    /**
+     * liveGamePieces var.
+     */
     var liveGamePieces: MutableMap<Int, GamePiece> = state.liveGamePieces.toMutableMap()
+    /**
+     * isRedAlliance var.
+     */
     var isRedAlliance: Boolean = state.isRedAlliance
+    /**
+     * indicatorLights var.
+     */
     var indicatorLights: MutableMap<String, Double> = state.indicatorLights.toMutableMap()
 
     /**

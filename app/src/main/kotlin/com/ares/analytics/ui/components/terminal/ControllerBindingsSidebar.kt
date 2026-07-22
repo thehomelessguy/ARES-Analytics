@@ -98,8 +98,17 @@ fun ControllerBindingsSidebar(
                     )
                 }
             } else {
+                /**
+                 * uniqueFiles val.
+                 */
                 val uniqueFiles = bindings.map { it.sourceFile }.distinct().sorted()
+                /**
+                 * selectedOpMode var.
+                 */
                 var selectedOpMode by remember(bindings) { mutableStateOf(uniqueFiles.firstOrNull()) }
+                /**
+                 * dropdownExpanded var.
+                 */
                 var dropdownExpanded by remember { mutableStateOf(false) }
 
                 if (uniqueFiles.size > 1) {
@@ -129,8 +138,17 @@ fun ControllerBindingsSidebar(
                     }
                 }
 
+                /**
+                 * activeBindings val.
+                 */
                 val activeBindings = bindings.filter { it.sourceFile == selectedOpMode }
+                /**
+                 * gamepad1Bindings val.
+                 */
                 val gamepad1Bindings = activeBindings.filter { it.gamepadId == "gamepad1" || !it.gamepadId.contains("2") && !it.gamepadId.contains("operator") }
+                /**
+                 * gamepad2Bindings val.
+                 */
                 val gamepad2Bindings = activeBindings.filter { it.gamepadId == "gamepad2" || it.gamepadId.contains("2") || it.gamepadId.contains("operator") }
 
                 Column(
@@ -193,6 +211,9 @@ fun ControllerVisualizer(
                 .padding(16.dp),
             contentAlignment = Alignment.Center
         ) {
+            /**
+             * resourceName val.
+             */
             val resourceName = if (league == League.FRC) "drawable/frc_controller.png" else "drawable/ftc_controller.png"
             
             Image(
@@ -204,6 +225,9 @@ fun ControllerVisualizer(
             
             // Map buttons to approx screen coordinates (offset from center)
             bindings.forEach { binding ->
+                /**
+                 * offset val.
+                 */
                 val offset = getButtonOffset(binding.button, league)
                 if (offset != null) {
                     Box(
@@ -258,8 +282,14 @@ fun BindingTag(binding: ControllerBinding) {
 
 // Approximate offsets (X, Y) from the center of the controller image
 private fun getButtonOffset(button: String, league: League, scale: Float = 1.3f): Pair<Dp, Dp>? {
+    /**
+     * isXbox val.
+     */
     val isXbox = league == League.FRC
     
+    /**
+     * baseOffset val.
+     */
     val baseOffset = when (button.lowercase()) {
         "a", "cross" -> Pair(180.dp, 60.dp)
         "b", "circle" -> Pair(240.dp, 0.dp)
@@ -314,6 +344,9 @@ fun KeyboardBindingsList() {
             fontSize = 18.sp
         )
 
+        /**
+         * keys val.
+         */
         val keys = listOf(
             "Left Stick" to "W / A / S / D",
             "Right Stick" to "Arrow Keys",

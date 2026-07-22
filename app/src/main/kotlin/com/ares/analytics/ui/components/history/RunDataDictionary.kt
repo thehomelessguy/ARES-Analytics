@@ -41,6 +41,9 @@ object RunDataDictionary {
      * @return expected results
      */
     fun getDiagnosticValue(diag: Map<String, Double>, canonicalMotor: String, param: String): Double? {
+        /**
+         * namesToCheck val.
+         */
         val namesToCheck = when (canonicalMotor) {
             "rl" -> listOf("rl", "bl")
             "rr" -> listOf("rr", "br")
@@ -49,6 +52,9 @@ object RunDataDictionary {
             else -> listOf(canonicalMotor)
         }
         for (name in namesToCheck) {
+            /**
+             * value val.
+             */
             val value = diag["Diagnostics/SysId/Motors/$name/$param"]
             if (value != null) return value
         }
@@ -65,6 +71,9 @@ object RunDataDictionary {
      */
     fun getMotorCurrentAverage(summary: SessionSummary?, canonicalMotor: String): Double? {
         if (summary == null) return null
+        /**
+         * namesToCheck val.
+         */
         val namesToCheck = when (canonicalMotor) {
             "rl" -> listOf("rl", "bl")
             "rr" -> listOf("rr", "br")
@@ -73,6 +82,9 @@ object RunDataDictionary {
             else -> listOf(canonicalMotor)
         }
         for (name in namesToCheck) {
+            /**
+             * value val.
+             */
             val value = summary.motorCurrentAverages[name]
             if (value != null) return value
         }

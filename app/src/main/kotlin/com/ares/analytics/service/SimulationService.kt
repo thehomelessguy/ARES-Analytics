@@ -31,6 +31,9 @@ data class SimPolygon(val vertices: List<SimPoint>) {
      * @return expected results
      */
     fun getEdges(): List<Pair<SimPoint, SimPoint>> {
+        /**
+         * edges val.
+         */
         val edges = mutableListOf<Pair<SimPoint, SimPoint>>()
         for (i in vertices.indices) {
             edges.add(Pair(vertices[i], vertices[(i + 1) % vertices.size]))
@@ -113,7 +116,13 @@ class SimulationService {
         tagY: Double,
         noiseStdDev: Double = 0.02 // 2 cm standard deviation
     ): SyntheticVisionResult? {
+        /**
+         * cam val.
+         */
         val cam = SimPoint(robotX, robotY)
+        /**
+         * tag val.
+         */
         val tag = SimPoint(tagX, tagY)
 
         if (!hasLineOfSight(cam, tag)) {
@@ -121,14 +130,29 @@ class SimulationService {
         }
 
         // Relative distance and angle
+        /**
+         * dx val.
+         */
         val dx = tag.x - robotX
+        /**
+         * dy val.
+         */
         val dy = tag.y - robotY
+        /**
+         * dist val.
+         */
         val dist = sqrt(dx * dx + dy * dy)
 
         // Only visible if within 3.0 meters and within 60 degrees camera FOV
         if (dist > 3.0) return null
 
+        /**
+         * angleToTag val.
+         */
         val angleToTag = atan2(dy, dx)
+        /**
+         * relativeAngle val.
+         */
         val relativeAngle = normalizeAngle(angleToTag - robotHeadingRad)
 
         if (abs(relativeAngle) > Math.toRadians(30.0)) {
@@ -136,10 +160,19 @@ class SimulationService {
         }
 
         // Add Gaussian noise
+        /**
+         * noisyDist val.
+         */
         val noisyDist = dist + random.nextGaussian() * noiseStdDev
+        /**
+         * noisyAngle val.
+         */
         val noisyAngle = relativeAngle + random.nextGaussian() * (noiseStdDev * 0.1)
 
         // Simulate 40ms capture latency
+        /**
+         * latencyMs val.
+         */
         val latencyMs = 40L
 
         return SyntheticVisionResult(
@@ -150,9 +183,21 @@ class SimulationService {
     }
 
     private fun segmentsIntersect(a: SimPoint, b: SimPoint, c: SimPoint, d: SimPoint): Boolean {
+        /**
+         * d1 val.
+         */
         val d1 = direction(c, d, a)
+        /**
+         * d2 val.
+         */
         val d2 = direction(c, d, b)
+        /**
+         * d3 val.
+         */
         val d3 = direction(a, b, c)
+        /**
+         * d4 val.
+         */
         val d4 = direction(a, b, d)
 
         if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
@@ -179,6 +224,9 @@ class SimulationService {
     }
 
     private fun normalizeAngle(angle: Double): Double {
+        /**
+         * a var.
+         */
         var a = angle
         while (a > Math.PI) a -= 2 * Math.PI
         while (a < -Math.PI) a += 2 * Math.PI
@@ -195,7 +243,16 @@ class SimulationService {
  * @return expected results
  */
 data class SyntheticVisionResult(
+    /**
+     * distance val.
+     */
     val distance: Double,
+    /**
+     * relativeAngleRad val.
+     */
     val relativeAngleRad: Double,
+    /**
+     * latencyMs val.
+     */
     val latencyMs: Long
 )

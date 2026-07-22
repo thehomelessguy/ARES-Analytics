@@ -9,14 +9,32 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
+/**
+ * ReplayEngineServiceTest class.
+ */
 class ReplayEngineServiceTest {
 
     @Test
+    /**
+     * testReplayLifecycle fun.
+     */
     fun testReplayLifecycle() = runTest {
+        /**
+         * tempDb val.
+         */
         val tempDb = File.createTempFile("replay_db_test", ".db").apply { deleteOnExit() }
+        /**
+         * databaseService val.
+         */
         val databaseService = DatabaseService(tempDb.absolutePath)
+        /**
+         * replayEngine val.
+         */
         val replayEngine = ReplayEngineService(databaseService)
 
+        /**
+         * session val.
+         */
         val session = Session(
             sessionId = "replay-session",
             teamId = "23247",
@@ -26,6 +44,9 @@ class ReplayEngineServiceTest {
         )
         databaseService.insertSession(session)
 
+        /**
+         * frames val.
+         */
         val frames = listOf(
             TelemetryFrame(1000L, session.sessionId, "/Test/Val", 1.0),
             TelemetryFrame(1100L, session.sessionId, "/Test/Val", 2.0),

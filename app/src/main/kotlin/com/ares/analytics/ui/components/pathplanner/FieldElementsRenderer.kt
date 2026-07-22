@@ -41,11 +41,29 @@ fun DrawScope.drawFieldBackground(
     h: Float
 ) {
     activeImage?.let { img ->
+        /**
+         * cropL val.
+         */
         val cropL = (activeConfig.cropLeft * img.width).toInt().coerceIn(0, img.width)
+        /**
+         * cropR val.
+         */
         val cropR = (activeConfig.cropRight * img.width).toInt().coerceIn(cropL, img.width)
+        /**
+         * cropT val.
+         */
         val cropT = (activeConfig.cropTop * img.height).toInt().coerceIn(0, img.height)
+        /**
+         * cropB val.
+         */
         val cropB = (activeConfig.cropBottom * img.height).toInt().coerceIn(cropT, img.height)
+        /**
+         * srcW val.
+         */
         val srcW = maxOf(1, cropR - cropL)
+        /**
+         * srcH val.
+         */
         val srcH = maxOf(1, cropB - cropT)
 
         if (activeConfig.rotationDegrees != 0.0) {
@@ -89,19 +107,43 @@ fun DrawScope.drawFieldGrid(
     league: League,
     showCostmap: Boolean = false
 ) {
+    /**
+     * stepX val.
+     */
     val stepX = if (league == League.FTC) fieldWidthM / 6.0 else 1.0
+    /**
+     * stepY val.
+     */
     val stepY = if (league == League.FTC) fieldHeightM / 6.0 else 1.0
     
+    /**
+     * curX var.
+     */
     var curX = if (league == League.FTC) -fieldWidthM/2 else 0.0
     while (curX <= fieldWidthM/2 + 0.001) {
+        /**
+         * wp val.
+         */
         val wp = Waypoint(curX, 0.0)
+        /**
+         * offset val.
+         */
         val offset = getCanvasOffsetBase(wp, w, h, fieldWidthM, fieldHeightM, league)
         drawLine(color = AresBorder, start = Offset(offset.x, 0f), end = Offset(offset.x, h), strokeWidth = 1f)
         curX += stepX
     }
+    /**
+     * curY var.
+     */
     var curY = if (league == League.FTC) -fieldHeightM/2 else 0.0
     while (curY <= fieldHeightM/2 + 0.001) {
+        /**
+         * wp val.
+         */
         val wp = Waypoint(0.0, curY)
+        /**
+         * offset val.
+         */
         val offset = getCanvasOffsetBase(wp, w, h, fieldWidthM, fieldHeightM, league)
         drawLine(color = AresBorder, start = Offset(0f, offset.y), end = Offset(w, offset.y), strokeWidth = 1f)
         curY += stepY
@@ -109,10 +151,25 @@ fun DrawScope.drawFieldGrid(
     drawRect(color = AresBorderFocused, style = Stroke(width = 3f))
 
     if (showCostmap) {
+        /**
+         * robotRadius val.
+         */
         val robotRadius = if (league == League.FTC) 0.25 else 0.45
+        /**
+         * robotRadiusPxX val.
+         */
         val robotRadiusPxX = (robotRadius / fieldWidthM) * w
+        /**
+         * robotRadiusPxY val.
+         */
         val robotRadiusPxY = (robotRadius / fieldHeightM) * h
+        /**
+         * insetOffset val.
+         */
         val insetOffset = Offset(robotRadiusPxX.toFloat(), robotRadiusPxY.toFloat())
+        /**
+         * insetSize val.
+         */
         val insetSize = Size((w - 2.0 * robotRadiusPxX).toFloat(), (h - 2.0 * robotRadiusPxY).toFloat())
         
         drawRect(
@@ -141,26 +198,59 @@ fun DrawScope.drawFtcAllianceStations(
     activeConfig: FieldImageConfig
 ) {
     if (league != League.FTC) return
+    /**
+     * strokeW val.
+     */
     val strokeW = 12f
+    /**
+     * redColor val.
+     */
     val redColor = AresRed.copy(alpha = 0.7f)
+    /**
+     * blueColor val.
+     */
     val blueColor = AresCyan.copy(alpha = 0.7f)
     
     when (activeConfig.ftcCoordinateSystem) {
         com.ares.analytics.shared.FTCCoordinateSystem.SQUARE -> {
+            /**
+             * redStart val.
+             */
             val redStart = getCanvasOffsetBase(Waypoint(-fieldWidthM/2, -fieldHeightM/2), w, h, fieldWidthM, fieldHeightM, league)
+            /**
+             * redEnd val.
+             */
             val redEnd = getCanvasOffsetBase(Waypoint(fieldWidthM/2, -fieldHeightM/2), w, h, fieldWidthM, fieldHeightM, league)
             drawLine(redColor, start = redStart, end = redEnd, strokeWidth = strokeW)
             
+            /**
+             * blueStart val.
+             */
             val blueStart = getCanvasOffsetBase(Waypoint(-fieldWidthM/2, fieldHeightM/2), w, h, fieldWidthM, fieldHeightM, league)
+            /**
+             * blueEnd val.
+             */
             val blueEnd = getCanvasOffsetBase(Waypoint(fieldWidthM/2, fieldHeightM/2), w, h, fieldWidthM, fieldHeightM, league)
             drawLine(blueColor, start = blueStart, end = blueEnd, strokeWidth = strokeW)
         }
         com.ares.analytics.shared.FTCCoordinateSystem.DIAMOND -> {
+            /**
+             * redStart val.
+             */
             val redStart = getCanvasOffsetBase(Waypoint(-fieldWidthM/2, -fieldHeightM/2), w, h, fieldWidthM, fieldHeightM, league)
+            /**
+             * redEnd val.
+             */
             val redEnd = getCanvasOffsetBase(Waypoint(fieldWidthM/2, -fieldHeightM/2), w, h, fieldWidthM, fieldHeightM, league)
             drawLine(redColor, start = redStart, end = redEnd, strokeWidth = strokeW)
             
+            /**
+             * blueStart val.
+             */
             val blueStart = getCanvasOffsetBase(Waypoint(fieldWidthM/2, -fieldHeightM/2), w, h, fieldWidthM, fieldHeightM, league)
+            /**
+             * blueEnd val.
+             */
             val blueEnd = getCanvasOffsetBase(Waypoint(fieldWidthM/2, fieldHeightM/2), w, h, fieldWidthM, fieldHeightM, league)
             drawLine(blueColor, start = blueStart, end = blueEnd, strokeWidth = strokeW)
         }
@@ -185,12 +275,27 @@ fun DrawScope.drawCustomObstacles(
     league: League,
     showCostmap: Boolean = false
 ) {
+    /**
+     * robotRadius val.
+     */
     val robotRadius = if (league == League.FTC) 0.25 else 0.45
+    /**
+     * robotRadiusPx val.
+     */
     val robotRadiusPx = (robotRadius / fieldWidthM) * w
 
     activeObstacles.forEach { obs ->
+        /**
+         * baseColor val.
+         */
         val baseColor = try {
+            /**
+             * clean val.
+             */
             val clean = obs.colorHex.removePrefix("#")
+            /**
+             * colorInt val.
+             */
             val colorInt = clean.toLong(16)
             if (clean.length == 6) {
                 Color(0xFF000000 or colorInt)
@@ -200,17 +305,38 @@ fun DrawScope.drawCustomObstacles(
         } catch (e: Exception) {
             AresRed
         }
+        /**
+         * fillColor val.
+         */
         val fillColor = baseColor.copy(alpha = 0.3f)
+        /**
+         * costmapFillColor val.
+         */
         val costmapFillColor = baseColor.copy(alpha = 0.08f)
+        /**
+         * costmapStrokeColor val.
+         */
         val costmapStrokeColor = baseColor.copy(alpha = 0.25f)
 
         when (obs) {
             is Obstacle.Circle -> {
+                /**
+                 * centerWp val.
+                 */
                 val centerWp = Waypoint(obs.centerX, obs.centerY)
+                /**
+                 * centerOffset val.
+                 */
                 val centerOffset = getCanvasOffsetBase(centerWp, w, h, fieldWidthM, fieldHeightM, league)
+                /**
+                 * radiusPx val.
+                 */
                 val radiusPx = (obs.radius / fieldWidthM) * w
                 
                 if (showCostmap) {
+                    /**
+                     * inflatedRadius val.
+                     */
                     val inflatedRadius = radiusPx + robotRadiusPx
                     drawCircle(color = costmapFillColor, radius = inflatedRadius.toFloat(), center = centerOffset)
                     drawCircle(
@@ -225,10 +351,22 @@ fun DrawScope.drawCustomObstacles(
                 drawCircle(color = baseColor, radius = radiusPx.toFloat(), center = centerOffset, style = Stroke(width = 2f))
             }
             is Obstacle.Rectangle -> {
+                /**
+                 * centerWp val.
+                 */
                 val centerWp = Waypoint(obs.centerX, obs.centerY)
+                /**
+                 * centerOffset val.
+                 */
                 val centerOffset = getCanvasOffsetBase(centerWp, w, h, fieldWidthM, fieldHeightM, league)
                 
+                /**
+                 * rw val.
+                 */
                 val rw: Double
+                /**
+                 * rh val.
+                 */
                 val rh: Double
                 if (league == League.FTC) {
                     rw = (obs.height / fieldWidthM) * w
@@ -239,14 +377,29 @@ fun DrawScope.drawCustomObstacles(
                 }
                 
                 if (showCostmap) {
+                    /**
+                     * inflatedRw val.
+                     */
                     val inflatedRw = rw + 2.0 * robotRadiusPx
+                    /**
+                     * inflatedRh val.
+                     */
                     val inflatedRh = rh + 2.0 * robotRadiusPx
                     
                     drawContext.canvas.save()
+                    /**
+                     * drawRot val.
+                     */
                     val drawRot = -obs.rotation.toFloat() 
                     drawContext.transform.rotate(drawRot, pivot = centerOffset)
                     
+                    /**
+                     * rectOffset val.
+                     */
                     val rectOffset = Offset((centerOffset.x - inflatedRw / 2).toFloat(), (centerOffset.y - inflatedRh / 2).toFloat())
+                    /**
+                     * roundedCorner val.
+                     */
                     val roundedCorner = androidx.compose.ui.geometry.CornerRadius(robotRadiusPx.toFloat(), robotRadiusPx.toFloat())
                     
                     drawRoundRect(
@@ -266,9 +419,15 @@ fun DrawScope.drawCustomObstacles(
                 }
 
                 drawContext.canvas.save()
+                /**
+                 * drawRot val.
+                 */
                 val drawRot = -obs.rotation.toFloat() 
                 drawContext.transform.rotate(drawRot, pivot = centerOffset)
                 
+                /**
+                 * rectOffset val.
+                 */
                 val rectOffset = Offset((centerOffset.x - rw / 2).toFloat(), (centerOffset.y - rh / 2).toFloat())
                 drawRect(color = fillColor, topLeft = rectOffset, size = Size(rw.toFloat(), rh.toFloat()))
                 drawRect(color = baseColor, topLeft = rectOffset, size = Size(rw.toFloat(), rh.toFloat()), style = Stroke(width = 2f))
@@ -276,10 +435,19 @@ fun DrawScope.drawCustomObstacles(
             }
             is Obstacle.Polygon -> {
                 if (obs.vertices.isNotEmpty()) {
+                    /**
+                     * path val.
+                     */
                     val path = Path()
+                    /**
+                     * start val.
+                     */
                     val start = getCanvasOffsetBase(Waypoint(obs.vertices.first().x, obs.vertices.first().y), w, h, fieldWidthM, fieldHeightM, league)
                     path.moveTo(start.x, start.y)
                     obs.vertices.drop(1).forEach { pt ->
+                        /**
+                         * offset val.
+                         */
                         val offset = getCanvasOffsetBase(Waypoint(pt.x, pt.y), w, h, fieldWidthM, fieldHeightM, league)
                         path.lineTo(offset.x, offset.y)
                     }
@@ -332,10 +500,19 @@ fun DrawScope.drawGamePieces(
     league: League
 ) {
     activeGamePieces.forEach { gp ->
+        /**
+         * gpOffset val.
+         */
         val gpOffset = getCanvasOffsetBase(Waypoint(gp.x, gp.y), w, h, fieldWidthM, fieldHeightM, league)
         when (gp.type) {
             "Note", "High Note" -> {
+                /**
+                 * outerRadiusPx val.
+                 */
                 val outerRadiusPx = (0.175 / fieldWidthM) * w
+                /**
+                 * innerRadiusPx val.
+                 */
                 val innerRadiusPx = (0.07 / fieldWidthM) * w
                 drawCircle(color = AresAmber.copy(alpha = 0.4f), radius = outerRadiusPx.toFloat(), center = gpOffset)
                 drawCircle(color = AresAmber, radius = outerRadiusPx.toFloat(), center = gpOffset, style = Stroke(width = 3f))
@@ -343,33 +520,69 @@ fun DrawScope.drawGamePieces(
                 drawCircle(color = AresAmber, radius = innerRadiusPx.toFloat(), center = gpOffset, style = Stroke(width = 1.5f))
             }
             "Sample (Yellow)" -> {
+                /**
+                 * rw val.
+                 */
                 val rw = (0.15 / fieldWidthM) * w
+                /**
+                 * rh val.
+                 */
                 val rh = (0.05 / fieldHeightM) * h
+                /**
+                 * rectOffset val.
+                 */
                 val rectOffset = Offset((gpOffset.x - rw/2).toFloat(), (gpOffset.y - rh/2).toFloat())
                 drawRect(color = Color.Yellow.copy(alpha = 0.6f), topLeft = rectOffset, size = Size(rw.toFloat(), rh.toFloat()))
                 drawRect(color = Color.Yellow, topLeft = rectOffset, size = Size(rw.toFloat(), rh.toFloat()), style = Stroke(width = 2f))
             }
             "Sample (Red)" -> {
+                /**
+                 * rw val.
+                 */
                 val rw = (0.15 / fieldWidthM) * w
+                /**
+                 * rh val.
+                 */
                 val rh = (0.05 / fieldHeightM) * h
+                /**
+                 * rectOffset val.
+                 */
                 val rectOffset = Offset((gpOffset.x - rw/2).toFloat(), (gpOffset.y - rh/2).toFloat())
                 drawRect(color = AresRed.copy(alpha = 0.6f), topLeft = rectOffset, size = Size(rw.toFloat(), rh.toFloat()))
                 drawRect(color = AresRed, topLeft = rectOffset, size = Size(rw.toFloat(), rh.toFloat()), style = Stroke(width = 2f))
             }
             "Sample (Blue)" -> {
+                /**
+                 * rw val.
+                 */
                 val rw = (0.15 / fieldWidthM) * w
+                /**
+                 * rh val.
+                 */
                 val rh = (0.05 / fieldHeightM) * h
+                /**
+                 * rectOffset val.
+                 */
                 val rectOffset = Offset((gpOffset.x - rw/2).toFloat(), (gpOffset.y - rh/2).toFloat())
                 drawRect(color = AresCyan.copy(alpha = 0.6f), topLeft = rectOffset, size = Size(rw.toFloat(), rh.toFloat()))
                 drawRect(color = AresCyan, topLeft = rectOffset, size = Size(rw.toFloat(), rh.toFloat()), style = Stroke(width = 2f))
             }
             "Decode (Ball)" -> {
+                /**
+                 * radiusPx val.
+                 */
                 val radiusPx = (0.0635 / fieldWidthM) * w
                 drawCircle(color = Color(0xFF9C27B0).copy(alpha = 0.6f), radius = radiusPx.toFloat(), center = gpOffset)
                 drawCircle(color = Color(0xFF9C27B0), radius = radiusPx.toFloat(), center = gpOffset, style = Stroke(width = 2f))
             }
             else -> {
+                /**
+                 * sizePx val.
+                 */
                 val sizePx = (0.12 / fieldWidthM) * w
+                /**
+                 * path val.
+                 */
                 val path = Path().apply {
                     moveTo(gpOffset.x, (gpOffset.y - sizePx).toFloat())
                     lineTo((gpOffset.x + sizePx).toFloat(), gpOffset.y)
@@ -402,24 +615,54 @@ fun DrawScope.drawAprilTags(
     textMeasurer: TextMeasurer
 ) {
     activeAprilTags.forEach { at ->
+        /**
+         * atOffset val.
+         */
         val atOffset = getCanvasOffsetBase(Waypoint(at.x, at.y), w, h, fieldWidthM, fieldHeightM, league)
+        /**
+         * rw val.
+         */
         val rw = (0.15 / fieldWidthM) * w
+        /**
+         * rh val.
+         */
         val rh = (0.15 / fieldHeightM) * h
         
         drawContext.canvas.save()
         drawContext.transform.rotate(degrees = -at.yawDegrees.toFloat(), pivot = atOffset)
         
+        /**
+         * rectOffset val.
+         */
         val rectOffset = Offset((atOffset.x - rw/2).toFloat(), (atOffset.y - rh/2).toFloat())
         drawRect(color = Color.White, topLeft = rectOffset, size = Size(rw.toFloat(), rh.toFloat()))
         
+        /**
+         * innerOffset val.
+         */
         val innerOffset = Offset((atOffset.x - rw/2 + 2).toFloat(), (atOffset.y - rh/2 + 2).toFloat())
+        /**
+         * innerW val.
+         */
         val innerW = rw - 4
+        /**
+         * innerH val.
+         */
         val innerH = rh - 4
         drawRect(color = Color.Black, topLeft = innerOffset, size = Size(innerW.toFloat(), innerH.toFloat()))
         
         // Stylized AprilTag inner pattern
+        /**
+         * blockW val.
+         */
         val blockW = innerW / 6.0
+        /**
+         * blockH val.
+         */
         val blockH = innerH / 6.0
+        /**
+         * activeBlocks val.
+         */
         val activeBlocks = listOf(
             Pair(1, 1), Pair(2, 1), Pair(4, 1),
             Pair(1, 2), Pair(3, 2),
@@ -440,13 +683,25 @@ fun DrawScope.drawAprilTags(
         drawContext.canvas.restore()
         
         // Display Tag ID Label
+        /**
+         * textStyle val.
+         */
         val textStyle = TextStyle(
             color = Color.White,
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold
         )
+        /**
+         * labelText val.
+         */
         val labelText = "#${at.tagId}"
+        /**
+         * textLayout val.
+         */
         val textLayout = textMeasurer.measure(labelText, textStyle)
+        /**
+         * labelOffset val.
+         */
         val labelOffset = Offset(
             (atOffset.x - textLayout.size.width / 2f).toFloat(),
             (atOffset.y - rh/2 - textLayout.size.height - 4).toFloat()
@@ -485,10 +740,19 @@ fun DrawScope.drawActivePolygonPoints(
     league: League
 ) {
     if (currentPolygonPoints.isNotEmpty()) {
+        /**
+         * path val.
+         */
         val path = Path()
+        /**
+         * start val.
+         */
         val start = getCanvasOffsetBase(Waypoint(currentPolygonPoints.first().x, currentPolygonPoints.first().y), w, h, fieldWidthM, fieldHeightM, league)
         path.moveTo(start.x, start.y)
         currentPolygonPoints.drop(1).forEach { pt ->
+            /**
+             * offset val.
+             */
             val offset = getCanvasOffsetBase(Waypoint(pt.x, pt.y), w, h, fieldWidthM, fieldHeightM, league)
             path.lineTo(offset.x, offset.y)
         }
@@ -516,18 +780,39 @@ fun DrawScope.drawFieldWaypoints(
     textMeasurer: TextMeasurer
 ) {
     fieldWaypoints.forEach { wp ->
+        /**
+         * offset val.
+         */
         val offset = getCanvasOffsetBase(Waypoint(wp.x, wp.y), w, h, fieldWidthM, fieldHeightM, league)
+        /**
+         * radius val.
+         */
         val radius = 10.dp.toPx()
+        /**
+         * isSelected val.
+         */
         val isSelected = wp.id == selectedId
+        /**
+         * baseColor val.
+         */
         val baseColor = if (isSelected) AresCyan else Color(0xFF00E676) // Cyan when selected, neon green when not
 
         // Waypoint name label
+        /**
+         * textStyle val.
+         */
         val textStyle = TextStyle(
             color = baseColor,
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold
         )
+        /**
+         * textLayout val.
+         */
         val textLayout = textMeasurer.measure(wp.name, textStyle)
+        /**
+         * textOffset val.
+         */
         val textOffset = Offset(
             (offset.x + radius + 6).toFloat(),
             (offset.y - textLayout.size.height / 2f).toFloat()
@@ -566,10 +851,25 @@ fun DrawScope.drawFieldWaypoints(
         )
 
         // Draw heading line and arrow pointer
+        /**
+         * angleRad val.
+         */
         val angleRad = Math.toRadians(-wp.headingDegrees - 90.0)
+        /**
+         * cosA val.
+         */
         val cosA = kotlin.math.cos(angleRad).toFloat()
+        /**
+         * sinA val.
+         */
         val sinA = kotlin.math.sin(angleRad).toFloat()
+        /**
+         * pointerLen val.
+         */
         val pointerLen = 22.dp.toPx()
+        /**
+         * pointerEnd val.
+         */
         val pointerEnd = Offset(
             offset.x + pointerLen * cosA,
             offset.y + pointerLen * sinA
@@ -581,12 +881,33 @@ fun DrawScope.drawFieldWaypoints(
             strokeWidth = 2.dp.toPx()
         )
         // Draw small arrowhead
+        /**
+         * arrowSize val.
+         */
         val arrowSize = 6.dp.toPx()
+        /**
+         * arrowAngle1 val.
+         */
         val arrowAngle1 = angleRad + Math.toRadians(145.0)
+        /**
+         * arrowAngle2 val.
+         */
         val arrowAngle2 = angleRad - Math.toRadians(145.0)
+        /**
+         * cosA1 val.
+         */
         val cosA1 = kotlin.math.cos(arrowAngle1).toFloat()
+        /**
+         * sinA1 val.
+         */
         val sinA1 = kotlin.math.sin(arrowAngle1).toFloat()
+        /**
+         * cosA2 val.
+         */
         val cosA2 = kotlin.math.cos(arrowAngle2).toFloat()
+        /**
+         * sinA2 val.
+         */
         val sinA2 = kotlin.math.sin(arrowAngle2).toFloat()
         drawLine(
             color = baseColor,

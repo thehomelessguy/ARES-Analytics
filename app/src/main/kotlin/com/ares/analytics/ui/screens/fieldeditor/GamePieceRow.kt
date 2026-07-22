@@ -55,11 +55,17 @@ fun GamePieceRow(
                 textStyle = MaterialTheme.typography.bodySmall.copy(color = AresTextPrimary)
             )
             Spacer(modifier = Modifier.height(4.dp))
+            /**
+             * types val.
+             */
             val types = if (league == League.FTC) {
                 listOf("Sample (Yellow)", "Sample (Red)", "Sample (Blue)", "Specimen")
             } else {
                 listOf("Note", "High Note")
             }
+            /**
+             * expanded var.
+             */
             var expanded by remember { mutableStateOf(false) }
             Box {
                 Text(
@@ -86,6 +92,9 @@ fun GamePieceRow(
             }
             Spacer(modifier = Modifier.height(4.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                /**
+                 * gpXText var.
+                 */
                 var gpXText by remember(gp.id, gp.x) { mutableStateOf(gp.x.toString()) }
                 AresTextField(
                     value = gpXText,
@@ -98,6 +107,9 @@ fun GamePieceRow(
                     modifier = Modifier.weight(1f),
                     textStyle = MaterialTheme.typography.bodySmall.copy(color = AresTextPrimary)
                 )
+                /**
+                 * gpYText var.
+                 */
                 var gpYText by remember(gp.id, gp.y) { mutableStateOf(gp.y.toString()) }
                 AresTextField(
                     value = gpYText,

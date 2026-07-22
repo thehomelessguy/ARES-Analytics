@@ -44,6 +44,9 @@ fun AprilTagRow(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                /**
+                 * tagIdText var.
+                 */
                 var tagIdText by remember(at.id, at.tagId) { mutableStateOf(at.tagId.toString()) }
                 AresTextField(
                     value = tagIdText,
@@ -57,6 +60,9 @@ fun AprilTagRow(
                     textStyle = MaterialTheme.typography.bodySmall.copy(color = AresTextPrimary)
                 )
 
+                /**
+                 * tagZText var.
+                 */
                 var tagZText by remember(at.id, at.z) { mutableStateOf(at.z.toString()) }
                 AresTextField(
                     value = tagZText,
@@ -70,6 +76,9 @@ fun AprilTagRow(
                     textStyle = MaterialTheme.typography.bodySmall.copy(color = AresTextPrimary)
                 )
 
+                /**
+                 * tagYawText var.
+                 */
                 var tagYawText by remember(at.id, at.yawDegrees) { mutableStateOf(at.yawDegrees.toString()) }
                 AresTextField(
                     value = tagYawText,
@@ -85,6 +94,9 @@ fun AprilTagRow(
             }
             Spacer(modifier = Modifier.height(4.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                /**
+                 * tagXText var.
+                 */
                 var tagXText by remember(at.id, at.x) { mutableStateOf(at.x.toString()) }
                 AresTextField(
                     value = tagXText,
@@ -97,6 +109,9 @@ fun AprilTagRow(
                     modifier = Modifier.weight(1f),
                     textStyle = MaterialTheme.typography.bodySmall.copy(color = AresTextPrimary)
                 )
+                /**
+                 * tagYText var.
+                 */
                 var tagYText by remember(at.id, at.y) { mutableStateOf(at.y.toString()) }
                 AresTextField(
                     value = tagYText,

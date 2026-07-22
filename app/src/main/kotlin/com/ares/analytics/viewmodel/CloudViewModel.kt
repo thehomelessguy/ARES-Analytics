@@ -39,11 +39,29 @@ import java.io.File
  * @return expected results
  */
 data class RobotLogFileInfo(
+    /**
+     * name val.
+     */
     val name: String,
+    /**
+     * sizeBytes val.
+     */
     val sizeBytes: Long,
+    /**
+     * lastModifiedMs val.
+     */
     val lastModifiedMs: Long,
+    /**
+     * lastModifiedFmt val.
+     */
     val lastModifiedFmt: String,
+    /**
+     * synced val.
+     */
     val synced: Boolean,
+    /**
+     * isActive val.
+     */
     val isActive: Boolean? = false
 )
 
@@ -56,12 +74,33 @@ data class RobotLogFileInfo(
  * @return expected results
  */
 data class RobotRun(
+    /**
+     * runId val.
+     */
     val runId: String,
+    /**
+     * files val.
+     */
     val files: List<RobotLogFileInfo>,
+    /**
+     * totalSizeBytes val.
+     */
     val totalSizeBytes: Long,
+    /**
+     * lastModifiedMs val.
+     */
     val lastModifiedMs: Long,
+    /**
+     * lastModifiedFmt val.
+     */
     val lastModifiedFmt: String,
+    /**
+     * allSynced val.
+     */
     val allSynced: Boolean,
+    /**
+     * isActive val.
+     */
     val isActive: Boolean = false
 )
 
@@ -74,8 +113,17 @@ data class RobotRun(
  * @return expected results
  */
 data class SessionSyncInfo(
+    /**
+     * summary val.
+     */
     val summary: SessionSummary,
+    /**
+     * isLocal val.
+     */
     val isLocal: Boolean,
+    /**
+     * isRemote val.
+     */
     val isRemote: Boolean
 )
 
@@ -88,15 +136,45 @@ data class SessionSyncInfo(
  * @return expected results
  */
 data class CloudState(
+    /**
+     * sessions val.
+     */
     val sessions: List<SessionSyncInfo> = emptyList(),
+    /**
+     * cloudLogs val.
+     */
     val cloudLogs: List<SessionSummary> = emptyList(),
+    /**
+     * robotRuns val.
+     */
     val robotRuns: List<RobotRun> = emptyList(),
+    /**
+     * isSyncing val.
+     */
     val isSyncing: Boolean = false,
+    /**
+     * isFetchingRobotLogs val.
+     */
     val isFetchingRobotLogs: Boolean = false,
+    /**
+     * isUploadingRobotLog val.
+     */
     val isUploadingRobotLog: String? = null,
+    /**
+     * isDeletingCloudLog val.
+     */
     val isDeletingCloudLog: String? = null,
+    /**
+     * errorMessage val.
+     */
     val errorMessage: String? = null,
+    /**
+     * isAuthenticated val.
+     */
     val isAuthenticated: Boolean = false,
+    /**
+     * uploadLogs val.
+     */
     val uploadLogs: List<String> = emptyList()
 )
 
@@ -266,6 +344,9 @@ class CloudViewModel(
     private val scope: CoroutineScope
 ) {
     private val _state = MutableStateFlow(CloudState())
+    /**
+     * state val.
+     */
     val state: StateFlow<CloudState> = _state.asStateFlow()
 
     private val httpClient = HttpClient(CIO) {
@@ -286,11 +367,17 @@ class CloudViewModel(
     }
 
     private fun checkAuth() {
+        /**
+         * hasToken val.
+         */
         val hasToken = firebaseClientService.getFirebaseToken() != null || firebaseClientService.isDevMode()
         _state.update { it.copy(isAuthenticated = hasToken) }
     }
 
     private fun getRobotIp(): String {
+        /**
+         * ip val.
+         */
         val ip = nt4ClientService.serverIp
         if (ip.isBlank() || ip == "0.0.0.0") return "127.0.0.1"
         return ip
@@ -315,17 +402,44 @@ class CloudViewModel(
                     checkAuth()
                     _state.update { it.copy(isSyncing = true, errorMessage = null) }
                     try {
+                        /**
+                         * localSessions val.
+                         */
                         val localSessions = databaseService.getSessions()
+                        /**
+                         * localSummariesMap val.
+                         */
                         val localSummariesMap = databaseService.getAllSessionSummaries().associateBy { it.sessionId }
+                        /**
+                         * remoteSummaries val.
+                         */
                         val remoteSummaries = syncEngineService.getRemoteSummaries()
 
+                        /**
+                         * allSessionIds val.
+                         */
                         val allSessionIds = (localSessions.map { it.sessionId } + remoteSummaries.map { it.sessionId }).toSet()
 
+                        /**
+                         * sessionsList val.
+                         */
                         val sessionsList = allSessionIds.map { id ->
+                            /**
+                             * localSession val.
+                             */
                             val localSession = localSessions.find { it.sessionId == id }
+                            /**
+                             * remoteSummary val.
+                             */
                             val remoteSummary = remoteSummaries.find { it.sessionId == id }
+                            /**
+                             * localSummary val.
+                             */
                             val localSummary = localSummariesMap[id]
 
+                            /**
+                             * summary val.
+                             */
                             val summary = remoteSummary
                                 ?: localSummary
                                 ?: SessionSummary(
@@ -370,19 +484,40 @@ class CloudViewModel(
                 is CloudIntent.UploadRobotRun -> {
                     _state.update { it.copy(isUploadingRobotLog = intent.runId, errorMessage = null, uploadLogs = listOf("Starting upload for run ${intent.runId}...")) }
                     try {
+                        /**
+                         * run val.
+                         */
                         val run = _state.value.robotRuns.find { it.runId == intent.runId }
                         if (run != null) {
+                            /**
+                             * errors val.
+                             */
                             val errors = mutableListOf<String>()
+                            /**
+                             * downloadedFiles val.
+                             */
                             val downloadedFiles = mutableListOf<File>()
 
                             logUpload("1/5: Downloading ${run.files.size} raw files from robot at ${getRobotIp()}...")
                             for (file in run.files) {
                                 try {
+                                    /**
+                                     * tempFile val.
+                                     */
                                     val tempFile = withContext(Dispatchers.IO) {
+                                        /**
+                                         * tempDir val.
+                                         */
                                         val tempDir = File(System.getProperty("java.io.tmpdir"), "ares-raw-upload")
                                         tempDir.mkdirs()
+                                        /**
+                                         * f val.
+                                         */
                                         val f = File(tempDir, file.name)
                                         httpClient.prepareGet("http://${getRobotIp()}:5002/api/download?file=${file.name}").execute { response ->
+                                            /**
+                                             * channel val.
+                                             */
                                             val channel = response.bodyAsChannel()
                                             java.io.FileOutputStream(f).use { outputStream ->
                                                 channel.copyTo(outputStream)
@@ -401,8 +536,14 @@ class CloudViewModel(
                             if (errors.isEmpty() && downloadedFiles.isNotEmpty()) {
                                 logUpload("2/5: Skipping raw file archival (database sync only)...")
 
+                                /**
+                                 * totalSizeKb val.
+                                 */
                                 val totalSizeKb = downloadedFiles.sumOf { it.length() } / 1024
                                 logUpload("3/5: Parsing ${downloadedFiles.size} log files (${totalSizeKb} KB) into DuckDB...")
+                                /**
+                                 * session val.
+                                 */
                                 val session = logParserService.parseLogFiles(
                                     files = downloadedFiles,
                                     teamId = intent.teamId,
@@ -460,20 +601,41 @@ class CloudViewModel(
                 is CloudIntent.UploadMultipleRobotRuns -> {
                     _state.update { it.copy(isUploadingRobotLog = "BATCH", errorMessage = null, uploadLogs = listOf("Starting batch upload for ${intent.runIds.size} runs...")) }
                     try {
+                        /**
+                         * runsToUpload val.
+                         */
                         val runsToUpload = _state.value.robotRuns.filter { it.runId in intent.runIds }
                         for ((index, run) in runsToUpload.withIndex()) {
                             logUpload("=== [${index + 1}/${runsToUpload.size}] Uploading Run: ${run.runId} ===")
+                            /**
+                             * errors val.
+                             */
                             val errors = mutableListOf<String>()
+                            /**
+                             * downloadedFiles val.
+                             */
                             val downloadedFiles = mutableListOf<File>()
 
                             logUpload("Downloading ${run.files.size} raw files from robot...")
                             for (file in run.files) {
                                 try {
+                                    /**
+                                     * tempFile val.
+                                     */
                                     val tempFile = withContext(Dispatchers.IO) {
+                                        /**
+                                         * tempDir val.
+                                         */
                                         val tempDir = File(System.getProperty("java.io.tmpdir"), "ares-raw-upload")
                                         tempDir.mkdirs()
+                                        /**
+                                         * f val.
+                                         */
                                         val f = File(tempDir, file.name)
                                         httpClient.prepareGet("http://${getRobotIp()}:5002/api/download?file=${file.name}").execute { response ->
+                                            /**
+                                             * channel val.
+                                             */
                                             val channel = response.bodyAsChannel()
                                             java.io.FileOutputStream(f).use { outputStream ->
                                                 channel.copyTo(outputStream)
@@ -491,6 +653,9 @@ class CloudViewModel(
 
                             if (errors.isEmpty() && downloadedFiles.isNotEmpty()) {
                                 logUpload("Parsing ${downloadedFiles.size} log files into DuckDB...")
+                                /**
+                                 * session val.
+                                 */
                                 val session = logParserService.parseLogFiles(
                                     files = downloadedFiles,
                                     teamId = intent.teamId,
@@ -541,6 +706,9 @@ class CloudViewModel(
                 }
                 is CloudIntent.DeleteRobotRun -> {
                     try {
+                        /**
+                         * run val.
+                         */
                         val run = _state.value.robotRuns.find { it.runId == intent.runId }
                         if (run != null) {
                             withContext(Dispatchers.IO) {
@@ -559,6 +727,9 @@ class CloudViewModel(
                 }
                 is CloudIntent.DeleteMultipleRobotRuns -> {
                     try {
+                        /**
+                         * runsToDelete val.
+                         */
                         val runsToDelete = _state.value.robotRuns.filter { it.runId in intent.runIds }
                         withContext(Dispatchers.IO) {
                             for (run in runsToDelete) {
@@ -674,11 +845,20 @@ class CloudViewModel(
     private suspend fun fetchRobotLogs() {
         _state.update { it.copy(isFetchingRobotLogs = true, errorMessage = null) }
         try {
+            /**
+             * logs val.
+             */
             val logs: List<RobotLogFileInfo> = withContext(Dispatchers.IO) {
                 httpClient.get("http://${getRobotIp()}:5002/api/logs").body()
             }
 
+            /**
+             * runs val.
+             */
             val runs = logs.groupBy {
+                /**
+                 * nameWithoutExt val.
+                 */
                 val nameWithoutExt = it.name.substringBeforeLast(".")
                 when {
                     nameWithoutExt.startsWith("action_log_") -> nameWithoutExt.substringAfter("action_log_")

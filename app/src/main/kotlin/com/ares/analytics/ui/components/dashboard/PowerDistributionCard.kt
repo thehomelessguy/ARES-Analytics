@@ -34,21 +34,42 @@ fun PowerDistributionCard(
     nt4ClientService: Nt4ClientService,
     modifier: Modifier = Modifier
 ) {
+    /**
+     * scope val.
+     */
     val scope = rememberCoroutineScope()
     
     // Map of channel name to current in amps
+    /**
+     * currentDraws val.
+     */
     val currentDraws = remember { mutableStateMapOf<String, Double>() }
+    /**
+     * totalCurrent var.
+     */
     var totalCurrent by remember { mutableStateOf(0.0) }
 
     LaunchedEffect(Unit) {
         scope.launch {
             nt4ClientService.telemetryFlow.collect { frame ->
+                /**
+                 * key val.
+                 */
                 val key = frame.key
+                /**
+                 * lowerKey val.
+                 */
                 val lowerKey = key.lowercase()
+                /**
+                 * value val.
+                 */
                 val value = frame.value as? Double ?: return@collect
                 
                 // Typical paths: /robot/hardware/IntakeMotor/CurrentDraw, PDH/Channel1_Current
                 if (lowerKey.contains("current") && !lowerKey.contains("target")) {
+                    /**
+                     * channelName val.
+                     */
                     val channelName = key.substringAfterLast("/").replace("Current", "").replace("_", "").takeIf { it.isNotEmpty() } ?: key.substringBeforeLast("/").substringAfterLast("/")
                     currentDraws[channelName] = value
                     
@@ -123,7 +144,13 @@ fun PowerDistributionCard(
                             
                             // Visual bar
                             Box(modifier = Modifier.weight(1f).height(12.dp).background(AresSurface, RoundedCornerShape(4.dp))) {
+                                /**
+                                 * fraction val.
+                                 */
                                 val fraction = (amps / 40.0).coerceIn(0.0, 1.0).toFloat()
+                                /**
+                                 * barColor val.
+                                 */
                                 val barColor = when {
                                     amps > 30.0 -> AresError
                                     amps > 20.0 -> AresGold

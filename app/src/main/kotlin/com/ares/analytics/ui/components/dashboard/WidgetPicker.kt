@@ -30,12 +30,27 @@ import com.ares.analytics.ui.theme.*
  * @return expected results
  */
 data class AvailableWidget(
+    /**
+     * type val.
+     */
     val type: String,
+    /**
+     * displayName val.
+     */
     val displayName: String,
+    /**
+     * description val.
+     */
     val description: String,
+    /**
+     * icon val.
+     */
     val icon: ImageVector
 )
 
+/**
+ * availableWidgetsList val.
+ */
 val availableWidgetsList = listOf(
     AvailableWidget("driver_station", "Driver Station", "Simulated FTC Driver Station to select and run OpModes.", Icons.Default.SportsEsports),
     AvailableWidget("runs_index", "Recorded Sessions", "List of practice runs, match logs, and annotation tagging.", Icons.Default.History),

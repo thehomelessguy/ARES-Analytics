@@ -12,11 +12,29 @@ import com.ares.analytics.service.calibration.OdometryCalibrationSolver
  * @return expected results
  */
 data class Pose3d(
+    /**
+     * x val.
+     */
     val x: Double, // Left-Right (meters)
+    /**
+     * y val.
+     */
     val y: Double, // Up-Down (meters)
+    /**
+     * z val.
+     */
     val z: Double, // Depth (meters)
+    /**
+     * roll val.
+     */
     val roll: Double,
+    /**
+     * pitch val.
+     */
     val pitch: Double,
+    /**
+     * yaw val.
+     */
     val yaw: Double // Heading (radians, CCW-positive)
 )
 
@@ -29,9 +47,21 @@ data class Pose3d(
  * @return expected results
  */
 data class CalibrationDiagnostics(
+    /**
+     * pose val.
+     */
     val pose: Pose3d,
+    /**
+     * standardErrors val.
+     */
     val standardErrors: DoubleArray,
+    /**
+     * covarianceMatrix val.
+     */
     val covarianceMatrix: Array<DoubleArray>,
+    /**
+     * reducedChiSquared val.
+     */
     val reducedChiSquared: Double
 ) {
     override fun equals(other: Any?): Boolean {
@@ -46,6 +76,9 @@ data class CalibrationDiagnostics(
     }
 
     override fun hashCode(): Int {
+        /**
+         * result var.
+         */
         var result = pose.hashCode()
         result = 31 * result + standardErrors.contentHashCode()
         result = 31 * result + covarianceMatrix.contentDeepHashCode()
@@ -63,17 +96,50 @@ data class CalibrationDiagnostics(
  * @return expected results
  */
 data class CalibrationMeasurement(
+    /**
+     * gyroHeading val.
+     */
     val gyroHeading: Double, // radians (CCW-positive)
+    /**
+     * tagId val.
+     */
     val tagId: Int,
+    /**
+     * tagFieldX val.
+     */
     val tagFieldX: Double,
+    /**
+     * tagFieldY val.
+     */
     val tagFieldY: Double,
+    /**
+     * tagFieldZ val.
+     */
     val tagFieldZ: Double,
     // Tag relative target space measurements from Limelight
+    /**
+     * targetSpaceX val.
+     */
     val targetSpaceX: Double,
+    /**
+     * targetSpaceY val.
+     */
     val targetSpaceY: Double,
+    /**
+     * targetSpaceZ val.
+     */
     val targetSpaceZ: Double,
+    /**
+     * targetSpaceRoll val.
+     */
     val targetSpaceRoll: Double,
+    /**
+     * targetSpacePitch val.
+     */
     val targetSpacePitch: Double,
+    /**
+     * targetSpaceYaw val.
+     */
     val targetSpaceYaw: Double
 )
 

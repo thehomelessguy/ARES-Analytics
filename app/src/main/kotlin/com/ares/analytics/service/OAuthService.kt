@@ -37,7 +37,13 @@ import java.util.Base64
  * @return expected results
  */
 fun generateCodeVerifier(): String {
+    /**
+     * secureRandom val.
+     */
     val secureRandom = SecureRandom()
+    /**
+     * codeVerifier val.
+     */
     val codeVerifier = ByteArray(32)
     secureRandom.nextBytes(codeVerifier)
     return Base64.getUrlEncoder().withoutPadding().encodeToString(codeVerifier)
@@ -52,9 +58,18 @@ fun generateCodeVerifier(): String {
  * @return expected results
  */
 fun generateCodeChallenge(codeVerifier: String): String {
+    /**
+     * bytes val.
+     */
     val bytes = codeVerifier.toByteArray(Charsets.US_ASCII)
+    /**
+     * messageDigest val.
+     */
     val messageDigest = MessageDigest.getInstance("SHA-256")
     messageDigest.update(bytes, 0, bytes.size)
+    /**
+     * digest val.
+     */
     val digest = messageDigest.digest()
     return Base64.getUrlEncoder().withoutPadding().encodeToString(digest)
 }
@@ -87,10 +102,25 @@ sealed class AuthState {
      * @return expected results
      */
     data class Authenticated(
+        /**
+         * firebaseToken val.
+         */
         val firebaseToken: String,
+        /**
+         * uid val.
+         */
         val uid: String,
+        /**
+         * email val.
+         */
         val email: String,
+        /**
+         * displayName val.
+         */
         val displayName: String,
+        /**
+         * githubToken val.
+         */
         val githubToken: String? = null
     ) : AuthState()
     /**
@@ -114,9 +144,21 @@ sealed class AuthState {
  * @return expected results
  */
 data class GoogleTokenResponse(
+    /**
+     * access_token val.
+     */
     val access_token: String,
+    /**
+     * id_token val.
+     */
     val id_token: String,
+    /**
+     * expires_in val.
+     */
     val expires_in: Int,
+    /**
+     * refresh_token val.
+     */
     val refresh_token: String? = null
 )
 
@@ -130,7 +172,13 @@ data class GoogleTokenResponse(
  * @return expected results
  */
 data class GithubTokenResponse(
+    /**
+     * access_token val.
+     */
     val access_token: String,
+    /**
+     * scope val.
+     */
     val scope: String? = null
 )
 
@@ -146,6 +194,9 @@ class OAuthService(
     private val firebaseClientService: FirebaseClientService
 ) {
     private val _authState = MutableStateFlow<AuthState>(AuthState.Unauthenticated)
+    /**
+     * authState val.
+     */
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
 
     private val httpClient = HttpClient {
@@ -208,11 +259,26 @@ class OAuthService(
             return
         }
 
+        /**
+         * codeVerifier val.
+         */
         val codeVerifier = generateCodeVerifier()
+        /**
+         * codeChallenge val.
+         */
         val codeChallenge = generateCodeChallenge(codeVerifier)
 
+        /**
+         * callbackPort val.
+         */
         val callbackPort = 5805
+        /**
+         * redirectUri val.
+         */
         val redirectUri = "http://localhost:$callbackPort/callback"
+        /**
+         * loginUrl val.
+         */
         val loginUrl = "https://accounts.google.com/o/oauth2/v2/auth?" +
                 "client_id=$googleClientId" +
                 "&redirect_uri=${URLEncoder.encode(redirectUri, "UTF-8")}" +
@@ -225,6 +291,9 @@ class OAuthService(
 
         bootCallbackServer(callbackPort) { code ->
             try {
+                /**
+                 * bodyParams val.
+                 */
                 val bodyParams = mutableListOf(
                     "code" to code,
                     "client_id" to (googleClientId ?: ""),
@@ -236,13 +305,22 @@ class OAuthService(
                     bodyParams.add("client_secret" to googleClientSecret)
                 }
 
+                /**
+                 * response val.
+                 */
                 val response = httpClient.post("https://oauth2.googleapis.com/token") {
                     contentType(ContentType.Application.FormUrlEncoded)
                     setBody(bodyParams.formUrlEncode())
                 }
 
                 if (response.status == HttpStatusCode.OK) {
+                    /**
+                     * tokenData val.
+                     */
                     val tokenData = response.body<GoogleTokenResponse>()
+                    /**
+                     * expiresAt val.
+                     */
                     val expiresAt = System.currentTimeMillis() + (tokenData.expires_in * 1000L)
                     // Sign in to Firebase with the obtained Google ID Token
                     firebaseClientService.signInWithGoogleToken(
@@ -254,7 +332,13 @@ class OAuthService(
                         googleTokenExpiresAt = expiresAt
                     )
                 } else {
+                    /**
+                     * errorText val.
+                     */
                     val errorText = response.bodyAsText()
+                    /**
+                     * sentParamsInfo val.
+                     */
                     val sentParamsInfo = "Sent client_id: $googleClientId (Secret present: ${!googleClientSecret.isNullOrBlank()})"
                     _authState.value = AuthState.Error("Failed to exchange Google code: $errorText\nDetails: $sentParamsInfo")
                 }
@@ -267,16 +351,28 @@ class OAuthService(
     }
 
     suspend fun refreshGoogleAccessToken(clientId: String, clientSecret: String?): String? = withContext(Dispatchers.IO) {
+        /**
+         * saved val.
+         */
         val saved = firebaseClientService.getSavedAuth() ?: return@withContext null
+        /**
+         * refreshToken val.
+         */
         val refreshToken = saved.googleRefreshToken ?: return@withContext saved.googleAccessToken
 
         // If not expired yet (with a 2 minute buffer), reuse current access token
+        /**
+         * expiresAt val.
+         */
         val expiresAt = saved.googleTokenExpiresAt ?: 0
         if (System.currentTimeMillis() < expiresAt - 120_000 && !saved.googleAccessToken.isNullOrBlank()) {
             return@withContext saved.googleAccessToken
         }
 
         try {
+            /**
+             * bodyParams val.
+             */
             val bodyParams = mutableListOf(
                 "client_id" to clientId,
                 "refresh_token" to refreshToken,
@@ -286,14 +382,26 @@ class OAuthService(
                 bodyParams.add("client_secret" to clientSecret)
             }
 
+            /**
+             * response val.
+             */
             val response = httpClient.post("https://oauth2.googleapis.com/token") {
                 contentType(ContentType.Application.FormUrlEncoded)
                 setBody(bodyParams.formUrlEncode())
             }
 
             if (response.status == HttpStatusCode.OK) {
+                /**
+                 * data val.
+                 */
                 val data = response.body<GoogleTokenResponse>()
+                /**
+                 * newExpiresAt val.
+                 */
                 val newExpiresAt = System.currentTimeMillis() + (data.expires_in * 1000L)
+                /**
+                 * updatedAuth val.
+                 */
                 val updatedAuth = saved.copy(
                     googleAccessToken = data.access_token,
                     googleTokenExpiresAt = newExpiresAt,
@@ -320,6 +428,9 @@ class OAuthService(
      * @return expected results
      */
     fun startGithubLogin(githubClientId: String?, githubClientSecret: String? = null) {
+        /**
+         * currentAuth val.
+         */
         val currentAuth = _authState.value
         if (currentAuth !is AuthState.Authenticated) {
             _authState.value = AuthState.Error("Must sign in with Google/Firebase before linking GitHub")
@@ -332,8 +443,17 @@ class OAuthService(
             return
         }
 
+        /**
+         * callbackPort val.
+         */
         val callbackPort = 5805
+        /**
+         * redirectUri val.
+         */
         val redirectUri = "http://localhost:$callbackPort/callback"
+        /**
+         * loginUrl val.
+         */
         val loginUrl = "https://github.com/login/oauth/authorize?" +
                 "client_id=$githubClientId" +
                 "&redirect_uri=${URLEncoder.encode(redirectUri, "UTF-8")}" +
@@ -341,6 +461,9 @@ class OAuthService(
 
         bootCallbackServer(callbackPort) { code ->
             try {
+                /**
+                 * response val.
+                 */
                 val response = httpClient.post("https://github.com/login/oauth/access_token") {
                     header(HttpHeaders.Accept, "application/json")
                     contentType(ContentType.Application.FormUrlEncoded)
@@ -353,9 +476,15 @@ class OAuthService(
                 }
 
                 if (response.status == HttpStatusCode.OK) {
+                    /**
+                     * tokenData val.
+                     */
                     val tokenData = response.body<GithubTokenResponse>()
                     firebaseClientService.linkGitHubToken(tokenData.access_token)
                 } else {
+                    /**
+                     * errorText val.
+                     */
                     val errorText = response.bodyAsText()
                     _authState.value = AuthState.Error("Failed to exchange GitHub code: $errorText")
                 }
@@ -386,7 +515,13 @@ class OAuthService(
         server = embeddedServer(CIO, port = port) {
             routing {
                 get("/callback") {
+                    /**
+                     * code val.
+                     */
                     val code = call.request.queryParameters["code"]
+                    /**
+                     * error val.
+                     */
                     val error = call.request.queryParameters["error"]
 
                     if (code != null) {
@@ -433,6 +568,9 @@ class OAuthService(
                             stopServer()
                         }
                     } else {
+                        /**
+                         * msg val.
+                         */
                         val msg = error ?: "Unknown auth error"
                         call.respondText("Authentication failed: $msg")
                         _authState.value = AuthState.Error(msg)

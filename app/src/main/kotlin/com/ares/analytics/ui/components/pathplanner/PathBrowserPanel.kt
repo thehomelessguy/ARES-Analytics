@@ -36,6 +36,9 @@ fun PathBrowserPanel(
     projectPath: String?,
     onIntent: (PathPlannerIntent) -> Unit
 ) {
+    /**
+     * items val.
+     */
     val items = if (state.activeEditorMode == "Path") state.availablePathPreviews else state.availableAutoPreviews
 
     Column(modifier = Modifier.fillMaxSize().padding(24.dp).background(AresBackground)) {

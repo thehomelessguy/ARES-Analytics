@@ -24,19 +24,37 @@ class CsvLogDecoder(private val databaseService: DatabaseService) {
      * "time" or "timestamp" in its name) and remaining columns as telemetry keys.
      */
     suspend fun parseCsvLogNative(file: File, sessionId: String) {
+        /**
+         * absolutePath val.
+         */
         val absolutePath = file.absolutePath.replace("\\", "/").replace("'", "''")
 
         // Detect the timestamp column name from the header
+        /**
+         * headerLine val.
+         */
         val headerLine = file.bufferedReader(Charsets.UTF_8).use { it.readLine() }
             ?: return
+        /**
+         * headers val.
+         */
         val headers = headerLine.split(",").map { it.trim() }
+        /**
+         * timeColumnName val.
+         */
         val timeColumnName = headers.firstOrNull {
             it.contains("time", ignoreCase = true) || it.contains("timestamp", ignoreCase = true)
         } ?: return
 
         // Use DuckDB's native CSV reader with UNPIVOT to convert wide-format CSV
         // directly into the long-format telemetry_frames schema in a single SQL pass.
+        /**
+         * escapedSessionId val.
+         */
         val escapedSessionId = sessionId.replace("'", "''")
+        /**
+         * escapedTimeCol val.
+         */
         val escapedTimeCol = timeColumnName.replace("'", "''").replace("\"", "\"\"")
 
         databaseService.executeRaw("""
@@ -73,25 +91,55 @@ class CsvLogDecoder(private val databaseService: DatabaseService) {
      */
     suspend fun parseCsvLogStreaming(file: File, sessionId: String, batcher: FrameBatcher) {
         file.bufferedReader(Charsets.UTF_8).use { reader ->
+            /**
+             * headerLine val.
+             */
             val headerLine = reader.readLine() ?: return
+            /**
+             * headers val.
+             */
             val headers = headerLine.split(",").map { it.trim() }
+            /**
+             * timeIndex val.
+             */
             val timeIndex = headers.indexOfFirst {
                 it.contains("time", ignoreCase = true) || it.contains("timestamp", ignoreCase = true)
             }
             if (timeIndex == -1) return
 
+            /**
+             * line var.
+             */
             var line: String? = reader.readLine()
             while (line != null) {
+                /**
+                 * trimmed val.
+                 */
                 val trimmed = line.trim()
                 if (trimmed.isNotEmpty()) {
+                    /**
+                     * tokens val.
+                     */
                     val tokens = trimmed.split(",").map { it.trim() }
                     if (tokens.size == headers.size) {
+                        /**
+                         * timestampMs val.
+                         */
                         val timestampMs = tokens[timeIndex].toLongOrNull()
                         if (timestampMs != null) {
                             for (j in tokens.indices) {
                                 if (j == timeIndex) continue
+                                /**
+                                 * strValue val.
+                                 */
                                 val strValue = tokens[j]
+                                /**
+                                 * key val.
+                                 */
                                 val key = headers[j]
+                                /**
+                                 * doubleVal val.
+                                 */
                                 val doubleVal = strValue.toDoubleOrNull()
                                 when {
                                     doubleVal != null -> {

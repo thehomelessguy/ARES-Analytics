@@ -41,7 +41,13 @@ enum class ReplayState {
  * @return expected results
  */
 data class ReplayFrame(
+    /**
+     * timestampMs val.
+     */
     val timestampMs: Long,
+    /**
+     * values val.
+     */
     val values: Map<String, Double>
 )
 
@@ -58,27 +64,51 @@ class ReplayEngineService(private val databaseService: DatabaseService) {
     private val jsonParser = Json { ignoreUnknownKeys = true }
 
     private val _state = MutableStateFlow(ReplayState.STOPPED)
+    /**
+     * state val.
+     */
     val state: StateFlow<ReplayState> = _state.asStateFlow()
 
     private val _currentFrame = MutableStateFlow<ReplayFrame?>(null)
+    /**
+     * currentFrame val.
+     */
     val currentFrame: StateFlow<ReplayFrame?> = _currentFrame.asStateFlow()
 
     private val _speed = MutableStateFlow(1.0)
+    /**
+     * speed val.
+     */
     val speed: StateFlow<Double> = _speed.asStateFlow()
 
     private val _progress = MutableStateFlow(0.0) // 0.0 to 1.0 percentage
+    /**
+     * progress val.
+     */
     val progress: StateFlow<Double> = _progress.asStateFlow()
 
     private val _telemetryDensity = MutableStateFlow<List<Float>>(emptyList())
+    /**
+     * telemetryDensity val.
+     */
     val telemetryDensity: StateFlow<List<Float>> = _telemetryDensity.asStateFlow()
 
     private val _sessionActions = MutableStateFlow<List<com.ares.analytics.shared.RobotActionRecord>>(emptyList())
+    /**
+     * sessionActions val.
+     */
     val sessionActions: StateFlow<List<com.ares.analytics.shared.RobotActionRecord>> = _sessionActions.asStateFlow()
 
     private val _sessionStartTimestampMs = MutableStateFlow(0L)
+    /**
+     * sessionStartTimestampMs val.
+     */
     val sessionStartTimestampMs: StateFlow<Long> = _sessionStartTimestampMs.asStateFlow()
 
     private val _sessionDurationMs = MutableStateFlow(0L)
+    /**
+     * sessionDurationMs val.
+     */
     val sessionDurationMs: StateFlow<Long> = _sessionDurationMs.asStateFlow()
 
     // Replay telemetry flow — emits individual TelemetryFrame objects for dashboard widget consumption
@@ -87,6 +117,9 @@ class ReplayEngineService(private val databaseService: DatabaseService) {
         extraBufferCapacity = 65536,
         onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST
     )
+    /**
+     * replayTelemetryFlow val.
+     */
     val replayTelemetryFlow: SharedFlow<TelemetryFrame> = _replayTelemetryFlow.asSharedFlow()
 
     private var replayJob: Job? = null
@@ -108,6 +141,9 @@ class ReplayEngineService(private val databaseService: DatabaseService) {
     suspend fun loadSession(sessionId: String) = withContext(Dispatchers.IO) {
         stop()
         allFrames = databaseService.getTelemetryRange(sessionId, 0L, Long.MAX_VALUE)
+        /**
+         * allActions val.
+         */
         val allActions = databaseService.getActionsForSession(sessionId)
         _sessionActions.value = allActions
 
@@ -121,7 +157,13 @@ class ReplayEngineService(private val databaseService: DatabaseService) {
             return@withContext
         }
 
+        /**
+         * framesTimestamps val.
+         */
         val framesTimestamps = allFrames.map { it.timestampMs }
+        /**
+         * actionsTimestamps val.
+         */
         val actionsTimestamps = allActions.map { it.timestampMs }
         
         timestamps = (framesTimestamps + actionsTimestamps).distinct().sorted()
@@ -157,12 +199,24 @@ class ReplayEngineService(private val databaseService: DatabaseService) {
 
         _state.value = ReplayState.PLAYING
         replayJob = CoroutineScope(Dispatchers.Default).launch {
+            /**
+             * lastRealTime var.
+             */
             var lastRealTime = System.currentTimeMillis()
             while (isActive && _state.value == ReplayState.PLAYING) {
+                /**
+                 * nowRealTime val.
+                 */
                 val nowRealTime = System.currentTimeMillis()
+                /**
+                 * deltaReal val.
+                 */
                 val deltaReal = nowRealTime - lastRealTime
                 lastRealTime = nowRealTime
 
+                /**
+                 * deltaPlayback val.
+                 */
                 val deltaPlayback = (deltaReal * _speed.value).toLong()
                 currentPlayheadMs += deltaPlayback
 
@@ -234,7 +288,13 @@ class ReplayEngineService(private val databaseService: DatabaseService) {
     fun stepForward() {
         if (timestamps.isEmpty()) return
         pause()
+        /**
+         * index val.
+         */
         val index = timestamps.binarySearch(currentPlayheadMs)
+        /**
+         * nextIndex val.
+         */
         val nextIndex = if (index >= 0) index + 1 else -index - 1
         if (nextIndex < timestamps.size) {
             currentPlayheadMs = timestamps[nextIndex]
@@ -253,7 +313,13 @@ class ReplayEngineService(private val databaseService: DatabaseService) {
     fun stepBackward() {
         if (timestamps.isEmpty()) return
         pause()
+        /**
+         * index val.
+         */
         val index = timestamps.binarySearch(currentPlayheadMs)
+        /**
+         * prevIndex val.
+         */
         val prevIndex = if (index >= 0) index - 1 else -index - 2
         if (prevIndex >= 0) {
             currentPlayheadMs = timestamps[prevIndex]
@@ -271,7 +337,13 @@ class ReplayEngineService(private val databaseService: DatabaseService) {
      */
     fun scrubTo(percentage: Double) {
         if (timestamps.isEmpty()) return
+        /**
+         * clamped val.
+         */
         val clamped = percentage.coerceIn(0.0, 1.0)
+        /**
+         * totalDuration val.
+         */
         val totalDuration = endTimestampMs - startTimestampMs
         currentPlayheadMs = startTimestampMs + (totalDuration * clamped).toLong()
         updateFrameAtPlayhead()
@@ -283,6 +355,9 @@ class ReplayEngineService(private val databaseService: DatabaseService) {
         if (timestamps.isEmpty()) return
 
         // 1. Calculate progress percent
+        /**
+         * totalDuration val.
+         */
         val totalDuration = endTimestampMs - startTimestampMs
         if (totalDuration > 0) {
             _progress.value = (currentPlayheadMs - startTimestampMs).toDouble() / totalDuration.toDouble()
@@ -290,14 +365,23 @@ class ReplayEngineService(private val databaseService: DatabaseService) {
 
         // 2. Fetch or compute the current frame values (all values up to currentPlayheadMs)
         // For performance, we find the closest timestamp in our list that is <= currentPlayheadMs
+        /**
+         * index var.
+         */
         var index = timestamps.binarySearch(currentPlayheadMs)
         if (index < 0) {
             index = -index - 2
         }
         index = index.coerceIn(0, timestamps.size - 1)
+        /**
+         * targetTimestamp val.
+         */
         val targetTimestamp = timestamps[index]
 
         // Reset incremental cache if we seeked backwards or this is first run
+        /**
+         * seeked val.
+         */
         val seeked = targetTimestamp < lastTargetTimestamp || lastTargetTimestamp == -1L
         if (seeked) {
             lastFrameIndex = 0
@@ -306,10 +390,16 @@ class ReplayEngineService(private val databaseService: DatabaseService) {
         }
         lastTargetTimestamp = targetTimestamp
 
+        /**
+         * deltaMap val.
+         */
         val deltaMap = mutableMapOf<String, Double>()
 
         // Incrementally aggregate frame updates
         while (lastFrameIndex < allFrames.size) {
+            /**
+             * frame val.
+             */
             val frame = allFrames[lastFrameIndex]
             if (frame.timestampMs > targetTimestamp) break
             valuesMap[frame.key] = frame.value
@@ -319,17 +409,35 @@ class ReplayEngineService(private val databaseService: DatabaseService) {
 
         // Incrementally aggregate actions
 
+        /**
+         * actionsList val.
+         */
         val actionsList = _sessionActions.value
         while (lastActionIndex < actionsList.size) {
+            /**
+             * action val.
+             */
             val action = actionsList[lastActionIndex]
             if (action.timestampMs > targetTimestamp) break
             try {
+                /**
+                 * payloadObj val.
+                 */
                 val payloadObj = jsonParser.parseToJsonElement(action.payloadJson).let {
                     if (it is JsonObject) it else null
                 }
                 if (payloadObj != null && action.actionType == "PoseUpdate") {
+                    /**
+                     * x val.
+                     */
                     val x = payloadObj["xMeters"]?.let { if (it is JsonPrimitive) it.doubleOrNull else null }
+                    /**
+                     * y val.
+                     */
                     val y = payloadObj["yMeters"]?.let { if (it is JsonPrimitive) it.doubleOrNull else null }
+                    /**
+                     * heading val.
+                     */
                     val heading = payloadObj["headingRadians"]?.let { if (it is JsonPrimitive) it.doubleOrNull else null }
                     
                     if (x != null) {
@@ -357,19 +465,37 @@ class ReplayEngineService(private val databaseService: DatabaseService) {
             lastActionIndex++
         }
 
+        /**
+         * mapToEmit val.
+         */
         val mapToEmit = if (seeked) valuesMap.toMap() else deltaMap.toMap()
 
         // Expose a snapshot copy of the aggregated state map
+        /**
+         * currentValuesMap val.
+         */
         val currentValuesMap = valuesMap.toMap()
+        /**
+         * frame val.
+         */
         val frame = ReplayFrame(targetTimestamp, currentValuesMap)
         _currentFrame.value = frame
 
         // 3. Emit individual TelemetryFrame objects for dashboard widget consumption
+        /**
+         * sessionId val.
+         */
         val sessionId = "replay"
         emitJob?.cancel()
         emitJob = CoroutineScope(Dispatchers.Default).launch {
             for ((key, value) in mapToEmit) {
+                /**
+                 * normalizedKey val.
+                 */
                 val normalizedKey = key.removePrefix("/")
+                /**
+                 * telemetryFrame val.
+                 */
                 val telemetryFrame = TelemetryFrame(
                     timestampMs = targetTimestamp,
                     sessionId = sessionId,
@@ -386,12 +512,30 @@ class ReplayEngineService(private val databaseService: DatabaseService) {
 
     private fun broadcastTelemetry(frame: ReplayFrame) {
         try {
+            /**
+             * maxChunkSize val.
+             */
             val maxChunkSize = 500
+            /**
+             * entries val.
+             */
             val entries = frame.values.entries.toList()
             for (i in entries.indices step maxChunkSize) {
+                /**
+                 * chunkMap val.
+                 */
                 val chunkMap = entries.subList(i, minOf(i + maxChunkSize, entries.size)).associate { it.key to it.value }
+                /**
+                 * jsonStr val.
+                 */
                 val jsonStr = Json.encodeToString(chunkMap)
+                /**
+                 * bytes val.
+                 */
                 val bytes = jsonStr.toByteArray()
+                /**
+                 * packet val.
+                 */
                 val packet = DatagramPacket(bytes, bytes.size, loopbackAddress, broadcastPort)
                 datagramSocket.send(packet)
             }

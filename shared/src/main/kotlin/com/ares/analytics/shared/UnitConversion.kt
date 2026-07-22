@@ -65,6 +65,9 @@ enum class RobotUnit(val symbol: String, val category: UnitCategory, val factorT
          * @return expected results
          */
         fun fromSymbol(symbol: String): RobotUnit? {
+            /**
+             * clean val.
+             */
             val clean = symbol.trim()
             return entries.find { it.symbol.equals(clean, ignoreCase = true) || it.name.equals(clean, ignoreCase = true) }
         }
@@ -92,6 +95,9 @@ object UnitConversion {
         if (from.category != to.category) return value
 
         if (from.category == UnitCategory.TEMPERATURE) {
+            /**
+             * celsius val.
+             */
             val celsius = when (from) {
                 RobotUnit.CELSIUS -> value
                 RobotUnit.FAHRENHEIT -> (value - 32.0) * 5.0 / 9.0
@@ -106,6 +112,9 @@ object UnitConversion {
             }
         }
 
+        /**
+         * baseValue val.
+         */
         val baseValue = value * from.factorToBase
         return baseValue / to.factorToBase
     }
@@ -119,6 +128,9 @@ object UnitConversion {
      * @return expected results
      */
     fun detectUnitFromKey(key: String): RobotUnit? {
+        /**
+         * lowerKey val.
+         */
         val lowerKey = key.lowercase()
         return when {
             lowerKey.contains("voltage") || lowerKey.contains("volt") -> RobotUnit.VOLT

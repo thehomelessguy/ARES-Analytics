@@ -43,10 +43,19 @@ fun MecanumVisualizer(
     nt4ClientService: Nt4ClientService? = null,
     modifier: Modifier = Modifier
 ) {
+    /**
+     * scope val.
+     */
     val scope = rememberCoroutineScope()
 
     // FL = 0, FR = 1, BL = 2, BR = 3
+    /**
+     * velocities val.
+     */
     val velocities = remember { mutableStateListOf(0.0, 0.0, 0.0, 0.0) }
+    /**
+     * currents val.
+     */
     val currents = remember { mutableStateListOf(0.0, 0.0, 0.0, 0.0) }
 
     when {
@@ -64,7 +73,13 @@ fun MecanumVisualizer(
         nt4ClientService != null -> {
             LaunchedEffect(Unit) {
                 nt4ClientService.telemetryFlow.collect { frame ->
+                    /**
+                     * key val.
+                     */
                     val key = frame.key
+                    /**
+                     * value val.
+                     */
                     val value = frame.value
                     when (key) {
                         "Drive/MotorVelocity_fl", "Drive/MotorPower_fl", "Hardware/Motors/fl/Velocity", "Hardware/Motors/fl/Power" -> velocities[0] = value
@@ -82,6 +97,9 @@ fun MecanumVisualizer(
         }
     }
 
+    /**
+     * isConnected val.
+     */
     val isConnected by nt4ClientService?.isConnected?.collectAsState(initial = false) ?: remember { mutableStateOf(false) }
 
     Column(
@@ -112,6 +130,9 @@ fun MecanumVisualizer(
             )
         }
 
+        /**
+         * dashEffect val.
+         */
         val dashEffect = remember { PathEffect.dashPathEffect(floatArrayOf(8f, 8f), 0f) }
 
         Box(
@@ -122,11 +143,23 @@ fun MecanumVisualizer(
                 .border(1.dp, AresBorder, RoundedCornerShape(8.dp))
         ) {
             Canvas(modifier = Modifier.fillMaxSize()) {
+                /**
+                 * cx val.
+                 */
                 val cx = size.width / 2f
+                /**
+                 * cy val.
+                 */
                 val cy = size.height / 2f
 
                 // Draw robot outline (dashed)
+                /**
+                 * robotW val.
+                 */
                 val robotW = 160f
+                /**
+                 * robotH val.
+                 */
                 val robotH = 220f
                 drawRect(
                     color = AresBorder,
@@ -136,6 +169,9 @@ fun MecanumVisualizer(
                 )
 
                 // Wheel definitions: Name, CenterOffset, RollerAngleRad, Speed
+                /**
+                 * wheels val.
+                 */
                 val wheels = listOf(
                     // FL: rollers at 45 deg (points top-left to bottom-right)
                     WheelData("FL", Offset(cx - robotW / 2f, cy - robotH / 2f), Math.toRadians(45.0), velocities[0], currents[0]),
@@ -147,12 +183,27 @@ fun MecanumVisualizer(
                     WheelData("BR", Offset(cx + robotW / 2f, cy + robotH / 2f), Math.toRadians(45.0), velocities[3], currents[3])
                 )
 
+                    /**
+                     * maxAbsSpeed val.
+                     */
                     val maxAbsSpeed = wheels.maxOfOrNull { Math.abs(it.speed) }?.toFloat() ?: 0f
+                    /**
+                     * speedScale val.
+                     */
                     val speedScale = if (maxAbsSpeed > 2.0f) Math.max(maxAbsSpeed, 100f) else 1.0f
 
                     for (w in wheels) {
+                        /**
+                         * center val.
+                         */
                         val center = w.center
+                        /**
+                         * wWidth val.
+                         */
                         val wWidth = 32f
+                        /**
+                         * wHeight val.
+                         */
                         val wHeight = 64f
 
                         // Draw wheel body
@@ -171,12 +222,30 @@ fun MecanumVisualizer(
                         )
 
                         // Draw wheel rollers (diagonal lines)
+                        /**
+                         * spacing val.
+                         */
                         val spacing = 12f
+                        /**
+                         * offset var.
+                         */
                         var offset = -wHeight / 2f + 4f
                         while (offset < wHeight / 2f) {
+                            /**
+                             * rx1 val.
+                             */
                             val rx1 = center.x - wWidth / 2f + 2f
+                            /**
+                             * ry1 val.
+                             */
                             val ry1 = center.y + offset
+                            /**
+                             * rx2 val.
+                             */
                             val rx2 = center.x + wWidth / 2f - 2f
+                            /**
+                             * ry2 val.
+                             */
                             val ry2 = ry1 + wWidth * tan(w.rollerAngle).toFloat()
 
                             if (ry2 >= center.y - wHeight / 2f && ry2 <= center.y + wHeight / 2f) {
@@ -192,10 +261,22 @@ fun MecanumVisualizer(
                         }
 
                         // Draw spin vector arrow (along wheel axis, vertically)
+                        /**
+                         * normalizedSpeed val.
+                         */
                         val normalizedSpeed = (w.speed / speedScale).toFloat()
                         if (Math.abs(normalizedSpeed) > 0.05f) {
+                            /**
+                             * maxArrowLen val.
+                             */
                             val maxArrowLen = 40f
+                            /**
+                             * arrowLen val.
+                             */
                             val arrowLen = normalizedSpeed * maxArrowLen
+                            /**
+                             * spinEnd val.
+                             */
                             val spinEnd = Offset(center.x, center.y - arrowLen)
 
                             drawLine(
@@ -208,9 +289,18 @@ fun MecanumVisualizer(
 
                             // Draw traction force vector arrow (at 45 degrees, matching roller slide reaction)
                             // The traction force vector points along the roller's perpendicular axis (direction of push)
+                            /**
+                             * forceAngle val.
+                             */
                             val forceAngle = getForceAngle(w.name, w.speed)
 
+                            /**
+                             * forceLen val.
+                             */
                             val forceLen = Math.abs(normalizedSpeed * maxArrowLen)
+                            /**
+                             * forceEnd val.
+                             */
                             val forceEnd = Offset(
                                 center.x + forceLen * cos(forceAngle).toFloat(),
                                 center.y + forceLen * sin(forceAngle).toFloat()
@@ -225,11 +315,20 @@ fun MecanumVisualizer(
                             )
 
                             // Draw force arrowhead
+                            /**
+                             * headSize val.
+                             */
                             val headSize = 8f
+                            /**
+                             * leftWing val.
+                             */
                             val leftWing = Offset(
                                 forceEnd.x - headSize * cos(forceAngle - Math.PI / 6).toFloat(),
                                 forceEnd.y - headSize * sin(forceAngle - Math.PI / 6).toFloat()
                             )
+                            /**
+                             * rightWing val.
+                             */
                             val rightWing = Offset(
                                 forceEnd.x - headSize * cos(forceAngle + Math.PI / 6).toFloat(),
                                 forceEnd.y - headSize * sin(forceAngle + Math.PI / 6).toFloat()
@@ -240,25 +339,58 @@ fun MecanumVisualizer(
                     }
 
                     // Calculate and draw net force vector in the center
+                    /**
+                     * netForceX var.
+                     */
                     var netForceX = 0f
+                    /**
+                     * netForceY var.
+                     */
                     var netForceY = 0f
                     for (w in wheels) {
+                        /**
+                         * normalizedSpeed val.
+                         */
                         val normalizedSpeed = (w.speed / speedScale).toFloat()
                         if (Math.abs(normalizedSpeed) > 0.05f) {
+                            /**
+                             * forceAngle val.
+                             */
                             val forceAngle = getForceAngle(w.name, w.speed)
+                            /**
+                             * forceLen val.
+                             */
                             val forceLen = Math.abs(normalizedSpeed)
                             netForceX += forceLen * cos(forceAngle).toFloat()
                             netForceY += forceLen * sin(forceAngle).toFloat()
                         }
                     }
 
+                    /**
+                     * netMagnitude val.
+                     */
                     val netMagnitude = Math.sqrt((netForceX * netForceX + netForceY * netForceY).toDouble()).toFloat()
                     if (netMagnitude > 0.05f) {
+                        /**
+                         * maxNetArrowLen val.
+                         */
                         val maxNetArrowLen = 100f
+                        /**
+                         * arrowLen val.
+                         */
                         val arrowLen = (netMagnitude * maxNetArrowLen).coerceAtMost(maxNetArrowLen)
+                        /**
+                         * netAngle val.
+                         */
                         val netAngle = Math.atan2(netForceY.toDouble(), netForceX.toDouble())
                         
+                        /**
+                         * netStart val.
+                         */
                         val netStart = Offset(cx, cy)
+                        /**
+                         * netEnd val.
+                         */
                         val netEnd = Offset(
                             cx + arrowLen * cos(netAngle).toFloat(),
                             cy + arrowLen * sin(netAngle).toFloat()
@@ -273,11 +405,20 @@ fun MecanumVisualizer(
                         )
 
                         // Draw net force arrowhead
+                        /**
+                         * headSize val.
+                         */
                         val headSize = 14f
+                        /**
+                         * leftWing val.
+                         */
                         val leftWing = Offset(
                             netEnd.x - headSize * cos(netAngle - Math.PI / 6).toFloat(),
                             netEnd.y - headSize * sin(netAngle - Math.PI / 6).toFloat()
                         )
+                        /**
+                         * rightWing val.
+                         */
                         val rightWing = Offset(
                             netEnd.x - headSize * cos(netAngle + Math.PI / 6).toFloat(),
                             netEnd.y - headSize * sin(netAngle + Math.PI / 6).toFloat()
@@ -306,10 +447,25 @@ fun MecanumVisualizer(
 }
 
 private data class WheelData(
+    /**
+     * name val.
+     */
     val name: String,
+    /**
+     * center val.
+     */
     val center: Offset,
+    /**
+     * rollerAngle val.
+     */
     val rollerAngle: Double,
+    /**
+     * speed val.
+     */
     val speed: Double,
+    /**
+     * current val.
+     */
     val current: Double
 )
 

@@ -43,7 +43,13 @@ class PathUndoRedoManager(
      */
     fun undo() {
         if (undoStack.isNotEmpty()) {
+            /**
+             * current val.
+             */
             val current = stateFlow.value
+            /**
+             * previous val.
+             */
             val previous = undoStack.removeLast()
             redoStack.add(current)
             stateFlow.value = previous
@@ -60,7 +66,13 @@ class PathUndoRedoManager(
      */
     fun redo() {
         if (redoStack.isNotEmpty()) {
+            /**
+             * current val.
+             */
             val current = stateFlow.value
+            /**
+             * next val.
+             */
             val next = redoStack.removeLast()
             undoStack.add(current)
             stateFlow.value = next

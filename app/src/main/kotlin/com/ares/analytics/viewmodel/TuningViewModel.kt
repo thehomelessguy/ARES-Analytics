@@ -20,9 +20,21 @@ import kotlinx.coroutines.launch
  * @return expected results
  */
 data class TuningState(
+    /**
+     * variables val.
+     */
     val variables: Map<String, Double> = emptyMap(),
+    /**
+     * isLoading val.
+     */
     val isLoading: Boolean = false,
+    /**
+     * saveStatus val.
+     */
     val saveStatus: String = "",
+    /**
+     * errorMessage val.
+     */
     val errorMessage: String? = null
 )
 
@@ -65,24 +77,45 @@ sealed class TuningIntent {
  * @return expected results
  */
 class TuningViewModel(
+    /**
+     * nt4ClientService val.
+     */
     val nt4ClientService: Nt4ClientService,
     private val scope: CoroutineScope
 ) {
     private val _state = MutableStateFlow(TuningState())
+    /**
+     * state val.
+     */
     val state: StateFlow<TuningState> = _state.asStateFlow()
 
     init {
         scope.launch {
             while (isActive) {
+                /**
+                 * topics val.
+                 */
                 val topics = nt4ClientService.getActiveTopics().filter { it.startsWith("Tuning/") }
+                /**
+                 * currentMap val.
+                 */
                 val currentMap = _state.value.variables.toMutableMap()
+                /**
+                 * changed var.
+                 */
                 var changed = false
                 
                 // Track missing keys to remove them if a new session starts
+                /**
+                 * activeKeys val.
+                 */
                 val activeKeys = mutableSetOf<String>()
 
                 for (topic in topics) {
                     activeKeys.add(topic)
+                    /**
+                     * value val.
+                     */
                     val value = nt4ClientService.latestValues[topic]?.value ?: 0.0
                     if (currentMap[topic] != value) {
                         currentMap[topic] = value
@@ -90,6 +123,9 @@ class TuningViewModel(
                     }
                 }
                 
+                /**
+                 * keysToRemove val.
+                 */
                 val keysToRemove = currentMap.keys - activeKeys
                 if (keysToRemove.isNotEmpty()) {
                     keysToRemove.forEach { currentMap.remove(it) }

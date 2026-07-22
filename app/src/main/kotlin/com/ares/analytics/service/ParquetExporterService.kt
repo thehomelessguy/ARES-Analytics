@@ -15,6 +15,9 @@ import java.io.File
 class ParquetExporterService(private val databaseService: DatabaseService) {
 
     suspend fun exportSessionToParquet(sessionId: String, destinationFile: File) = withContext(Dispatchers.IO) {
+        /**
+         * count val.
+         */
         val count = databaseService.countTelemetryFrames(sessionId)
         if (count == 0L) {
             throw IllegalArgumentException("Cannot export empty session: $sessionId")
@@ -28,6 +31,9 @@ class ParquetExporterService(private val databaseService: DatabaseService) {
             destinationFile.delete()
         }
 
+        /**
+         * absolutePath val.
+         */
         val absolutePath = destinationFile.absolutePath.replace("\\", "/")
         
         databaseService.executeRaw("""

@@ -21,16 +21,40 @@ import org.mockito.Mockito.mock
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
+/**
+ * GatewayLoadTest class.
+ */
 class GatewayLoadTest {
 
     @Test
+    /**
+     * testConcurrentSyncRequests fun.
+     */
     fun testConcurrentSyncRequests() = testApplication {
+        /**
+         * mockFirestore val.
+         */
         val mockFirestore = mock(com.google.cloud.firestore.Firestore::class.java)
+        /**
+         * mockCollection val.
+         */
         val mockCollection = mock(com.google.cloud.firestore.CollectionReference::class.java)
+        /**
+         * mockQuery1 val.
+         */
         val mockQuery1 = mock(com.google.cloud.firestore.Query::class.java)
+        /**
+         * mockQuery2 val.
+         */
         val mockQuery2 = mock(com.google.cloud.firestore.Query::class.java)
         @Suppress("UNCHECKED_CAST")
+        /**
+         * mockFuture val.
+         */
         val mockFuture = mock(com.google.api.core.ApiFuture::class.java) as com.google.api.core.ApiFuture<com.google.cloud.firestore.QuerySnapshot>
+        /**
+         * mockQuerySnapshot val.
+         */
         val mockQuerySnapshot = mock(com.google.cloud.firestore.QuerySnapshot::class.java)
 
         org.mockito.Mockito.`when`(mockFirestore.collection("summaries")).thenReturn(mockCollection)
@@ -40,10 +64,22 @@ class GatewayLoadTest {
         org.mockito.Mockito.`when`(mockFuture.get()).thenReturn(mockQuerySnapshot)
         org.mockito.Mockito.`when`(mockQuerySnapshot.documents).thenReturn(emptyList())
 
+        /**
+         * mockUserCollection val.
+         */
         val mockUserCollection = mock(com.google.cloud.firestore.CollectionReference::class.java)
+        /**
+         * mockUserDocRef val.
+         */
         val mockUserDocRef = mock(com.google.cloud.firestore.DocumentReference::class.java)
         @Suppress("UNCHECKED_CAST")
+        /**
+         * mockUserFuture val.
+         */
         val mockUserFuture = mock(com.google.api.core.ApiFuture::class.java) as com.google.api.core.ApiFuture<com.google.cloud.firestore.DocumentSnapshot>
+        /**
+         * mockUserDoc val.
+         */
         val mockUserDoc = mock(com.google.cloud.firestore.DocumentSnapshot::class.java)
 
         org.mockito.Mockito.`when`(mockFirestore.collection("users")).thenReturn(mockUserCollection)
@@ -72,13 +108,22 @@ class GatewayLoadTest {
             }
         }
 
+        /**
+         * syncReq val.
+         */
         val syncReq = SyncRequest(
             teamId = "9999",
             seasonId = "2026",
             knownSessionIds = listOf("session-1")
         )
+        /**
+         * reqJson val.
+         */
         val reqJson = Json.encodeToString(SyncRequest.serializer(), syncReq)
 
+        /**
+         * responses val.
+         */
         val responses = coroutineScope {
             (1..10).map {
                 async {

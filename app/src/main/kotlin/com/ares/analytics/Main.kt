@@ -27,11 +27,26 @@ fun main() {
     System.setProperty("javax.accessibility.assistive_technologies", "")
 
     // Single instance lock using file channel locking
+    /**
+     * lockDir val.
+     */
     val lockDir = java.io.File(System.getProperty("user.home") + "/.ares-analytics")
     lockDir.mkdirs()
+    /**
+     * lockFile val.
+     */
     val lockFile = java.io.File(lockDir, "app.lock")
+    /**
+     * randomAccessFile val.
+     */
     val randomAccessFile = java.io.RandomAccessFile(lockFile, "rw")
+    /**
+     * fileChannel val.
+     */
     val fileChannel = randomAccessFile.channel
+    /**
+     * lock val.
+     */
     val lock = try {
         fileChannel.tryLock()
     } catch (e: Exception) {
@@ -58,9 +73,18 @@ fun main() {
 
     Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
         try {
+            /**
+             * logDir val.
+             */
             val logDir = java.io.File(System.getProperty("user.home") + "/.ares-analytics/logs")
             logDir.mkdirs()
+            /**
+             * timestamp val.
+             */
             val timestamp = java.text.SimpleDateFormat("yyyyMMdd-HHmmss").format(java.util.Date())
+            /**
+             * crashFile val.
+             */
             val crashFile = java.io.File(logDir, "crash-$timestamp.log")
             java.io.PrintWriter(java.io.FileWriter(crashFile)).use { writer ->
                 writer.println("Thread: ${thread.name}")
@@ -75,10 +99,16 @@ fun main() {
     }
 
     application {
+        /**
+         * windowState val.
+         */
         val windowState = rememberWindowState(
             width = 1440.dp,
             height = 900.dp
         )
+        /**
+         * services val.
+         */
         val services = remember { ServiceRegistry() }
 
         Window(
@@ -94,9 +124,18 @@ fun main() {
             title = "ARES Analytics — Mission Control",
             state = windowState,
             onKeyEvent = { keyEvent ->
+                /**
+                 * state val.
+                 */
                 val state = services.keyboardDriveState
                 if (state.enabled) {
+                    /**
+                     * isDown val.
+                     */
                     val isDown = keyEvent.type == KeyEventType.KeyDown
+                    /**
+                     * isUp val.
+                     */
                     val isUp = keyEvent.type == KeyEventType.KeyUp
                     when (keyEvent.key) {
                         Key.W -> { state.isWPressed = isDown; true }

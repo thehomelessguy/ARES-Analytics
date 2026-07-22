@@ -75,23 +75,65 @@ fun StatisticsPanel(
     sessionId: String?,
     modifier: Modifier = Modifier
 ) {
+    /**
+     * scope val.
+     */
     val scope = rememberCoroutineScope()
+    /**
+     * availableKeys var.
+     */
     var availableKeys by remember { mutableStateOf<List<String>>(emptyList()) }
+    /**
+     * selectedKey1 var.
+     */
     var selectedKey1 by remember { mutableStateOf<String?>(null) }
+    /**
+     * selectedKey2 var.
+     */
     var selectedKey2 by remember { mutableStateOf<String?>(null) }
+    /**
+     * timeFilter var.
+     */
     var timeFilter by remember { mutableStateOf(TimeFilter.FULL) }
+    /**
+     * analysisMode var.
+     */
     var analysisMode by remember { mutableStateOf(AnalysisMode.SINGLE) }
 
     // Dropdown expanded states
+    /**
+     * key1Expanded var.
+     */
     var key1Expanded by remember { mutableStateOf(false) }
+    /**
+     * key2Expanded var.
+     */
     var key2Expanded by remember { mutableStateOf(false) }
+    /**
+     * filterExpanded var.
+     */
     var filterExpanded by remember { mutableStateOf(false) }
+    /**
+     * modeExpanded var.
+     */
     var modeExpanded by remember { mutableStateOf(false) }
 
     // Loaded data states
+    /**
+     * telemetry1 var.
+     */
     var telemetry1 by remember { mutableStateOf<List<TelemetryFrame>>(emptyList()) }
+    /**
+     * telemetry2 var.
+     */
     var telemetry2 by remember { mutableStateOf<List<TelemetryFrame>>(emptyList()) }
+    /**
+     * stateFrames var.
+     */
     var stateFrames by remember { mutableStateOf<List<TelemetryFrame>>(emptyList()) }
+    /**
+     * isLoading var.
+     */
     var isLoading by remember { mutableStateOf(false) }
 
     // Fetch keys when session changes
@@ -100,6 +142,9 @@ fun StatisticsPanel(
             isLoading = true
             scope.launch {
                 try {
+                    /**
+                     * allFrames val.
+                     */
                     val allFrames = databaseService.getTelemetryRange(sessionId, 0L, Long.MAX_VALUE)
                     availableKeys = allFrames.map { it.key }.distinct().sorted()
                     stateFrames = allFrames.filter { 
@@ -177,16 +222,37 @@ fun StatisticsPanel(
      */
     fun interpolate(t: Long, times: List<Long>, values: List<Double>): Double {
         if (times.isEmpty()) return 0.0
+        /**
+         * idx val.
+         */
         val idx = times.binarySearch(t)
         if (idx >= 0) return values[idx]
+        /**
+         * insertIdx val.
+         */
         val insertIdx = -idx - 1
         if (insertIdx == 0) return values.first()
         if (insertIdx >= times.size) return values.last()
+        /**
+         * t0 val.
+         */
         val t0 = times[insertIdx - 1]
+        /**
+         * t1 val.
+         */
         val t1 = times[insertIdx]
+        /**
+         * v0 val.
+         */
         val v0 = values[insertIdx - 1]
+        /**
+         * v1 val.
+         */
         val v1 = values[insertIdx]
         if (t1 == t0) return v0
+        /**
+         * pct val.
+         */
         val pct = (t - t0).toDouble() / (t1 - t0).toDouble()
         return v0 + pct * (v1 - v0)
     }
@@ -202,45 +268,81 @@ fun StatisticsPanel(
      */
     fun filterTelemetry(raw: List<TelemetryFrame>): List<TelemetryFrame> {
         if (raw.isEmpty()) return emptyList()
+        /**
+         * startMs val.
+         */
         val startMs = raw.first().timestampMs
+        /**
+         * durationMs val.
+         */
         val durationMs = raw.last().timestampMs - startMs
 
         // Check if there is an explicit "/RobotState/Mode" or "/RobotState/Enabled" in telemetry
+        /**
+         * enabledKey val.
+         */
         val enabledKey = stateFrames.firstOrNull { it.key.endsWith("enabled", ignoreCase = true) }?.key
+        /**
+         * modeKey val.
+         */
         val modeKey = stateFrames.firstOrNull { it.key.endsWith("mode", ignoreCase = true) }?.key
 
         return when (timeFilter) {
             TimeFilter.FULL -> raw
             TimeFilter.AUTO -> {
                 if (modeKey != null) {
+                    /**
+                     * modeValues val.
+                     */
                     val modeValues = stateFrames.filter { it.key == modeKey }
                     raw.filter { frame ->
+                        /**
+                         * activeMode val.
+                         */
                         val activeMode = interpolate(frame.timestampMs, modeValues.map { it.timestampMs }, modeValues.map { it.value })
                         activeMode == 1.0 // Heuristic: 1.0 is Auto
                     }
                 } else {
                     // Fallback to first 15 seconds
+                    /**
+                     * cutoff val.
+                     */
                     val cutoff = startMs + 15000L
                     raw.filter { it.timestampMs <= cutoff }
                 }
             }
             TimeFilter.TELEOP -> {
                 if (modeKey != null) {
+                    /**
+                     * modeValues val.
+                     */
                     val modeValues = stateFrames.filter { it.key == modeKey }
                     raw.filter { frame ->
+                        /**
+                         * activeMode val.
+                         */
                         val activeMode = interpolate(frame.timestampMs, modeValues.map { it.timestampMs }, modeValues.map { it.value })
                         activeMode == 2.0 // Heuristic: 2.0 is Teleop
                     }
                 } else {
                     // Fallback to post-15 seconds
+                    /**
+                     * cutoff val.
+                     */
                     val cutoff = startMs + 15000L
                     raw.filter { it.timestampMs > cutoff }
                 }
             }
             TimeFilter.ENABLED -> {
                 if (enabledKey != null) {
+                    /**
+                     * enabledValues val.
+                     */
                     val enabledValues = stateFrames.filter { it.key == enabledKey }
                     raw.filter { frame ->
+                        /**
+                         * isEnabled val.
+                         */
                         val isEnabled = interpolate(frame.timestampMs, enabledValues.map { it.timestampMs }, enabledValues.map { it.value })
                         isEnabled > 0.5
                     }
@@ -252,19 +354,43 @@ fun StatisticsPanel(
     }
 
     // Processed primary signal values
+    /**
+     * filtered1 val.
+     */
     val filtered1 = filterTelemetry(telemetry1)
+    /**
+     * filtered2 val.
+     */
     val filtered2 = filterTelemetry(telemetry2)
 
     // Compute active dataset to analyze based on mode
+    /**
+     * activeValues val.
+     */
     val activeValues = remember(filtered1, filtered2, analysisMode) {
+        /**
+         * list val.
+         */
         val list = mutableListOf<Double>()
         if (analysisMode == AnalysisMode.SINGLE || filtered2.isEmpty()) {
             list.addAll(filtered1.map { it.value })
         } else {
+            /**
+             * t2List val.
+             */
             val t2List = filtered2.map { it.timestampMs }
+            /**
+             * v2List val.
+             */
             val v2List = filtered2.map { it.value }
             for (f1 in filtered1) {
+                /**
+                 * val1 val.
+                 */
                 val val1 = f1.value
+                /**
+                 * val2 val.
+                 */
                 val val2 = interpolate(f1.timestampMs, t2List, v2List)
                 when (analysisMode) {
                     AnalysisMode.ABSOLUTE_ERROR -> list.add(abs(val1 - val2))
@@ -277,25 +403,61 @@ fun StatisticsPanel(
     }
 
     // Compute Descriptive Statistics
+    /**
+     * stats val.
+     */
     val stats = remember(activeValues) {
         if (activeValues.isEmpty()) null else {
+            /**
+             * sorted val.
+             */
             val sorted = activeValues.sorted()
+            /**
+             * n val.
+             */
             val n = sorted.size
+            /**
+             * minVal val.
+             */
             val minVal = sorted.first()
+            /**
+             * maxVal val.
+             */
             val maxVal = sorted.last()
+            /**
+             * sumVal val.
+             */
             val sumVal = sorted.sum()
+            /**
+             * meanVal val.
+             */
             val meanVal = sumVal / n
 
             // Median
+            /**
+             * medianVal val.
+             */
             val medianVal = if (n % 2 == 1) sorted[n / 2] else (sorted[n / 2 - 1] + sorted[n / 2]) / 2.0
 
             // Mode
+            /**
+             * counts val.
+             */
             val counts = mutableMapOf<Double, Int>()
             sorted.forEach { counts[it] = (counts[it] ?: 0) + 1 }
+            /**
+             * modeVal val.
+             */
             val modeVal = counts.maxByOrNull { it.value }?.key ?: 0.0
 
             // StdDev
+            /**
+             * variance val.
+             */
             val variance = sorted.fold(0.0) { acc, d -> acc + (d - meanVal).pow(2) } / n
+            /**
+             * stdDevVal val.
+             */
             val stdDevVal = sqrt(variance)
 
             // Percentiles
@@ -308,22 +470,58 @@ fun StatisticsPanel(
              * @return expected results
              */
             fun getPercentile(p: Double): Double {
+                /**
+                 * index val.
+                 */
                 val index = (p * (n - 1))
+                /**
+                 * lower val.
+                 */
                 val lower = index.toInt()
+                /**
+                 * upper val.
+                 */
                 val upper = (lower + 1).coerceAtMost(n - 1)
+                /**
+                 * weight val.
+                 */
                 val weight = index - lower
                 return sorted[lower] * (1.0 - weight) + sorted[upper] * weight
             }
 
+            /**
+             * p5 val.
+             */
             val p5 = getPercentile(0.05)
+            /**
+             * p25 val.
+             */
             val p25 = getPercentile(0.25)
+            /**
+             * p50 val.
+             */
             val p50 = medianVal
+            /**
+             * p75 val.
+             */
             val p75 = getPercentile(0.75)
+            /**
+             * p95 val.
+             */
             val p95 = getPercentile(0.95)
+            /**
+             * iqr val.
+             */
             val iqr = p75 - p25
 
             // Skewness
+            /**
+             * m3 val.
+             */
             val m3 = sorted.fold(0.0) { acc, d -> acc + (d - meanVal).pow(3) } / n
+            /**
+             * skewnessVal val.
+             */
             val skewnessVal = if (stdDevVal > 1e-9) m3 / stdDevVal.pow(3) else 0.0
 
             mapOf(
@@ -518,6 +716,9 @@ fun StatisticsPanel(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(name, color = AresTextSecondary, fontSize = 12.sp)
+                                /**
+                                 * formatted val.
+                                 */
                                 val formatted = if (name == "Count") value.toInt().toString() else String.format("%.5f", value)
                                 Text(formatted, color = AresTextPrimary, fontSize = 12.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
                             }
@@ -535,33 +736,75 @@ fun StatisticsPanel(
                         .border(1.dp, AresBorder, RoundedCornerShape(8.dp))
                         .padding(16.dp)
                 ) {
+                    /**
+                     * mean val.
+                     */
                     val mean = stats?.get("Mean") ?: 0.0
+                    /**
+                     * median val.
+                     */
                     val median = stats?.get("Median") ?: 0.0
 
                     Canvas(modifier = Modifier.fillMaxSize()) {
+                        /**
+                         * width val.
+                         */
                         val width = size.width
+                        /**
+                         * height val.
+                         */
                         val height = size.height
 
                         // Bin parameters
+                        /**
+                         * binCount val.
+                         */
                         val binCount = 18
+                        /**
+                         * minVal val.
+                         */
                         val minVal = activeValues.minOrNull() ?: 0.0
+                        /**
+                         * maxVal val.
+                         */
                         val maxVal = activeValues.maxOrNull() ?: 0.0
+                        /**
+                         * range val.
+                         */
                         val range = maxVal - minVal
+                        /**
+                         * binWidth val.
+                         */
                         val binWidth = if (range == 0.0) 1.0 else range / binCount
 
+                        /**
+                         * bins val.
+                         */
                         val bins = IntArray(binCount)
                         for (v in activeValues) {
+                            /**
+                             * binIdx var.
+                             */
                             var binIdx = if (range == 0.0) 0 else ((v - minVal) / binWidth).toInt()
                             if (binIdx >= binCount) binIdx = binCount - 1
                             if (binIdx < 0) binIdx = 0
                             bins[binIdx]++
                         }
 
+                        /**
+                         * maxBinCount val.
+                         */
                         val maxBinCount = bins.maxOrNull()?.coerceAtLeast(1) ?: 1
 
                         // Draw Grid lines
+                        /**
+                         * gridLines val.
+                         */
                         val gridLines = 4
                         for (i in 0..gridLines) {
+                            /**
+                             * y val.
+                             */
                             val y = height - (i * (height - 30.dp.toPx()) / gridLines) - 20.dp.toPx()
                             drawLine(
                                 color = AresBorder,
@@ -572,14 +815,35 @@ fun StatisticsPanel(
                         }
 
                         // Draw Bins
+                        /**
+                         * startX val.
+                         */
                         val startX = 40.dp.toPx()
+                        /**
+                         * endX val.
+                         */
                         val endX = width - 10.dp.toPx()
+                        /**
+                         * availableWidth val.
+                         */
                         val availableWidth = endX - startX
+                        /**
+                         * barWidth val.
+                         */
                         val barWidth = availableWidth / binCount
 
                         for (i in 0 until binCount) {
+                            /**
+                             * binHeight val.
+                             */
                             val binHeight = (bins[i].toFloat() / maxBinCount) * (height - 50.dp.toPx())
+                            /**
+                             * x val.
+                             */
                             val x = startX + i * barWidth
+                            /**
+                             * y val.
+                             */
                             val y = height - 20.dp.toPx() - binHeight
 
                             drawRect(
@@ -601,7 +865,13 @@ fun StatisticsPanel(
                         // Draw ticks and labels (Min, Max, Mean)
                         if (range > 0) {
                             // Mean line
+                            /**
+                             * meanPct val.
+                             */
                             val meanPct = (mean - minVal) / range
+                            /**
+                             * meanX val.
+                             */
                             val meanX = startX + meanPct.toFloat() * availableWidth
                             if (meanX in startX..endX) {
                                 drawLine(
@@ -614,7 +884,13 @@ fun StatisticsPanel(
                             }
 
                             // Median line
+                            /**
+                             * medianPct val.
+                             */
                             val medianPct = (median - minVal) / range
+                            /**
+                             * medianX val.
+                             */
                             val medianX = startX + medianPct.toFloat() * availableWidth
                             if (medianX in startX..endX) {
                                 drawLine(

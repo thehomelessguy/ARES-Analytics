@@ -59,6 +59,9 @@ fun GainTuningPanel(
                 viewModel.onIntent(TuningIntent.ClearSaveStatus)
             }
         }
+        /**
+         * error val.
+         */
         val error = state.errorMessage
         if (error != null) {
             Text(error, color = AresError, fontSize = 12.sp, fontWeight = FontWeight.Bold)
@@ -70,6 +73,9 @@ fun GainTuningPanel(
             }
         } else {
             // Group by custom categories
+            /**
+             * grouped val.
+             */
             val grouped = state.variables.entries.groupBy { 
                 getCustomCategory(it.key)
             }
@@ -99,8 +105,17 @@ fun GainTuningPanel(
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             constants.sortedBy { it.key }.forEach { const ->
+                                /**
+                                 * constKey val.
+                                 */
                                 val constKey = const.key
+                                /**
+                                 * parts val.
+                                 */
                                 val parts = constKey.removePrefix("Tuning/").split("/")
+                                /**
+                                 * displayName val.
+                                 */
                                 val displayName = if (parts.size > 1) parts.drop(1).joinToString("/") else parts[0]
                                 
                                 Row(
@@ -108,8 +123,17 @@ fun GainTuningPanel(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
+                                    /**
+                                     * descAndRange val.
+                                     */
                                     val descAndRange = getConstantDescriptionAndRange(constKey)
+                                    /**
+                                     * tooltipState val.
+                                     */
                                     val tooltipState = rememberTooltipState(isPersistent = true)
+                                    /**
+                                     * scope val.
+                                     */
                                     val scope = rememberCoroutineScope()
 
                                     Box(
@@ -118,6 +142,9 @@ fun GainTuningPanel(
                                             .pointerInput(Unit) {
                                                 awaitPointerEventScope {
                                                     while (true) {
+                                                        /**
+                                                         * event val.
+                                                         */
                                                         val event = awaitPointerEvent()
                                                         when (event.type) {
                                                             PointerEventType.Enter -> {
@@ -163,6 +190,9 @@ fun GainTuningPanel(
                                         }
                                     }
 
+                                    /**
+                                     * textValue var.
+                                     */
                                     var textValue by remember(const.value) { mutableStateOf(const.value.toString()) }
                                     BasicTextField(
                                         value = textValue,
@@ -193,6 +223,9 @@ fun GainTuningPanel(
                                     )
                                     Button(
                                         onClick = {
+                                            /**
+                                             * newVal val.
+                                             */
                                             val newVal = textValue.toDoubleOrNull()
                                             if (newVal != null) {
                                                 viewModel.onIntent(TuningIntent.SaveConstant(constKey, newVal))
@@ -216,7 +249,13 @@ fun GainTuningPanel(
 }
 
 private fun getCustomCategory(key: String): String {
+    /**
+     * cleanKey val.
+     */
     val cleanKey = key.removePrefix("Tuning/")
+    /**
+     * parts val.
+     */
     val parts = cleanKey.split("/")
     if (parts.size > 1) {
         return when (parts[0]) {
@@ -245,6 +284,9 @@ private fun getCustomCategory(key: String): String {
 }
 
 private fun getConstantDescriptionAndRange(key: String): Pair<String, String> {
+    /**
+     * cleanKey val.
+     */
     val cleanKey = key.removePrefix("Tuning/")
     return when (cleanKey) {
         "trackWidthMeters" -> Pair("Distance between center of left and right wheels.", "0.30 - 0.50 m")

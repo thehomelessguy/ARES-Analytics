@@ -38,8 +38,17 @@ fun SessionSummaryCard(
     sessionId: String?,
     modifier: Modifier = Modifier
 ) {
+    /**
+     * scope val.
+     */
     val scope = rememberCoroutineScope()
+    /**
+     * summary var.
+     */
     var summary by remember { mutableStateOf<SessionSummary?>(null) }
+    /**
+     * isLoading var.
+     */
     var isLoading by remember { mutableStateOf(false) }
 
     LaunchedEffect(sessionId) {
@@ -89,6 +98,9 @@ fun SessionSummaryCard(
                 }
             }
             else -> {
+                /**
+                 * s val.
+                 */
                 val s = summary!!
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),

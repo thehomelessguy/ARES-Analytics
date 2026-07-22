@@ -9,6 +9,12 @@ package com.ares.analytics.service
  * @return expected results
  */
 data class QueryResult(
+    /**
+     * columns val.
+     */
     val columns: List<String>,
+    /**
+     * rows val.
+     */
     val rows: List<List<String>>
 )

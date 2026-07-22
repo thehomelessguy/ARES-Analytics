@@ -36,13 +36,37 @@ fun WaypointCard(
     onChanged: (Waypoint) -> Unit,
     onDelete: () -> Unit
 ) {
+    /**
+     * xText var.
+     */
     var xText by remember { mutableStateOf(String.format("%.3f", wp.x)) }
+    /**
+     * yText var.
+     */
     var yText by remember { mutableStateOf(String.format("%.3f", wp.y)) }
+    /**
+     * headingDeg val.
+     */
     val headingDeg = wp.headingRad?.let { Math.toDegrees(it) }
+    /**
+     * headingText var.
+     */
     var headingText by remember { mutableStateOf(headingDeg?.let { String.format("%.1f", it) } ?: "") }
+    /**
+     * rotationDeg val.
+     */
     val rotationDeg = wp.rotationDeg
+    /**
+     * rotationText var.
+     */
     var rotationText by remember { mutableStateOf(rotationDeg?.let { String.format("%.1f", it) } ?: "") }
+    /**
+     * prevLengthText var.
+     */
     var prevLengthText by remember { mutableStateOf(String.format("%.3f", wp.prevControlLength)) }
+    /**
+     * nextLengthText var.
+     */
     var nextLengthText by remember { mutableStateOf(String.format("%.3f", wp.nextControlLength)) }
 
     LaunchedEffect(wp.x) {
@@ -55,6 +79,9 @@ fun WaypointCard(
         when {
             headingDeg == null -> { if (headingText.isNotEmpty()) headingText = "" }
             else -> {
+                /**
+                 * parsed val.
+                 */
                 val parsed = headingText.toDoubleOrNull()
                 if (parsed == null || kotlin.math.abs(parsed - headingDeg) > 0.1) {
                     headingText = String.format("%.1f", headingDeg)
@@ -66,6 +93,9 @@ fun WaypointCard(
         when {
             rotationDeg == null -> { if (rotationText.isNotEmpty()) rotationText = "" }
             else -> {
+                /**
+                 * parsed val.
+                 */
                 val parsed = rotationText.toDoubleOrNull()
                 if (parsed == null || kotlin.math.abs(parsed - rotationDeg) > 0.1) {
                     rotationText = String.format("%.1f", rotationDeg)
@@ -74,12 +104,18 @@ fun WaypointCard(
         }
     }
     LaunchedEffect(wp.prevControlLength) {
+        /**
+         * parsed val.
+         */
         val parsed = prevLengthText.toDoubleOrNull()
         if (parsed == null || kotlin.math.abs(parsed - wp.prevControlLength) > 1e-3) {
             prevLengthText = String.format("%.3f", wp.prevControlLength)
         }
     }
     LaunchedEffect(wp.nextControlLength) {
+        /**
+         * parsed val.
+         */
         val parsed = nextLengthText.toDoubleOrNull()
         if (parsed == null || kotlin.math.abs(parsed - wp.nextControlLength) > 1e-3) {
             nextLengthText = String.format("%.3f", wp.nextControlLength)
@@ -243,29 +279,53 @@ fun EventMarkerCard(
     onChanged: (PathPlannerEventMarker) -> Unit,
     onDelete: () -> Unit
 ) {
+    /**
+     * posSliderVal var.
+     */
     var posSliderVal by remember { mutableStateOf(marker.waypointRelativePos.toFloat()) }
+    /**
+     * dropdownExpanded var.
+     */
     var dropdownExpanded by remember { mutableStateOf(false) }
 
     // Parse current marker.name into structured state
+    /**
+     * parsed val.
+     */
     val parsed = remember(marker.name) {
         when {
             marker.name.startsWith("SetIntakeActive(") -> {
+                /**
+                 * v val.
+                 */
                 val v = marker.name.removePrefix("SetIntakeActive(").removeSuffix(")").toBoolean()
                 MarkerParseResult("Set Intake Active", bVal = v)
             }
             marker.name.startsWith("SetFlywheelActive(") -> {
+                /**
+                 * v val.
+                 */
                 val v = marker.name.removePrefix("SetFlywheelActive(").removeSuffix(")").toBoolean()
                 MarkerParseResult("Set Flywheel Active", bVal = v)
             }
             marker.name.startsWith("SetTransferActive(") -> {
+                /**
+                 * v val.
+                 */
                 val v = marker.name.removePrefix("SetTransferActive(").removeSuffix(")").toBoolean()
                 MarkerParseResult("Set Transfer Active", bVal = v)
             }
             marker.name.startsWith("SetFlywheelTargetRPM(") -> {
+                /**
+                 * v val.
+                 */
                 val v = marker.name.removePrefix("SetFlywheelTargetRPM(").removeSuffix(")").toDoubleOrNull() ?: 0.0
                 MarkerParseResult("Set Flywheel Target RPM", dVal = v)
             }
             marker.name.startsWith("SetIndicatorColor_") -> {
+                /**
+                 * v val.
+                 */
                 val v = marker.name.removePrefix("SetIndicatorColor_")
                 MarkerParseResult("Set Indicator Color", sVal = v)
             }
@@ -273,31 +333,64 @@ fun EventMarkerCard(
         }
     }
 
+    /**
+     * selectedAction var.
+     */
     var selectedAction by remember { mutableStateOf(parsed.action) }
+    /**
+     * boolValue var.
+     */
     var boolValue by remember { mutableStateOf(parsed.bVal ?: true) }
+    /**
+     * doubleValue var.
+     */
     var doubleValue by remember { mutableStateOf(parsed.dVal ?: 2000.0) }
+    /**
+     * stringValue var.
+     */
     var stringValue by remember { mutableStateOf(parsed.sVal ?: "OFF") }
+    /**
+     * customName var.
+     */
     var customName by remember { mutableStateOf(if (parsed.action == "Custom Command") marker.name else "") }
 
     LaunchedEffect(marker.name) {
+        /**
+         * p val.
+         */
         val p = when {
             marker.name.startsWith("SetIntakeActive(") -> {
+                /**
+                 * v val.
+                 */
                 val v = marker.name.removePrefix("SetIntakeActive(").removeSuffix(")").toBoolean()
                 MarkerParseResult("Set Intake Active", bVal = v)
             }
             marker.name.startsWith("SetFlywheelActive(") -> {
+                /**
+                 * v val.
+                 */
                 val v = marker.name.removePrefix("SetFlywheelActive(").removeSuffix(")").toBoolean()
                 MarkerParseResult("Set Flywheel Active", bVal = v)
             }
             marker.name.startsWith("SetTransferActive(") -> {
+                /**
+                 * v val.
+                 */
                 val v = marker.name.removePrefix("SetTransferActive(").removeSuffix(")").toBoolean()
                 MarkerParseResult("Set Transfer Active", bVal = v)
             }
             marker.name.startsWith("SetFlywheelTargetRPM(") -> {
+                /**
+                 * v val.
+                 */
                 val v = marker.name.removePrefix("SetFlywheelTargetRPM(").removeSuffix(")").toDoubleOrNull() ?: 0.0
                 MarkerParseResult("Set Flywheel Target RPM", dVal = v)
             }
             marker.name.startsWith("SetIndicatorColor_") -> {
+                /**
+                 * v val.
+                 */
                 val v = marker.name.removePrefix("SetIndicatorColor_")
                 MarkerParseResult("Set Indicator Color", sVal = v)
             }
@@ -326,6 +419,9 @@ fun EventMarkerCard(
      * @return expected results
      */
     fun updateMarkerName(action: String, bVal: Boolean, dVal: Double, sVal: String, cName: String) {
+        /**
+         * newName val.
+         */
         val newName = when (action) {
             "Set Intake Active" -> "SetIntakeActive($bVal)"
             "Set Flywheel Active" -> "SetFlywheelActive($bVal)"
@@ -448,7 +544,13 @@ fun EventMarkerCard(
                 )
             }
             "Set Indicator Color" -> {
+                /**
+                 * colorDropdownExpanded var.
+                 */
                 var colorDropdownExpanded by remember { mutableStateOf(false) }
+                /**
+                 * colors val.
+                 */
                 val colors = listOf("OFF", "RED", "GREEN", "BLUE", "YELLOW", "VIOLET", "WHITE")
                 Box(modifier = Modifier.fillMaxWidth()) {
                     OutlinedTextField(
@@ -537,10 +639,19 @@ fun RotationTargetCard(
     onChanged: (RotationTarget) -> Unit,
     onDelete: () -> Unit
 ) {
+    /**
+     * degText var.
+     */
     var degText by remember { mutableStateOf(String.format("%.1f", target.rotationDegrees)) }
+    /**
+     * posSliderVal var.
+     */
     var posSliderVal by remember { mutableStateOf(target.waypointRelativePos.toFloat()) }
 
     LaunchedEffect(target.rotationDegrees) {
+        /**
+         * parsed val.
+         */
         val parsed = degText.toDoubleOrNull()
         if (parsed == null || kotlin.math.abs(parsed - target.rotationDegrees) > 0.1) {
             degText = String.format("%.1f", target.rotationDegrees)
@@ -623,23 +734,44 @@ fun ConstraintsZoneCard(
     onChanged: (ConstraintsZone) -> Unit,
     onDelete: () -> Unit
 ) {
+    /**
+     * nameText var.
+     */
     var nameText by remember { mutableStateOf(zone.name) }
+    /**
+     * minPosSliderVal var.
+     */
     var minPosSliderVal by remember { mutableStateOf(zone.minWaypointRelativePos.toFloat()) }
+    /**
+     * maxPosSliderVal var.
+     */
     var maxPosSliderVal by remember { mutableStateOf(zone.maxWaypointRelativePos.toFloat()) }
 
+    /**
+     * velText var.
+     */
     var velText by remember { mutableStateOf(String.format("%.2f", zone.constraints.maxVelocity)) }
+    /**
+     * accText var.
+     */
     var accText by remember { mutableStateOf(String.format("%.2f", zone.constraints.maxAcceleration)) }
 
     LaunchedEffect(zone.name) { if (nameText != zone.name) nameText = zone.name }
     LaunchedEffect(zone.minWaypointRelativePos) { if (kotlin.math.abs(minPosSliderVal - zone.minWaypointRelativePos.toFloat()) > 0.01f) minPosSliderVal = zone.minWaypointRelativePos.toFloat() }
     LaunchedEffect(zone.maxWaypointRelativePos) { if (kotlin.math.abs(maxPosSliderVal - zone.maxWaypointRelativePos.toFloat()) > 0.01f) maxPosSliderVal = zone.maxWaypointRelativePos.toFloat() }
     LaunchedEffect(zone.constraints.maxVelocity) {
+        /**
+         * parsed val.
+         */
         val parsed = velText.toDoubleOrNull()
         if (parsed == null || kotlin.math.abs(parsed - zone.constraints.maxVelocity) > 0.01) {
             velText = String.format("%.2f", zone.constraints.maxVelocity)
         }
     }
     LaunchedEffect(zone.constraints.maxAcceleration) {
+        /**
+         * parsed val.
+         */
         val parsed = accText.toDoubleOrNull()
         if (parsed == null || kotlin.math.abs(parsed - zone.constraints.maxAcceleration) > 0.01) {
             accText = String.format("%.2f", zone.constraints.maxAcceleration)
@@ -763,12 +895,30 @@ fun PointTowardsZoneCard(
     onChanged: (PointTowardsZone) -> Unit,
     onDelete: () -> Unit
 ) {
+    /**
+     * nameText var.
+     */
     var nameText by remember { mutableStateOf(zone.name) }
+    /**
+     * minPosSliderVal var.
+     */
     var minPosSliderVal by remember { mutableStateOf(zone.minWaypointRelativePos.toFloat()) }
+    /**
+     * maxPosSliderVal var.
+     */
     var maxPosSliderVal by remember { mutableStateOf(zone.maxWaypointRelativePos.toFloat()) }
 
+    /**
+     * targetXText var.
+     */
     var targetXText by remember { mutableStateOf(String.format("%.3f", zone.fieldPosition.x)) }
+    /**
+     * targetYText var.
+     */
     var targetYText by remember { mutableStateOf(String.format("%.3f", zone.fieldPosition.y)) }
+    /**
+     * offsetText var.
+     */
     var offsetText by remember { mutableStateOf(String.format("%.1f", zone.rotationOffset)) }
 
     LaunchedEffect(zone.name) { if (nameText != zone.name) nameText = zone.name }
@@ -781,6 +931,9 @@ fun PointTowardsZoneCard(
         if (targetYText.toDoubleOrNull() != zone.fieldPosition.y) targetYText = String.format("%.3f", zone.fieldPosition.y)
     }
     LaunchedEffect(zone.rotationOffset) {
+        /**
+         * parsed val.
+         */
         val parsed = offsetText.toDoubleOrNull()
         if (parsed == null || kotlin.math.abs(parsed - zone.rotationOffset) > 0.1) offsetText = String.format("%.1f", zone.rotationOffset)
     }
@@ -916,6 +1069,9 @@ fun CollapsibleSection(
     badgeText: String? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    /**
+     * expanded var.
+     */
     var expanded by remember { mutableStateOf(false) }
     Card(
         modifier = Modifier.fillMaxWidth().border(1.dp, AresBorder, RoundedCornerShape(8.dp)),

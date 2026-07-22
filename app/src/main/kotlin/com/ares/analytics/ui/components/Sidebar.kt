@@ -73,6 +73,9 @@ internal fun Sidebar(
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             // ARES brand logo (turns green if simulation running)
+            /**
+             * logoBgColors val.
+             */
             val logoBgColors = if (isSimRunning) {
                 listOf(AresGreen, AresGreen.copy(alpha = 0.7f))
             } else {
@@ -163,10 +166,16 @@ internal fun SidebarIcon(
     isActive: Boolean,
     onClick: () -> Unit
 ) {
+    /**
+     * iconColor val.
+     */
     val iconColor by animateColorAsState(
         targetValue = if (isActive) AresCyan else AresTextTertiary,
         animationSpec = spring(stiffness = Spring.StiffnessMediumLow)
     )
+    /**
+     * bgColor val.
+     */
     val bgColor by animateColorAsState(
         targetValue = if (isActive) AresCyanGlow else Color.Transparent,
         animationSpec = spring(stiffness = Spring.StiffnessMediumLow)
@@ -211,6 +220,9 @@ internal fun ConnectionIndicator(
     label: String,
     activeColor: Color = AresGreen
 ) {
+    /**
+     * dotColor val.
+     */
     val dotColor by animateColorAsState(
         targetValue = if (connected) activeColor else AresTextTertiary,
         animationSpec = spring(stiffness = Spring.StiffnessMediumLow)

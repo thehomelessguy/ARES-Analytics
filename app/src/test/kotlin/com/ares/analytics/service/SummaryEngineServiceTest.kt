@@ -8,16 +8,40 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
+/**
+ * SummaryEngineServiceTest class.
+ */
 class SummaryEngineServiceTest {
 
     @Test
+    /**
+     * testGenerateSummary fun.
+     */
     fun testGenerateSummary() = runTest {
+        /**
+         * tempDb val.
+         */
         val tempDb = File.createTempFile("summary_db_test", ".db").apply { deleteOnExit() }
+        /**
+         * databaseService val.
+         */
         val databaseService = DatabaseService(tempDb.absolutePath)
+        /**
+         * sysIdService val.
+         */
         val sysIdService = SysIdService(databaseService)
+        /**
+         * driverAnalysisService val.
+         */
         val driverAnalysisService = DriverAnalysisService(databaseService, sysIdService)
+        /**
+         * summaryEngine val.
+         */
         val summaryEngine = SummaryEngineService(databaseService, sysIdService, driverAnalysisService)
 
+        /**
+         * session val.
+         */
         val session = Session(
             sessionId = "summary-session",
             teamId = "23247",
@@ -29,6 +53,9 @@ class SummaryEngineServiceTest {
         )
 
         // Insert mock telemetry frames
+        /**
+         * frames val.
+         */
         val frames = listOf(
             TelemetryFrame(1100L, session.sessionId, "/Battery/Voltage", 12.6),
             TelemetryFrame(1200L, session.sessionId, "/Battery/Voltage", 11.2),
@@ -46,6 +73,9 @@ class SummaryEngineServiceTest {
 
         databaseService.insertTelemetryFrames(frames)
 
+        /**
+         * summary val.
+         */
         val summary = summaryEngine.generateSummary(session)
 
         assertEquals("summary-session", summary.sessionId)
@@ -58,6 +88,9 @@ class SummaryEngineServiceTest {
         assertTrue(summary.tags.contains("battery-A"))
 
         // Verify summary was saved in DB
+        /**
+         * saved val.
+         */
         val saved = databaseService.getSessionSummary(session.sessionId)
         assertTrue(saved != null)
         assertEquals(11.2, saved.minBatteryVoltage)

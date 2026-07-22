@@ -59,7 +59,13 @@ import java.util.Locale
  * Defines a bottom border using drawBehind.
  */
 fun Modifier.bottomBorder(width: Dp, color: Color) = drawBehind {
+    /**
+     * strokeWidth val.
+     */
     val strokeWidth = width.toPx()
+    /**
+     * y val.
+     */
     val y = size.height - strokeWidth / 2
     drawLine(
         color = color,
@@ -73,7 +79,13 @@ fun Modifier.bottomBorder(width: Dp, color: Color) = drawBehind {
  * Defines an end border using drawBehind.
  */
 fun Modifier.endBorder(width: Dp, color: Color) = drawBehind {
+    /**
+     * strokeWidth val.
+     */
     val strokeWidth = width.toPx()
+    /**
+     * x val.
+     */
     val x = size.width - strokeWidth / 2
     drawLine(
         color = color,
@@ -87,10 +99,25 @@ fun Modifier.endBorder(width: Dp, color: Color) = drawBehind {
  * Defines a row metric inside the Run History Spreadsheet.
  */
 data class RowDefinition(
+    /**
+     * label val.
+     */
     val label: String,
+    /**
+     * category val.
+     */
     val category: String,
+    /**
+     * getValue val.
+     */
     val getValue: (Session, SessionSummary?, Map<String, Double>) -> String,
+    /**
+     * getNumericValue val.
+     */
     val getNumericValue: (Session, SessionSummary?, Map<String, Double>) -> Double? = { _, _, _ -> null },
+    /**
+     * isAnomaly val.
+     */
     val isAnomaly: (Double) -> Boolean = { false }
 )
 
@@ -107,19 +134,52 @@ fun RunHistoryScreen(
     databaseService: DatabaseService,
     syncEngineService: SyncEngineService
 ) {
+    /**
+     * scope val.
+     */
     val scope = rememberCoroutineScope()
+    /**
+     * sessions var.
+     */
     var sessions by remember { mutableStateOf<List<Session>>(emptyList()) }
+    /**
+     * summaries var.
+     */
     var summaries by remember { mutableStateOf<Map<String, SessionSummary>>(emptyMap()) }
+    /**
+     * diagnosticsMap var.
+     */
     var diagnosticsMap by remember { mutableStateOf<Map<String, Map<String, Double>>>(emptyMap()) }
+    /**
+     * isLoading var.
+     */
     var isLoading by remember { mutableStateOf(true) }
 
+    /**
+     * isAiAnalystOpen var.
+     */
     var isAiAnalystOpen by remember { mutableStateOf(false) }
+    /**
+     * analystChatHistory val.
+     */
     val analystChatHistory = remember { mutableStateListOf<Pair<String, String>>() }
+    /**
+     * userQueryText var.
+     */
     var userQueryText by remember { mutableStateOf("") }
+    /**
+     * isAnalystLoading var.
+     */
     var isAnalystLoading by remember { mutableStateOf(false) }
 
+    /**
+     * selectedRowForGraph var.
+     */
     var selectedRowForGraph by remember { mutableStateOf<RowDefinition?>(null) }
 
+    /**
+     * dateFormatter val.
+     */
     val dateFormatter = remember {
         DateTimeFormatter.ofPattern("MMM dd, HH:mm", Locale.US).withZone(ZoneId.systemDefault())
     }
@@ -128,10 +188,19 @@ fun RunHistoryScreen(
     LaunchedEffect(Unit) {
         isLoading = true
         withContext(Dispatchers.IO) {
+            /**
+             * list val.
+             */
             val list = databaseService.getSessions().sortedBy { it.createdAt }
+            /**
+             * sums val.
+             */
             val sums = list.associate { it.sessionId to databaseService.getSessionSummary(it.sessionId) }
                 .filterValues { it != null }
                 .mapValues { it.value!! }
+            /**
+             * diags val.
+             */
             val diags = list.associate { session ->
                 session.sessionId to databaseService.getDiagnosticsTelemetry(session.sessionId).associate { it.key to it.value }
             }
@@ -157,6 +226,9 @@ fun RunHistoryScreen(
     }
 
     // Dynamic Motor Subsystem rows discovery
+    /**
+     * motorNames val.
+     */
     val motorNames = remember(diagnosticsMap) {
         diagnosticsMap.values.flatMap { it.keys }
             .filter { it.startsWith("Diagnostics/SysId/Motors/") }
@@ -166,19 +238,40 @@ fun RunHistoryScreen(
             .sorted()
     }
 
+    /**
+     * allMotorNames val.
+     */
     val allMotorNames = remember(motorNames, summaries) {
+        /**
+         * currentMotors val.
+         */
         val currentMotors = summaries.values.flatMap { it.motorCurrentAverages.keys }
             .map { RunDataDictionary.canonicalizeMotorName(it) }
         (motorNames + currentMotors).distinct().sorted()
     }
 
+    /**
+     * allRows val.
+     */
     val allRows = remember(allMotorNames) {
+        /**
+         * baseRowDefinitions val.
+         */
         val baseRowDefinitions = RunDataDictionary.buildBaseRowDefinitions()
+        /**
+         * currentDrawRowDefinitions val.
+         */
         val currentDrawRowDefinitions = RunDataDictionary.buildMotorCurrentRows(allMotorNames)
+        /**
+         * motorRowDefinitions val.
+         */
         val motorRowDefinitions = RunDataDictionary.buildMotorSysIdRows(allMotorNames)
         baseRowDefinitions + currentDrawRowDefinitions + motorRowDefinitions
     }
 
+    /**
+     * groupedRows val.
+     */
     val groupedRows = remember(allRows) {
         allRows.groupBy { it.category }
     }
@@ -200,7 +293,13 @@ fun RunHistoryScreen(
             shape = RoundedCornerShape(12.dp),
             color = AresSurface
         ) {
+            /**
+             * horizontalScrollState val.
+             */
             val horizontalScrollState = rememberScrollState()
+            /**
+             * verticalScrollState val.
+             */
             val verticalScrollState = rememberScrollState()
 
             Row(modifier = Modifier.fillMaxSize()) {
@@ -277,7 +376,13 @@ fun RunHistoryScreen(
                             .horizontalScroll(horizontalScrollState)
                     ) {
                         sessions.forEachIndexed { sessionIdx, session ->
+                            /**
+                             * summary val.
+                             */
                             val summary = summaries[session.sessionId]
+                            /**
+                             * diags val.
+                             */
                             val diags = diagnosticsMap[session.sessionId] ?: emptyMap()
 
                             Column(
@@ -324,8 +429,17 @@ fun RunHistoryScreen(
                                     )
 
                                     rows.forEach { rowDef ->
+                                        /**
+                                         * displayVal val.
+                                         */
                                         val displayVal = rowDef.getValue(session, summary, diags)
+                                        /**
+                                         * numVal val.
+                                         */
                                         val numVal = rowDef.getNumericValue(session, summary, diags)
+                                        /**
+                                         * isAnomaly val.
+                                         */
                                         val isAnomaly = numVal?.let { rowDef.isAnomaly(it) } ?: false
 
                                         Box(
@@ -398,6 +512,9 @@ fun RunHistoryScreen(
 
             HorizontalDivider(color = AresBorder)
 
+            /**
+             * listState val.
+             */
             val listState = rememberLazyListState()
             LaunchedEffect(analystChatHistory.size) {
                 if (analystChatHistory.isNotEmpty()) {
@@ -424,6 +541,9 @@ fun RunHistoryScreen(
                 }
 
                 items(analystChatHistory) { (role, msg) ->
+                    /**
+                     * isUser val.
+                     */
                     val isUser = role == "user"
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -497,12 +617,18 @@ fun RunHistoryScreen(
                 Button(
                     onClick = {
                         if (userQueryText.trim().isNotEmpty() && !isAnalystLoading) {
+                            /**
+                             * queryCopy val.
+                             */
                             val queryCopy = userQueryText.trim()
                             analystChatHistory.add(Pair("user", queryCopy))
                             userQueryText = ""
                             isAnalystLoading = true
                             scope.launch {
                                 try {
+                                    /**
+                                     * reply val.
+                                     */
                                     val reply = syncEngineService.requestSqlAnalysis(queryCopy, databaseService)
                                     analystChatHistory.add(Pair("analyst", reply))
                                 } catch (e: Exception) {

@@ -63,14 +63,32 @@ import java.util.concurrent.ConcurrentHashMap
  * @return expected results
  */
 fun buildSignalTree(keys: List<String>): SignalNode {
+    /**
+     * root val.
+     */
     val root = SignalNode("", "", false)
     for (topic in keys) {
+        /**
+         * parts val.
+         */
         val parts = topic.split("/").filter { it.isNotEmpty() }
+        /**
+         * current var.
+         */
         var current = root
+        /**
+         * currentPath var.
+         */
         var currentPath = ""
         for (i in parts.indices) {
+            /**
+             * part val.
+             */
             val part = parts[i]
             currentPath += "/$part"
+            /**
+             * isLeaf val.
+             */
             val isLeaf = (i == parts.lastIndex)
             current = current.children.getOrPut(part) {
                 SignalNode(part, currentPath, isLeaf)
@@ -106,40 +124,94 @@ fun TelemetryChartPanel(
     onPropertiesChanged: (Map<String, String>) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    /**
+     * scope val.
+     */
     val scope = rememberCoroutineScope()
     
+    /**
+     * parentWindowOffset var.
+     */
     var parentWindowOffset by remember { mutableStateOf(Offset.Zero) }
+    /**
+     * draggedKey var.
+     */
     var draggedKey by remember { mutableStateOf<String?>(null) }
+    /**
+     * dragOffset var.
+     */
     var dragOffset by remember { mutableStateOf(Offset.Zero) }
+    /**
+     * canvasWindowBounds var.
+     */
     var canvasWindowBounds by remember { mutableStateOf<Rect?>(null) }
 
+    /**
+     * isTreeVisible var.
+     */
     var isTreeVisible by remember { mutableStateOf(true) }
+    /**
+     * treeWidth val.
+     */
     val treeWidth by animateDpAsState(
         targetValue = if (isTreeVisible) 260.dp else 0.dp,
         animationSpec = tween(durationMillis = 300)
     )
 
     // Configurable time windows (seconds)
+    /**
+     * timeWindows val.
+     */
     val timeWindows = listOf(10, 30, 60, 120)
     
+    /**
+     * initialKeys val.
+     */
     val initialKeys = remember(properties) {
         properties["selectedKeys"]?.split(",")?.map { it.removePrefix("/") }?.filter { it.isNotEmpty() } ?: emptyList()
     }
+    /**
+     * initialWindow val.
+     */
     val initialWindow = remember(properties) {
         properties["windowSec"]?.toIntOrNull() ?: 30
     }
 
+    /**
+     * selectedWindowSec var.
+     */
     var selectedWindowSec by remember(initialWindow) { mutableStateOf(initialWindow) }
+    /**
+     * selectedKeys val.
+     */
     val selectedKeys = remember(initialKeys) { mutableStateListOf<String>().apply { addAll(initialKeys) } }
 
     // In-memory data store for live plotting: key -> ArrayDeque of points (circular buffer)
+    /**
+     * telemetryData val.
+     */
     val telemetryData = remember { ConcurrentHashMap<String, ArrayDeque<TelemetryPoint>>() }
+    /**
+     * lastUpdateTick var.
+     */
     var lastUpdateTick by remember { mutableStateOf(0L) }
+    /**
+     * serverTimeOffset var.
+     */
     var serverTimeOffset by remember { mutableStateOf(0L) }
+    /**
+     * hasReceivedData var.
+     */
     var hasReceivedData by remember { mutableStateOf(false) }
+    /**
+     * liveTime var.
+     */
     var liveTime by remember { mutableStateOf(System.currentTimeMillis()) }
 
     LaunchedEffect(selectedKeys.toList(), selectedWindowSec) {
+        /**
+         * keysList val.
+         */
         val keysList = selectedKeys.toList()
         if (keysList != initialKeys || selectedWindowSec != initialWindow) {
             onPropertiesChanged(mapOf(
@@ -150,9 +222,15 @@ fun TelemetryChartPanel(
 
         // Initialize newly added keys with their historical values
         keysList.forEach { key ->
+            /**
+             * queue val.
+             */
             val queue = telemetryData.getOrPut(key) { ArrayDeque() }
             synchronized(queue) {
                 if (queue.isEmpty()) {
+                    /**
+                     * history val.
+                     */
                     val history = nt4ClientService.telemetryHistory[key]
                     if (history != null) {
                         synchronized(history) {
@@ -161,6 +239,9 @@ fun TelemetryChartPanel(
                             }
                         }
                     } else {
+                        /**
+                         * latest val.
+                         */
                         val latest = nt4ClientService.latestValues[key]
                         if (latest != null) {
                             queue.add(TelemetryPoint(latest.timestampMs, latest.value))
@@ -180,16 +261,31 @@ fun TelemetryChartPanel(
     }
 
     // Selected target unit for each key
+    /**
+     * targetUnits val.
+     */
     val targetUnits = remember { mutableStateMapOf<String, RobotUnit>() }
     
     // Searchable dropdown state
+    /**
+     * dropdownExpanded var.
+     */
     var dropdownExpanded by remember { mutableStateOf(false) }
+    /**
+     * searchQuery var.
+     */
     var searchQuery by remember { mutableStateOf("") }
+    /**
+     * activeTopics val.
+     */
     val activeTopics = remember { mutableStateListOf<String>() }
     
     // Periodically update active topics from NT4 Service
     LaunchedEffect(Unit) {
         while (true) {
+            /**
+             * topics val.
+             */
             val topics = nt4ClientService.getActiveTopics()
             activeTopics.clear()
             activeTopics.addAll(topics)
@@ -201,16 +297,31 @@ fun TelemetryChartPanel(
     LaunchedEffect(Unit) {
         nt4ClientService.telemetryFlow.collect { frame ->
             if (selectedKeys.contains(frame.key)) {
+                /**
+                 * queue val.
+                 */
                 val queue = telemetryData.getOrPut(frame.key) { ArrayDeque() }
+                /**
+                 * now val.
+                 */
                 val now = frame.timestampMs
                 
+                /**
+                 * offset val.
+                 */
                 val offset = now - System.currentTimeMillis()
                 if (!hasReceivedData || kotlin.math.abs(serverTimeOffset - offset) > 100) {
                     serverTimeOffset = offset
                     hasReceivedData = true
                 }
 
+                /**
+                 * maxWindowSec val.
+                 */
                 val maxWindowSec = timeWindows.maxOrNull() ?: 120
+                /**
+                 * cutoff val.
+                 */
                 val cutoff = now - (maxWindowSec * 1000)
                 
                 synchronized(queue) {
@@ -225,6 +336,9 @@ fun TelemetryChartPanel(
     }
 
     // Legend colors for up to 8 channels
+    /**
+     * channelColors val.
+     */
     val channelColors = listOf(
         AresCyan, AresRed, AresGreen, AresAmber,
         Color(0xFFFF00FF), Color(0xFFFFFF00), Color(0xFF00FF00), Color(0xFFFFFFFF)
@@ -335,6 +449,9 @@ fun TelemetryChartPanel(
                         )
                     )
 
+                    /**
+                     * filteredTopics val.
+                     */
                     val filteredTopics = activeTopics.filter {
                         it.contains(searchQuery, ignoreCase = true) && !selectedKeys.contains(it)
                     }
@@ -390,10 +507,25 @@ fun TelemetryChartPanel(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 items(selectedKeys.toList()) { key ->
+                    /**
+                     * index val.
+                     */
                     val index = selectedKeys.indexOf(key)
+                    /**
+                     * color val.
+                     */
                     val color = channelColors[index % channelColors.size]
+                    /**
+                     * detectedUnit val.
+                     */
                     val detectedUnit = UnitConversion.detectUnitFromKey(key)
+                    /**
+                     * targetUnit val.
+                     */
                     val targetUnit = targetUnits[key] ?: detectedUnit
+                    /**
+                     * unitMenuExpanded var.
+                     */
                     var unitMenuExpanded by remember { mutableStateOf(false) }
                     
                     Box {
@@ -417,7 +549,13 @@ fun TelemetryChartPanel(
                                     .clip(RoundedCornerShape(2.dp))
                                     .background(color)
                             )
+                            /**
+                             * label val.
+                             */
                             val label = key.split("/").last()
+                            /**
+                             * unitSuffix val.
+                             */
                             val unitSuffix = targetUnit?.let { " (${it.symbol})" } ?: ""
                             Text(
                                 "$label$unitSuffix",
@@ -457,12 +595,27 @@ fun TelemetryChartPanel(
             }
         }
 
+        /**
+         * signalTree val.
+         */
         val signalTree = remember(activeTopics.toList()) { buildSignalTree(activeTopics.toList()) }
 
         // Plot Canvas
+        /**
+         * minY var.
+         */
         var minY by remember { mutableStateOf(0.0) }
+        /**
+         * maxY var.
+         */
         var maxY by remember { mutableStateOf(1.0) }
+        /**
+         * firstKey val.
+         */
         val firstKey = selectedKeys.firstOrNull()
+        /**
+         * currentUnitSymbol val.
+         */
         val currentUnitSymbol = firstKey?.let { targetUnits[it] ?: UnitConversion.detectUnitFromKey(it) }?.symbol ?: ""
 
         Row(
@@ -485,6 +638,9 @@ fun TelemetryChartPanel(
                         rootNode = signalTree,
                         selectedKeys = selectedKeys,
                         onKeySelected = { key ->
+                            /**
+                             * cleanKey val.
+                             */
                             val cleanKey = key.removePrefix("/")
                             if (selectedKeys.size < 8 && !selectedKeys.contains(cleanKey)) {
                                 selectedKeys.add(cleanKey)
@@ -498,10 +654,19 @@ fun TelemetryChartPanel(
                             dragOffset += offset
                         },
                         onDragEnd = {
+                            /**
+                             * finalOffset val.
+                             */
                             val finalOffset = dragOffset
+                            /**
+                             * bounds val.
+                             */
                             val bounds = canvasWindowBounds
                             if (bounds != null && bounds.contains(finalOffset)) {
                                 draggedKey?.let { key ->
+                                    /**
+                                     * cleanKey val.
+                                     */
                                     val cleanKey = key.removePrefix("/")
                                     if (selectedKeys.size < 8 && !selectedKeys.contains(cleanKey)) {
                                         selectedKeys.add(cleanKey)
@@ -531,35 +696,80 @@ fun TelemetryChartPanel(
                     }
                 } else {
                     Canvas(modifier = Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 12.dp).clipToBounds()) {
+                        /**
+                         * _tick val.
+                         */
                         val _tick = liveTime
+                        /**
+                         * width val.
+                         */
                         val width = size.width
+                        /**
+                         * height val.
+                         */
                         val height = size.height
  
                     // 1. Draw Grid Lines
+                    /**
+                     * gridLinesX val.
+                     */
                     val gridLinesX = 5
+                    /**
+                     * gridLinesY val.
+                     */
                     val gridLinesY = 4
                     for (i in 0..gridLinesX) {
+                        /**
+                         * x val.
+                         */
                         val x = width * i / gridLinesX
                         drawLine(color = AresBorder, start = Offset(x, 0f), end = Offset(x, height), strokeWidth = 1f)
                     }
                     for (i in 0..gridLinesY) {
+                        /**
+                         * y val.
+                         */
                         val y = height * i / gridLinesY
                         drawLine(color = AresBorder, start = Offset(0f, y), end = Offset(width, y), strokeWidth = 1f)
                     }
  
                     // 2. Compute Global Bounds (Y-axis auto-scaling)
+                    /**
+                     * tempMinY var.
+                     */
                     var tempMinY = Double.MAX_VALUE
+                    /**
+                     * tempMaxY var.
+                     */
                     var tempMaxY = -Double.MAX_VALUE
+                    /**
+                     * hasData var.
+                     */
                     var hasData = false
  
                     selectedKeys.forEach { key ->
+                        /**
+                         * deque val.
+                         */
                         val deque = telemetryData[key]
+                        /**
+                         * points val.
+                         */
                         val points = if (deque != null) synchronized(deque) { deque.toList() } else emptyList()
+                        /**
+                         * detectedUnit val.
+                         */
                         val detectedUnit = UnitConversion.detectUnitFromKey(key)
+                        /**
+                         * targetUnit val.
+                         */
                         val targetUnit = targetUnits[key] ?: detectedUnit
                         if (points.isNotEmpty()) {
                             hasData = true
                             points.forEach {
+                                /**
+                                 * value val.
+                                 */
                                 val value = if (detectedUnit != null && targetUnit != null) {
                                     UnitConversion.convert(it.value, detectedUnit, targetUnit)
                                 } else {
@@ -583,6 +793,9 @@ fun TelemetryChartPanel(
                         }
                         else -> {
                             // Add 10% padding
+                            /**
+                             * diff val.
+                             */
                             val diff = tempMaxY - tempMinY
                             tempMinY -= diff * 0.1
                             tempMaxY += diff * 0.1
@@ -594,16 +807,43 @@ fun TelemetryChartPanel(
  
                     // 4. Plot each active channel
                     selectedKeys.forEachIndexed { channelIdx, key ->
+                        /**
+                         * deque val.
+                         */
                         val deque = telemetryData[key]
+                        /**
+                         * points val.
+                         */
                         val points = if (deque != null) synchronized(deque) { deque.toList() } else emptyList()
+                        /**
+                         * detectedUnit val.
+                         */
                         val detectedUnit = UnitConversion.detectUnitFromKey(key)
+                        /**
+                         * targetUnit val.
+                         */
                         val targetUnit = targetUnits[key] ?: detectedUnit
                         if (points.isNotEmpty()) {
+                            /**
+                             * color val.
+                             */
                             val color = channelColors[channelIdx % channelColors.size]
+                            /**
+                             * now val.
+                             */
                             val now = liveTime
+                            /**
+                             * minX val.
+                             */
                             val minX = now - (selectedWindowSec * 1000)
+                            /**
+                             * maxX val.
+                             */
                             val maxX = now
  
+                            /**
+                             * path val.
+                             */
                             val path = Path()
 
                             /**
@@ -615,26 +855,44 @@ fun TelemetryChartPanel(
                              * @return expected results
                              */
                             fun getPy(value: Double): Float {
+                                /**
+                                 * converted val.
+                                 */
                                 val converted = if (detectedUnit != null && targetUnit != null) {
                                     UnitConversion.convert(value, detectedUnit, targetUnit)
                                 } else {
                                     value
                                 }
+                                /**
+                                 * yPct val.
+                                 */
                                 val yPct = ((converted - minY) / (maxY - minY)).toFloat()
                                 return height - (yPct * height)
                             }
 
+                            /**
+                             * isFirst var.
+                             */
                             var isFirst = true
 
                             // Find the first point that is visible (>= minX)
+                            /**
+                             * visibleStartIndex var.
+                             */
                             var visibleStartIndex = points.indexOfFirst { it.timestampMs >= minX }
                             if (visibleStartIndex == -1) visibleStartIndex = points.size
 
                             // Include one point before minX to connect the line correctly off-screen
+                            /**
+                             * startIndex val.
+                             */
                             val startIndex = kotlin.math.max(0, visibleStartIndex - 1)
 
                             // 1. Prepend virtual point at minX if the point before minX exists
                             if (startIndex < visibleStartIndex && points[startIndex].timestampMs < minX) {
+                                /**
+                                 * py val.
+                                 */
                                 val py = getPy(points[startIndex].value)
                                 path.moveTo(0f, py)
                                 isFirst = false
@@ -642,9 +900,21 @@ fun TelemetryChartPanel(
 
                             // 2. Draw points starting from startIndex
                             for (i in startIndex until points.size) {
+                                /**
+                                 * pt val.
+                                 */
                                 val pt = points[i]
+                                /**
+                                 * xPct val.
+                                 */
                                 val xPct = (pt.timestampMs - minX).toFloat() / (maxX - minX)
+                                /**
+                                 * px val.
+                                 */
                                 val px = xPct * width
+                                /**
+                                 * py val.
+                                 */
                                 val py = getPy(pt.value)
                                 
                                 if (isFirst) {
@@ -656,8 +926,14 @@ fun TelemetryChartPanel(
                             }
 
                             // 3. Append virtual point at maxX if the last point is older than maxX
+                            /**
+                             * lastPt val.
+                             */
                             val lastPt = points.last()
                             if (lastPt.timestampMs < maxX) {
+                                /**
+                                 * py val.
+                                 */
                                 val py = getPy(lastPt.value)
                                 if (isFirst) {
                                     path.moveTo(width, py)
@@ -735,6 +1011,9 @@ fun SignalTreeExplorer(
     onDrag: (Offset) -> Unit,
     onDragEnd: () -> Unit
 ) {
+    /**
+     * expandedStates val.
+     */
     val expandedStates = remember { mutableStateMapOf<String, Boolean>() }
 
     LazyColumn(
@@ -753,12 +1032,27 @@ fun SignalTreeExplorer(
          */
         fun renderNode(node: SignalNode, depth: Int, path: String) {
             node.children.values.sortedBy { it.name }.forEach { child ->
+                /**
+                 * currentPath val.
+                 */
                 val currentPath = if (path.isEmpty()) child.name else "$path/${child.name}"
+                /**
+                 * isLeaf val.
+                 */
                 val isLeaf = child.isLeaf
+                /**
+                 * cleanPath val.
+                 */
                 val cleanPath = child.fullPath.removePrefix("/")
+                /**
+                 * isExpanded val.
+                 */
                 val isExpanded = expandedStates[currentPath] ?: false
 
                 item(key = currentPath) {
+                    /**
+                     * nodeOffset var.
+                     */
                     var nodeOffset by remember { mutableStateOf(Offset.Zero) }
 
                     Row(

@@ -24,7 +24,13 @@ class EnvironmentService(
     private val json = Json { prettyPrint = true; ignoreUnknownKeys = true }
 
     suspend fun loadWorkspaces(): AppWorkspaces = withContext(Dispatchers.IO) {
+        /**
+         * file val.
+         */
         val file = File(workspacesPath)
+        /**
+         * legacyFile val.
+         */
         val legacyFile = File(configPath)
 
         if (file.exists()) {
@@ -37,9 +43,21 @@ class EnvironmentService(
 
         if (legacyFile.exists()) {
             try {
+                /**
+                 * legacyConfig val.
+                 */
                 val legacyConfig = json.decodeFromString<WorkspaceConfig>(legacyFile.readText())
+                /**
+                 * migratedId val.
+                 */
                 val migratedId = legacyConfig.id.ifEmpty { "${legacyConfig.league}-${legacyConfig.teamId}-${legacyConfig.robotId}-${legacyConfig.seasonId}" }
+                /**
+                 * migratedConfig val.
+                 */
                 val migratedConfig = legacyConfig.copy(id = migratedId)
+                /**
+                 * migratedWorkspaces val.
+                 */
                 val migratedWorkspaces = AppWorkspaces(
                     activeWorkspaceId = migratedId,
                     workspaces = listOf(migratedConfig)
@@ -56,15 +74,27 @@ class EnvironmentService(
     }
 
     suspend fun saveWorkspaces(appWorkspaces: AppWorkspaces) = withContext(Dispatchers.IO) {
+        /**
+         * file val.
+         */
         val file = File(workspacesPath)
         file.parentFile?.mkdirs()
         file.writeText(json.encodeToString(appWorkspaces))
     }
 
     suspend fun loadConfig(): WorkspaceConfig? {
+        /**
+         * app val.
+         */
         val app = loadWorkspaces()
+        /**
+         * baseConfig val.
+         */
         val baseConfig = app.workspaces.find { it.id == app.activeWorkspaceId } ?: app.workspaces.firstOrNull()
         if (baseConfig != null) {
+            /**
+             * aresRobotConfig val.
+             */
             val aresRobotConfig = readAresRobotJson(baseConfig.projectPath)
             if (aresRobotConfig != null) {
                 return baseConfig.copy(
@@ -80,19 +110,34 @@ class EnvironmentService(
     }
 
     suspend fun saveConfig(config: WorkspaceConfig) {
+        /**
+         * app val.
+         */
         val app = loadWorkspaces()
+        /**
+         * configWithId val.
+         */
         val configWithId = if (config.id.isEmpty()) {
             config.copy(id = "${config.league}-${config.teamId}-${config.robotId}-${config.seasonId}")
         } else {
             config
         }
+        /**
+         * newList val.
+         */
         val newList = app.workspaces.filter { it.id != configWithId.id } + configWithId
         saveWorkspaces(AppWorkspaces(activeWorkspaceId = configWithId.id, workspaces = newList))
     }
 
     suspend fun verifyJavaEnvironment(): JavaEnvResult = withContext(Dispatchers.IO) {
+        /**
+         * javaHome val.
+         */
         val javaHome = System.getenv("JAVA_HOME")
         
+        /**
+         * javaExe val.
+         */
         val javaExe = if (!javaHome.isNullOrEmpty()) {
             if (System.getProperty("os.name").contains("win", ignoreCase = true)) {
                 "$javaHome\\bin\\java.exe"
@@ -108,15 +153,27 @@ class EnvironmentService(
         }
 
         try {
+            /**
+             * process val.
+             */
             val process = ProcessBuilder(javaExe, "-version")
                 .redirectErrorStream(true)
                 .start()
+            /**
+             * output val.
+             */
             val output = process.inputStream.bufferedReader().use { it.readText() }
+            /**
+             * finished val.
+             */
             val finished = process.waitFor(5, java.util.concurrent.TimeUnit.SECONDS)
             if (!finished) {
                 process.destroyForcibly()
                 return@withContext JavaEnvResult(false, "Java verification timed out.")
             }
+            /**
+             * exitCode val.
+             */
             val exitCode = process.exitValue()
             if (exitCode == 0) {
                 JavaEnvResult(true, "Java executable valid. Output:\n$output")
@@ -129,14 +186,23 @@ class EnvironmentService(
     }
 
     suspend fun detectLeague(projectPath: String): League = withContext(Dispatchers.IO) {
+        /**
+         * root val.
+         */
         val root = File(projectPath)
         if (!root.exists() || !root.isDirectory) return@withContext League.FTC
 
         // Look for typical FRC indicators: build.gradle/settings.gradle mentioning 'frc', or 'wpilibj'
         // or a build.gradle with wpilib dependency.
+        /**
+         * searchFiles val.
+         */
         val searchFiles = root.walkTopDown().maxDepth(3)
         for (file in searchFiles) {
             if (file.name == "build.gradle" || file.name == "build.gradle.kts") {
+                /**
+                 * content val.
+                 */
                 val content = file.readText()
                 if (content.contains("edu.wpi.first") || content.contains("wpilibj")) {
                     return@withContext League.FRC
@@ -161,10 +227,22 @@ class EnvironmentService(
             League.FTC -> "192.168.43.1"
             League.FRC -> {
                 // FRC team host convention: 10.TE.AM.2
+                /**
+                 * teamNumber val.
+                 */
                 val teamNumber = teamId.filter { it.isDigit() }
                 if (teamNumber.length in 1..4) {
+                    /**
+                     * padded val.
+                     */
                     val padded = teamNumber.padStart(4, '0')
+                    /**
+                     * te val.
+                     */
                     val te = padded.substring(0, 2).toInt()
+                    /**
+                     * am val.
+                     */
                     val am = padded.substring(2, 4).toInt()
                     "10.$te.$am.2"
                 } else {
@@ -175,6 +253,9 @@ class EnvironmentService(
     }
 
     suspend fun readAresRobotJson(projectPath: String): AresRobotConfig? = withContext(Dispatchers.IO) {
+        /**
+         * file val.
+         */
         val file = File(projectPath, ".ares-robot.json")
         if (file.exists()) {
             try {
@@ -196,7 +277,13 @@ class EnvironmentService(
  * @return expected results
  */
 data class JavaEnvResult(
+    /**
+     * isValid val.
+     */
     val isValid: Boolean,
+    /**
+     * message val.
+     */
     val message: String
 )
 
@@ -210,9 +297,24 @@ data class JavaEnvResult(
  * @return expected results
  */
 data class AresRobotConfig(
+    /**
+     * teamId val.
+     */
     val teamId: String,
+    /**
+     * seasonId val.
+     */
     val seasonId: String,
+    /**
+     * robotId val.
+     */
     val robotId: String,
+    /**
+     * name val.
+     */
     val name: String = "",
+    /**
+     * league val.
+     */
     val league: String = "FTC"
 )

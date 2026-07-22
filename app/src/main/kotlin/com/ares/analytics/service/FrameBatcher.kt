@@ -41,6 +41,9 @@ class FrameBatcher(
         if (frame.timestampMs < minTimestamp) minTimestamp = frame.timestampMs
         if (frame.timestampMs > maxTimestamp) maxTimestamp = frame.timestampMs
 
+        /**
+         * finalFrame val.
+         */
         val finalFrame = if (keyTransform != null) {
             frame.copy(key = keyTransform.invoke(frame.key))
         } else {

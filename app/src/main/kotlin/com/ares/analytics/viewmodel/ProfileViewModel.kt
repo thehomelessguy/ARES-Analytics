@@ -26,23 +26,77 @@ import kotlinx.coroutines.withContext
  * @return expected results
  */
 data class ProfileState(
+    /**
+     * authState val.
+     */
     val authState: AuthState = AuthState.Unauthenticated,
+    /**
+     * config val.
+     */
     val config: WorkspaceConfig? = null,
+    /**
+     * robotProfiles val.
+     */
     val robotProfiles: List<RobotProfile> = emptyList(),
+    /**
+     * syncStatus val.
+     */
     val syncStatus: String = "",
+    /**
+     * googleClientId val.
+     */
     val googleClientId: String = "",
+    /**
+     * firebaseApiKey val.
+     */
     val firebaseApiKey: String = "",
+    /**
+     * googleClientSecret val.
+     */
     val googleClientSecret: String = "",
+    /**
+     * eventCode val.
+     */
     val eventCode: String = "",
+    /**
+     * toaApiKey val.
+     */
     val toaApiKey: String = "",
+    /**
+     * tbaApiKey val.
+     */
     val tbaApiKey: String = "",
+    /**
+     * aiMode val.
+     */
     val aiMode: String = "STUDIO",
+    /**
+     * geminiApiKey val.
+     */
     val geminiApiKey: String = "",
+    /**
+     * geminiModel val.
+     */
     val geminiModel: String = "gemini-1.5-flash",
+    /**
+     * vertexServiceAccountPath val.
+     */
     val vertexServiceAccountPath: String = "",
+    /**
+     * vertexProjectId val.
+     */
     val vertexProjectId: String = "",
+    /**
+     * vertexLocation val.
+     */
     val vertexLocation: String = "us-central1",
+    /**
+     * isLoading val.
+     */
     val isLoading: Boolean = false,
+    /**
+     * errorMessage val.
+     */
     val errorMessage: String? = null
 )
 
@@ -101,18 +155,57 @@ sealed class ProfileIntent {
      * @return expected results
      */
     data class UpdateEventSettings(
+        /**
+         * googleClientId val.
+         */
         val googleClientId: String,
+        /**
+         * firebaseApiKey val.
+         */
         val firebaseApiKey: String,
+        /**
+         * googleClientSecret val.
+         */
         val googleClientSecret: String,
+        /**
+         * eventCode val.
+         */
         val eventCode: String,
+        /**
+         * toaApiKey val.
+         */
         val toaApiKey: String,
+        /**
+         * tbaApiKey val.
+         */
         val tbaApiKey: String,
+        /**
+         * aiMode val.
+         */
         val aiMode: String,
+        /**
+         * geminiApiKey val.
+         */
         val geminiApiKey: String,
+        /**
+         * geminiModel val.
+         */
         val geminiModel: String,
+        /**
+         * vertexServiceAccountPath val.
+         */
         val vertexServiceAccountPath: String,
+        /**
+         * vertexProjectId val.
+         */
         val vertexProjectId: String,
+        /**
+         * vertexLocation val.
+         */
         val vertexLocation: String,
+        /**
+         * onConfigChanged val.
+         */
         val onConfigChanged: (WorkspaceConfig) -> Unit
     ) : ProfileIntent()
     /**
@@ -142,6 +235,9 @@ class ProfileViewModel(
     private val scope: CoroutineScope
 ) {
     private val _state = MutableStateFlow(ProfileState())
+    /**
+     * state val.
+     */
     val state: StateFlow<ProfileState> = _state.asStateFlow()
 
     init {
@@ -151,6 +247,9 @@ class ProfileViewModel(
                 if (state is AuthState.Authenticated) {
                     onIntent(ProfileIntent.PerformDeltaSync(state.firebaseToken))
                     try {
+                        /**
+                         * remoteProfiles val.
+                         */
                         val remoteProfiles = syncEngineService.getRemoteRobotProfiles()
                         _state.update { it.copy(robotProfiles = remoteProfiles) }
                     } catch (e: Exception) {
@@ -173,10 +272,16 @@ class ProfileViewModel(
         scope.launch {
             when (intent) {
                 is ProfileIntent.LoadConfig -> {
+                    /**
+                     * cfg val.
+                     */
                     val cfg = intent.config
                     firebaseClientService.apiKey = cfg.firebaseApiKey.takeIf { !it.isNullOrBlank() }
                         ?: "AIzaSyB4cU7pgHpqoxtqtQalIE4HqZoz3X7bJH0"
 
+                    /**
+                     * remoteProfiles val.
+                     */
                     val remoteProfiles = try {
                         syncEngineService.getRemoteRobotProfiles()
                     } catch (e: Exception) {
@@ -203,13 +308,22 @@ class ProfileViewModel(
                     }
                 }
                 is ProfileIntent.GoogleSignIn -> {
+                    /**
+                     * currentApiKey val.
+                     */
                     val currentApiKey = _state.value.firebaseApiKey.takeIf { it.isNotBlank() }
                         ?: "AIzaSyB4cU7pgHpqoxtqtQalIE4HqZoz3X7bJH0"
                     firebaseClientService.apiKey = currentApiKey
 
+                    /**
+                     * targetClientId val.
+                     */
                     val targetClientId = intent.clientId.takeIf { it.isNotBlank() }
                         ?: "205869391101-nlcsea4539vjuo50i58bpo0t10d5s0ic.apps.googleusercontent.com"
 
+                    /**
+                     * targetClientSecret val.
+                     */
                     val targetClientSecret = _state.value.googleClientSecret.takeIf { it.isNotBlank() }
                         ?: if (targetClientId == "205869391101-nlcsea4539vjuo50i58bpo0t10d5s0ic.apps.googleusercontent.com") {
                             "_xLIrcFXWhqNpYO1gwPrlZpkRqOs-XPSCOG".reversed()
@@ -226,6 +340,9 @@ class ProfileViewModel(
                     oauthService.logout()
                 }
                 is ProfileIntent.PerformDeltaSync -> {
+                    /**
+                     * cfg val.
+                     */
                     val cfg = _state.value.config ?: return@launch
                     _state.update { it.copy(syncStatus = "Running delta sync...") }
                     try {
@@ -238,7 +355,13 @@ class ProfileViewModel(
                     }
                 }
                 is ProfileIntent.UpdateEventSettings -> {
+                    /**
+                     * currentCfg val.
+                     */
                     val currentCfg = _state.value.config ?: return@launch
+                    /**
+                     * newConfig val.
+                     */
                     val newConfig = currentCfg.copy(
                         googleClientId = intent.googleClientId.takeIf { it.isNotBlank() },
                         firebaseApiKey = intent.firebaseApiKey.takeIf { it.isNotBlank() },

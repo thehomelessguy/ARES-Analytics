@@ -39,11 +39,17 @@ fun main() {
     System.setProperty("io.netty.handler.ssl.openssl.useOpenssl", "false")
     System.setProperty("io.grpc.netty.shaded.io.netty.handler.ssl.openssl.useOpenssl", "false")
 
+    /**
+     * port val.
+     */
     val port = System.getenv("PORT")?.toIntOrNull() ?: 8080
 
     // Initialize Firebase Admin SDK using Application Default Credentials
     try {
         if (FirebaseApp.getApps().isEmpty()) {
+            /**
+             * options val.
+             */
             val options = FirebaseOptions.builder()
                 .setCredentials(GoogleCredentials.getApplicationDefault())
                 .build()

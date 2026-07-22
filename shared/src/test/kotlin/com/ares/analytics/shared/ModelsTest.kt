@@ -6,10 +6,19 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
+/**
+ * ModelsTest class.
+ */
 class ModelsTest {
 
     @Test
+    /**
+     * testWorkspaceConfigSerialization fun.
+     */
     fun testWorkspaceConfigSerialization() {
+        /**
+         * config val.
+         */
         val config = WorkspaceConfig(
             teamId = "23247",
             seasonId = "2026",
@@ -20,7 +29,13 @@ class ModelsTest {
             googleClientId = "my-gcp-client-id"
         )
 
+        /**
+         * json val.
+         */
         val json = Json.encodeToString(config)
+        /**
+         * decoded val.
+         */
         val decoded = Json.decodeFromString<WorkspaceConfig>(json)
 
         assertEquals(config.teamId, decoded.teamId)
@@ -30,7 +45,13 @@ class ModelsTest {
     }
 
     @Test
+    /**
+     * testAppWorkspacesSerialization fun.
+     */
     fun testAppWorkspacesSerialization() {
+        /**
+         * config1 val.
+         */
         val config1 = WorkspaceConfig(
             id = "ftc-1",
             teamId = "23247",
@@ -39,6 +60,9 @@ class ModelsTest {
             projectPath = "/home/user/ares-ftc",
             league = League.FTC
         )
+        /**
+         * config2 val.
+         */
         val config2 = WorkspaceConfig(
             id = "frc-1",
             teamId = "23247",
@@ -47,12 +71,21 @@ class ModelsTest {
             projectPath = "/home/user/ares-frc",
             league = League.FRC
         )
+        /**
+         * app val.
+         */
         val app = AppWorkspaces(
             activeWorkspaceId = "ftc-1",
             workspaces = listOf(config1, config2)
         )
 
+        /**
+         * json val.
+         */
         val json = Json.encodeToString(app)
+        /**
+         * decoded val.
+         */
         val decoded = Json.decodeFromString<AppWorkspaces>(json)
 
         assertEquals("ftc-1", decoded.activeWorkspaceId)
@@ -62,7 +95,13 @@ class ModelsTest {
     }
 
     @Test
+    /**
+     * testObstacleSerialization fun.
+     */
     fun testObstacleSerialization() {
+        /**
+         * circle val.
+         */
         val circle: Obstacle = Obstacle.Circle(
             id = "c1",
             name = "Obstacle 1",
@@ -71,12 +110,18 @@ class ModelsTest {
             radius = 0.5
         )
 
+        /**
+         * poly val.
+         */
         val poly: Obstacle = Obstacle.Polygon(
             id = "p1",
             name = "Obstacle 2",
             vertices = listOf(PathPoint(0.0, 0.0), PathPoint(1.0, 0.0), PathPoint(0.0, 1.0))
         )
 
+        /**
+         * rect val.
+         */
         val rect: Obstacle = Obstacle.Rectangle(
             id = "r1",
             name = "Obstacle 3",
@@ -87,17 +132,35 @@ class ModelsTest {
             rotation = 45.0
         )
 
+        /**
+         * jsonCircle val.
+         */
         val jsonCircle = Json.encodeToString(circle)
+        /**
+         * decodedCircle val.
+         */
         val decodedCircle = Json.decodeFromString<Obstacle>(jsonCircle)
         assertTrue(decodedCircle is Obstacle.Circle)
         assertEquals(0.5, decodedCircle.radius)
 
+        /**
+         * jsonPoly val.
+         */
         val jsonPoly = Json.encodeToString(poly)
+        /**
+         * decodedPoly val.
+         */
         val decodedPoly = Json.decodeFromString<Obstacle>(jsonPoly)
         assertTrue(decodedPoly is Obstacle.Polygon)
         assertEquals(3, decodedPoly.vertices.size)
 
+        /**
+         * jsonRect val.
+         */
         val jsonRect = Json.encodeToString(rect)
+        /**
+         * decodedRect val.
+         */
         val decodedRect = Json.decodeFromString<Obstacle>(jsonRect)
         assertTrue(decodedRect is Obstacle.Rectangle)
         assertEquals(0.8, decodedRect.width)
@@ -106,7 +169,13 @@ class ModelsTest {
     }
 
     @Test
+    /**
+     * testFieldImageConfigSerialization fun.
+     */
     fun testFieldImageConfigSerialization() {
+        /**
+         * config val.
+         */
         val config = FieldImageConfig(
             imagePath = "/path/to/img.png",
             rotationDegrees = 90.0,
@@ -118,7 +187,13 @@ class ModelsTest {
             heightMeters = 3.6
         )
 
+        /**
+         * json val.
+         */
         val json = Json.encodeToString(config)
+        /**
+         * decoded val.
+         */
         val decoded = Json.decodeFromString<FieldImageConfig>(json)
 
         assertEquals(config.imagePath, decoded.imagePath)
@@ -128,7 +203,13 @@ class ModelsTest {
     }
 
     @Test
+    /**
+     * testGamePieceSerialization fun.
+     */
     fun testGamePieceSerialization() {
+        /**
+         * gp val.
+         */
         val gp = GamePiece(
             id = "gp1",
             name = "Yellow Sample 1",
@@ -136,7 +217,13 @@ class ModelsTest {
             y = 2.3,
             type = "Sample (Yellow)"
         )
+        /**
+         * json val.
+         */
         val json = Json.encodeToString(gp)
+        /**
+         * decoded val.
+         */
         val decoded = Json.decodeFromString<GamePiece>(json)
         assertEquals(gp.id, decoded.id)
         assertEquals(gp.name, decoded.name)

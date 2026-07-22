@@ -102,6 +102,9 @@ fun FieldCanvasToolbar(
                 TextButton(
                     onClick = {
                         if (currentPolygonPoints.size >= 3) {
+                            /**
+                             * newPoly val.
+                             */
                             val newPoly = Obstacle.Polygon(
                                 id = "poly_${System.currentTimeMillis()}",
                                 name = "Polygon Obstacle ${activeObstacles.size + 1}",
@@ -153,7 +156,13 @@ fun FieldCanvasToolbar(
                 Box(modifier = Modifier.height(24.dp).width(1.dp).background(AresBorder))
                 if (league == League.FTC) {
                     listOf("Sample (Yellow)", "Sample (Red)", "Sample (Blue)", "Specimen", "Decode (Ball)").forEach { type ->
+                        /**
+                         * isSel val.
+                         */
                         val isSel = activeGamePieceType == type
+                        /**
+                         * color val.
+                         */
                         val color = when (type) {
                             "Sample (Yellow)" -> Color.Yellow
                             "Sample (Red)" -> AresRed
@@ -175,6 +184,9 @@ fun FieldCanvasToolbar(
                     }
                 } else {
                     listOf("Note", "High Note").forEach { type ->
+                        /**
+                         * isSel val.
+                         */
                         val isSel = activeGamePieceType == type
                         TextButton(
                             onClick = { onActiveGamePieceTypeChanged(type) },

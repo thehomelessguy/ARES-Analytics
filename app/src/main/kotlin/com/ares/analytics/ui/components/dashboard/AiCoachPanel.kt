@@ -88,7 +88,13 @@ fun AiCoachPanel(
     onForensicsCompleted: (ForensicsResponse) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    /**
+     * scope val.
+     */
     val scope = rememberCoroutineScope()
+    /**
+     * forensicsState var.
+     */
     var forensicsState by remember { mutableStateOf<ForensicsState>(ForensicsState.Idle) }
 
     LaunchedEffect(sessionId) {
@@ -140,14 +146,26 @@ fun AiCoachPanel(
                                 forensicsState = ForensicsState.Loading
                                 try {
                                     // 1. Gather local data
+                                    /**
+                                     * summary val.
+                                     */
                                     val summary = databaseService.getSessionSummary(sessionId)
+                                    /**
+                                     * alerts val.
+                                     */
                                     val alerts = databaseService.getAlerts(sessionId)
+                                    /**
+                                     * topology val.
+                                     */
                                     val topology = databaseService.getTopology(summary?.robotId ?: "")
 
                                     // 2. Call gateway forensics api
                                     if (summary == null) {
                                         throw IllegalArgumentException("Session summary not found.")
                                     }
+                                    /**
+                                     * req val.
+                                     */
                                     val req = com.ares.analytics.shared.ForensicsRequest(
                                         teamId = summary.teamId,
                                         sessionId = sessionId,
@@ -156,6 +174,9 @@ fun AiCoachPanel(
                                         topology = topology,
                                         sysIdDrift = emptyMap() // Can be populated if drift calculation available
                                     )
+                                    /**
+                                     * response val.
+                                     */
                                     val response = syncEngineService.requestForensics(req)
                                     forensicsState = ForensicsState.Success(response)
                                     onForensicsCompleted(response)
@@ -180,10 +201,25 @@ fun AiCoachPanel(
                 }
             }
             is ForensicsState.Success -> {
+                /**
+                 * activeTab var.
+                 */
                 var activeTab by remember { mutableStateOf(0) }
+                /**
+                 * checkedActions val.
+                 */
                 val checkedActions = remember { mutableStateMapOf<Int, Boolean>() }
+                /**
+                 * chatHistory val.
+                 */
                 val chatHistory = remember { mutableStateListOf<Pair<String, String>>() }
+                /**
+                 * userQuestion var.
+                 */
                 var userQuestion by remember { mutableStateOf("") }
+                /**
+                 * isWaitingForReply var.
+                 */
                 var isWaitingForReply by remember { mutableStateOf(false) }
 
                 Column(
@@ -230,6 +266,9 @@ fun AiCoachPanel(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text("CONFIDENCE SCORE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = AresTextSecondary)
+                                /**
+                                 * badgeColor val.
+                                 */
                                 val badgeColor = if (state.response.confidenceScore > 0.8) AresGreen else AresAmber
                                 Text("${(state.response.confidenceScore * 100).toInt()}%", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = badgeColor)
                             }
@@ -251,6 +290,9 @@ fun AiCoachPanel(
                                     verticalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
                                     itemsIndexed(state.response.recommendedActions) { index, action ->
+                                        /**
+                                         * isChecked val.
+                                         */
                                         val isChecked = checkedActions[index] ?: false
                                         Row(
                                             modifier = Modifier
@@ -287,6 +329,9 @@ fun AiCoachPanel(
                             modifier = Modifier.weight(1f).fillMaxWidth(),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
+                            /**
+                             * listState val.
+                             */
                             val listState = rememberLazyListState()
                             LaunchedEffect(chatHistory.size) {
                                 if (chatHistory.isNotEmpty()) {
@@ -319,6 +364,9 @@ fun AiCoachPanel(
                                 }
 
                                 items(chatHistory) { (role, message) ->
+                                    /**
+                                     * isUser val.
+                                     */
                                     val isUser = role == "user"
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
@@ -397,15 +445,30 @@ fun AiCoachPanel(
                                 Button(
                                     onClick = {
                                         if (userQuestion.trim().isNotEmpty() && !isWaitingForReply) {
+                                            /**
+                                             * questionCopy val.
+                                             */
                                             val questionCopy = userQuestion.trim()
                                             chatHistory.add(Pair("user", questionCopy))
                                             userQuestion = ""
                                             isWaitingForReply = true
                                             scope.launch {
                                                 try {
+                                                    /**
+                                                     * summary val.
+                                                     */
                                                     val summary = databaseService.getSessionSummary(sessionId) ?: throw IllegalStateException("Summary not found")
+                                                    /**
+                                                     * alerts val.
+                                                     */
                                                     val alerts = databaseService.getAlerts(sessionId)
+                                                    /**
+                                                     * topology val.
+                                                     */
                                                     val topology = databaseService.getTopology(summary.robotId)
+                                                    /**
+                                                     * req val.
+                                                     */
                                                     val req = com.ares.analytics.shared.ForensicsRequest(
                                                         teamId = summary.teamId,
                                                         sessionId = sessionId,
@@ -413,6 +476,9 @@ fun AiCoachPanel(
                                                         summary = summary,
                                                         topology = topology
                                                     )
+                                                    /**
+                                                     * reply val.
+                                                     */
                                                     val reply = syncEngineService.requestChatCoach(req, questionCopy, chatHistory.toList())
                                                     chatHistory.add(Pair("coach", reply))
                                                 } catch (e: Exception) {

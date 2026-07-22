@@ -50,12 +50,18 @@ fun IndicatorLightsCard(
     modifier: Modifier = Modifier
 ) {
     // Track discovered indicator lights — keyed by name, valued by last position
+    /**
+     * lights val.
+     */
     val lights = remember { mutableStateMapOf<String, Double>() }
 
     // Collect the telemetry flow to discover indicator light topics
     LaunchedEffect(Unit) {
         nt4ClientService.telemetryFlow.collect { frame ->
             if (frame.key.startsWith("Superstructure/IndicatorLight/")) {
+                /**
+                 * lightName val.
+                 */
                 val lightName = frame.key.substringAfterLast("/")
                 lights[lightName] = frame.value
             }
@@ -155,10 +161,19 @@ private fun IndicatorLightRow(
     name: String,
     position: Double
 ) {
+    /**
+     * displayColor val.
+     */
     val displayColor = IndicatorLightColorMapper.positionToColor(position)
+    /**
+     * colorName val.
+     */
     val colorName = IndicatorLightColorMapper.positionToName(position)
 
     // Smooth color transition animation
+    /**
+     * animatedColor val.
+     */
     val animatedColor by animateColorAsState(
         targetValue = displayColor,
         animationSpec = tween(durationMillis = 150),

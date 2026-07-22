@@ -34,18 +34,33 @@ fun StateMachineTrackerCard(
     nt4ClientService: Nt4ClientService,
     modifier: Modifier = Modifier
 ) {
+    /**
+     * scope val.
+     */
     val scope = rememberCoroutineScope()
     
     // Map of Subsystem Name -> Current State String
+    /**
+     * activeStates val.
+     */
     val activeStates = remember { mutableStateMapOf<String, String>() }
 
     LaunchedEffect(Unit) {
         scope.launch {
             nt4ClientService.telemetryFlow.collect { frame ->
+                /**
+                 * key val.
+                 */
                 val key = frame.key
                 // Typical state paths: /robot/subsystems/Intake/State, /robot/auto/CurrentState
                 if (key.endsWith("/State") || key.endsWith("/CurrentState")) {
+                    /**
+                     * subsystem val.
+                     */
                     val subsystem = key.substringBeforeLast("/").substringAfterLast("/")
+                    /**
+                     * stateValue val.
+                     */
                     val stateValue = frame.value?.toString() ?: "Unknown"
                     activeStates[subsystem] = stateValue
                 }

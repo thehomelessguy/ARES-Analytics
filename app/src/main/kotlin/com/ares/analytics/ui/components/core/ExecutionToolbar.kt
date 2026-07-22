@@ -67,6 +67,9 @@ fun ExecutionToolbar(
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         // Target Dropdown
+        /**
+         * dropdownExpanded var.
+         */
         var dropdownExpanded by remember { mutableStateOf(false) }
         Box {
             Row(
@@ -93,6 +96,9 @@ fun ExecutionToolbar(
                 )
 
                 // Status Dot
+                /**
+                 * isOnline val.
+                 */
                 val isOnline = if (targetSelection == TargetSelection.LIVE_ROBOT) isLiveRobotOnline else isLocalSimOnline
                 Box(
                     modifier = Modifier
@@ -127,6 +133,9 @@ fun ExecutionToolbar(
                                 Text(target.label, color = AresTextPrimary)
                                 Spacer(modifier = Modifier.width(8.dp))
                                 
+                                /**
+                                 * isTargetOnline val.
+                                 */
                                 val isTargetOnline = if (target == TargetSelection.LIVE_ROBOT) isLiveRobotOnline else isLocalSimOnline
                                 Box(
                                     modifier = Modifier
@@ -177,6 +186,9 @@ fun ExecutionToolbar(
         }
 
         // Launch Simulator Button
+        /**
+         * simIconTint val.
+         */
         val simIconTint by animateColorAsState(targetValue = if (isSimRunning) AresGreen else AresCyan)
         TooltipBox(
             positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
@@ -230,8 +242,17 @@ fun ExecutionToolbar(
         ) {
             IconButton(
                 onClick = {
+                    /**
+                     * ip val.
+                     */
                     val ip = targetIp.trim()
+                    /**
+                     * argsStr val.
+                     */
                     val argsStr = if (ip == "127.0.0.1") "" else " --args=\"$ip\""
+                    /**
+                     * command val.
+                     */
                     val command = """cd /d c:\Users\david\dev\robotics\ftc\ARESLib-Kotlin && .\gradlew.bat :simulator:runFakeController --console=plain""" + argsStr
                     try {
                         ProcessBuilder("cmd.exe", "/c", "start", "cmd.exe", "/k", command).start()
@@ -251,6 +272,9 @@ fun ExecutionToolbar(
         }
 
         // Stop Button
+        /**
+         * isAnyRunning val.
+         */
         val isAnyRunning = isBuildRunning || isSimRunning
         TooltipBox(
             positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),

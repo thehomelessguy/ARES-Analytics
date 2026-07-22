@@ -36,26 +36,74 @@ fun PoseViewerCard(
     modifier: Modifier = Modifier
 ) {
 
+    /**
+     * trueXSim val.
+     */
     val trueXSim by nt4ClientService.subscribeDouble("ARES/EstimatedPose/0").collectAsState(initial = null)
+    /**
+     * trueYSim val.
+     */
     val trueYSim by nt4ClientService.subscribeDouble("ARES/EstimatedPose/1").collectAsState(initial = null)
+    /**
+     * trueHeadingSim val.
+     */
     val trueHeadingSim by nt4ClientService.subscribeDouble("ARES/EstimatedPose/2").collectAsState(initial = null)
 
+    /**
+     * ekfX val.
+     */
     val ekfX by nt4ClientService.subscribeDouble("Drive/Pose_X").collectAsState(initial = null)
+    /**
+     * ekfY val.
+     */
     val ekfY by nt4ClientService.subscribeDouble("Drive/Pose_Y").collectAsState(initial = null)
+    /**
+     * ekfHeading val.
+     */
     val ekfHeading by nt4ClientService.subscribeDouble("Drive/Drive_Heading").collectAsState(initial = null)
     
+    /**
+     * trueX val.
+     */
     val trueX = trueXSim ?: ekfX
+    /**
+     * trueY val.
+     */
     val trueY = trueYSim ?: ekfY
+    /**
+     * trueHeading val.
+     */
     val trueHeading = trueHeadingSim ?: ekfHeading
 
+    /**
+     * pinpointX val.
+     */
     val pinpointX by nt4ClientService.subscribeDouble("Drive/Odom_X").collectAsState(initial = null)
+    /**
+     * pinpointY val.
+     */
     val pinpointY by nt4ClientService.subscribeDouble("Drive/Odom_Y").collectAsState(initial = null)
+    /**
+     * pinpointHeading val.
+     */
     val pinpointHeading by nt4ClientService.subscribeDouble("Drive/Odom_Heading").collectAsState(initial = null)
 
+    /**
+     * visionX val.
+     */
     val visionX by nt4ClientService.subscribeDouble("Vision/Pose_X").collectAsState(initial = null)
+    /**
+     * visionY val.
+     */
     val visionY by nt4ClientService.subscribeDouble("Vision/Pose_Y").collectAsState(initial = null)
+    /**
+     * visionHeading val.
+     */
     val visionHeading by nt4ClientService.subscribeDouble("Vision/Pose_Heading").collectAsState(initial = null)
 
+    /**
+     * lastUpdateMs var.
+     */
     var lastUpdateMs by remember { mutableStateOf<Long?>(null) }
     
     // Simple way to track last update:
@@ -96,6 +144,9 @@ fun PoseViewerCard(
             }
             
             // Connection/Update indicator
+            /**
+             * elapsed val.
+             */
             val elapsed = lastUpdateMs?.let { System.currentTimeMillis() - it }
             val (statusText, statusColor) = when {
                 elapsed == null -> "No Data" to AresTextTertiary

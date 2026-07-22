@@ -21,13 +21,37 @@ import kotlinx.coroutines.withContext
  * @return expected results
  */
 data class SettingsState(
+    /**
+     * config val.
+     */
     val config: WorkspaceConfig? = null,
+    /**
+     * theme val.
+     */
     val theme: String = "Dark", // "System", "Light", "Dark"
+    /**
+     * audibleAlertsEnabled val.
+     */
     val audibleAlertsEnabled: Boolean = true,
+    /**
+     * autoCheckUpdates val.
+     */
     val autoCheckUpdates: Boolean = true,
+    /**
+     * autoSyncEnabled val.
+     */
     val autoSyncEnabled: Boolean = false,
+    /**
+     * saveStatus val.
+     */
     val saveStatus: String = "",
+    /**
+     * isLoading val.
+     */
     val isLoading: Boolean = false,
+    /**
+     * errorMessage val.
+     */
     val errorMessage: String? = null
 )
 
@@ -120,6 +144,9 @@ class SettingsViewModel(
     private val scope: CoroutineScope
 ) {
     private val _state = MutableStateFlow(SettingsState())
+    /**
+     * state val.
+     */
     val state: StateFlow<SettingsState> = _state.asStateFlow()
 
     /**
@@ -165,6 +192,9 @@ class SettingsViewModel(
                     _state.update { it.copy(isLoading = true, saveStatus = "", errorMessage = null) }
                     try {
                         withContext(Dispatchers.IO) {
+                            /**
+                             * sessions val.
+                             */
                             val sessions = databaseService.getSessions()
                             sessions.forEach {
                                 databaseService.deleteSession(it.sessionId)

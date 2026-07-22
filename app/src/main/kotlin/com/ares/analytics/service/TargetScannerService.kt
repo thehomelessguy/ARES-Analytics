@@ -17,9 +17,15 @@ import java.net.Socket
  */
 class TargetScannerService {
     private val _isLocalSimOnline = MutableStateFlow(false)
+    /**
+     * isLocalSimOnline val.
+     */
     val isLocalSimOnline: StateFlow<Boolean> = _isLocalSimOnline.asStateFlow()
 
     private val _isLiveRobotOnline = MutableStateFlow(false)
+    /**
+     * isLiveRobotOnline val.
+     */
     val isLiveRobotOnline: StateFlow<Boolean> = _isLiveRobotOnline.asStateFlow()
 
     private var scannerJob: Job? = null

@@ -22,19 +22,61 @@ import java.io.File
  * @return expected results
  */
 data class DashboardState(
+    /**
+     * currentRoleProfile val.
+     */
     val currentRoleProfile: String = "Standard",
+    /**
+     * currentLayout val.
+     */
     val currentLayout: DashboardLayoutConfig? = null,
+    /**
+     * isPickerOpen val.
+     */
     val isPickerOpen: Boolean = false,
+    /**
+     * profileExpanded val.
+     */
     val profileExpanded: Boolean = false,
+    /**
+     * primarySessionId val.
+     */
     val primarySessionId: String? = null,
+    /**
+     * sessionMode val.
+     */
     val sessionMode: SessionMode = SessionMode.LIVE_STREAMING,
+    /**
+     * compareSessionId val.
+     */
     val compareSessionId: String? = null,
+    /**
+     * alerts val.
+     */
     val alerts: List<AlertRecord> = emptyList(),
+    /**
+     * isConnected val.
+     */
     val isConnected: Boolean = false,
+    /**
+     * isImporting val.
+     */
     val isImporting: Boolean = false,
+    /**
+     * importSuccess val.
+     */
     val importSuccess: Boolean = false,
+    /**
+     * errorMessage val.
+     */
     val errorMessage: String? = null,
+    /**
+     * availableProfiles val.
+     */
     val availableProfiles: List<String> = emptyList(),
+    /**
+     * savedLiveProfile val.
+     */
     val savedLiveProfile: String? = null
 )
 
@@ -186,6 +228,9 @@ class DashboardViewModel(
     private val scope: CoroutineScope
 ) {
     private val _state = MutableStateFlow(DashboardState())
+    /**
+     * state val.
+     */
     val state: StateFlow<DashboardState> = _state.asStateFlow()
 
     init {
@@ -230,10 +275,16 @@ class DashboardViewModel(
                     _state.update { it.copy(profileExpanded = intent.isExpanded) }
                 }
                 is DashboardIntent.SelectPrimarySession -> {
+                    /**
+                     * newMode val.
+                     */
                     val newMode = if (intent.sessionId == null) SessionMode.LIVE_STREAMING else SessionMode.HISTORICAL_REPLAY
                     
                     if (intent.sessionId != null) {
                         scope.launch {
+                            /**
+                             * historicalAlerts val.
+                             */
                             val historicalAlerts = databaseService.getAlerts(intent.sessionId)
                             _state.update { it.copy(alerts = historicalAlerts) }
                         }
@@ -244,6 +295,9 @@ class DashboardViewModel(
                     when {
                         newMode == SessionMode.HISTORICAL_REPLAY && _state.value.sessionMode == SessionMode.LIVE_STREAMING -> {
                             // Going into replay, save the current live layout profile
+                            /**
+                             * currentLiveProfile val.
+                             */
                             val currentLiveProfile = _state.value.currentRoleProfile
                             _state.update { it.copy(
                                 primarySessionId = intent.sessionId,
@@ -255,6 +309,9 @@ class DashboardViewModel(
                         }
                         newMode == SessionMode.LIVE_STREAMING && _state.value.sessionMode == SessionMode.HISTORICAL_REPLAY -> {
                             // Returning to live, restore live layout profile
+                            /**
+                             * restoreProfile val.
+                             */
                             val restoreProfile = _state.value.savedLiveProfile ?: "Standard"
                             _state.update { it.copy(
                                 primarySessionId = intent.sessionId,
@@ -277,7 +334,13 @@ class DashboardViewModel(
                     _state.update { it.copy(compareSessionId = intent.sessionId) }
                 }
                 is DashboardIntent.UpdateLayout -> {
+                    /**
+                     * profile val.
+                     */
                     val profile = _state.value.currentRoleProfile
+                    /**
+                     * newLayout val.
+                     */
                     val newLayout = DashboardLayoutConfig(intent.newWidgets)
                     _state.update { it.copy(currentLayout = newLayout) }
                     withContext(Dispatchers.IO) {
@@ -285,10 +348,22 @@ class DashboardViewModel(
                     }
                 }
                 is DashboardIntent.AddWidget -> {
+                    /**
+                     * currentLayout val.
+                     */
                     val currentLayout = _state.value.currentLayout
+                    /**
+                     * currentList val.
+                     */
                     val currentList = currentLayout?.widgets ?: emptyList()
+                    /**
+                     * maxRow val.
+                     */
                     val maxRow = currentList.maxOfOrNull { it.row + it.rowSpan } ?: 0
                     val (defRowSpan, defColSpan) = getDefaultWidgetSize(intent.type)
+                    /**
+                     * newWidget val.
+                     */
                     val newWidget = WidgetConfig(
                         id = "${intent.type}_${System.currentTimeMillis()}",
                         type = intent.type,
@@ -297,18 +372,36 @@ class DashboardViewModel(
                         rowSpan = defRowSpan,
                         colSpan = defColSpan
                     )
+                    /**
+                     * newWidgets val.
+                     */
                     val newWidgets = currentList + newWidget
                     onIntent(DashboardIntent.UpdateLayout(newWidgets))
                     _state.update { it.copy(isPickerOpen = false) }
                 }
                 is DashboardIntent.RemoveWidget -> {
+                    /**
+                     * currentLayout val.
+                     */
                     val currentLayout = _state.value.currentLayout
+                    /**
+                     * currentList val.
+                     */
                     val currentList = currentLayout?.widgets ?: emptyList()
+                    /**
+                     * newWidgets val.
+                     */
                     val newWidgets = currentList.filter { it.id != intent.widgetId }
                     onIntent(DashboardIntent.UpdateLayout(newWidgets))
                 }
                 is DashboardIntent.ResetProfile -> {
+                    /**
+                     * profile val.
+                     */
                     val profile = _state.value.currentRoleProfile
+                    /**
+                     * defaultConf val.
+                     */
                     val defaultConf = layoutPreferenceService.getDefaultLayout(profile)
                     _state.update { it.copy(currentLayout = defaultConf) }
                     withContext(Dispatchers.IO) {
@@ -319,6 +412,9 @@ class DashboardViewModel(
                     _state.update { it.copy(isImporting = true, importSuccess = false, errorMessage = null) }
                     withContext(Dispatchers.IO) {
                         try {
+                            /**
+                             * sessionId val.
+                             */
                             val sessionId = if (intent.files.size == 1 && intent.files.first().name.lowercase().endsWith(".hoot")) {
                                 hootDecoderService.importHootLog(
                                     hootFile = intent.files.first(),
@@ -353,6 +449,9 @@ class DashboardViewModel(
                     _state.update { it.copy(importSuccess = false) }
                 }
                 is DashboardIntent.SaveLayoutAs -> {
+                    /**
+                     * currentLayout val.
+                     */
                     val currentLayout = _state.value.currentLayout
                     if (currentLayout != null) {
                         _state.update { it.copy(currentRoleProfile = intent.profileName) }
@@ -363,6 +462,9 @@ class DashboardViewModel(
                     }
                 }
                 is DashboardIntent.DeleteLayout -> {
+                    /**
+                     * currentProfile val.
+                     */
                     val currentProfile = _state.value.currentRoleProfile
                     withContext(Dispatchers.IO) {
                         layoutPreferenceService.deleteLayout(intent.profileName)
@@ -392,6 +494,9 @@ class DashboardViewModel(
 
     private fun loadLayoutForProfile(profileName: String) {
         scope.launch {
+            /**
+             * layout val.
+             */
             val layout = withContext(Dispatchers.IO) {
                 layoutPreferenceService.loadLayout(profileName)
             }
@@ -401,6 +506,9 @@ class DashboardViewModel(
 
     private fun refreshAvailableProfiles() {
         scope.launch {
+            /**
+             * list val.
+             */
             val list = withContext(Dispatchers.IO) {
                 layoutPreferenceService.getAvailableLayouts()
             }

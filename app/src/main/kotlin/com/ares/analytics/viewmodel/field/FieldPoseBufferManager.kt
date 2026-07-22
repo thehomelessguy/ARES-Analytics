@@ -24,11 +24,23 @@ class FieldPoseBufferManager(
         scope.launch {
             while (true) {
                 delay(50)
+                /**
+                 * currentState val.
+                 */
                 val currentState = stateFlow.value
                 if (currentState.trueX != 0.0 || currentState.trueY != 0.0) {
+                    /**
+                     * newWp val.
+                     */
                     val newWp = Waypoint(currentState.trueX, currentState.trueY, currentState.trueHeading)
+                    /**
+                     * lastWp val.
+                     */
                     val lastWp = currentState.poseHistory.lastOrNull()
                     if (lastWp == null || kotlin.math.abs(lastWp.x - newWp.x) > 0.01 || kotlin.math.abs(lastWp.y - newWp.y) > 0.01) {
+                        /**
+                         * newHistory val.
+                         */
                         val newHistory = currentState.poseHistory.toMutableList()
                         newHistory.add(newWp)
                         if (newHistory.size > 2000) {
@@ -36,6 +48,9 @@ class FieldPoseBufferManager(
                         }
                         stateFlow.update { it.copy(poseHistory = newHistory) }
                     } else if (lastWp.headingRad != newWp.headingRad) {
+                        /**
+                         * newHistory val.
+                         */
                         val newHistory = currentState.poseHistory.toMutableList()
                         newHistory[newHistory.size - 1] = newWp
                         stateFlow.update { it.copy(poseHistory = newHistory) }

@@ -28,9 +28,18 @@ class DatabaseService(val dbPath: String = System.getProperty("user.home") + "/.
     init {
         Class.forName("org.duckdb.DuckDBDriver")
         
+        /**
+         * oldDbPath val.
+         */
         val oldDbPath = System.getProperty("user.home") + "/.ares-analytics/telemetry.db"
+        /**
+         * isFirstRun val.
+         */
         val isFirstRun = !File(dbPath).exists()
         
+        /**
+         * dbFile val.
+         */
         val dbFile = File(dbPath)
         dbFile.parentFile?.mkdirs()
         

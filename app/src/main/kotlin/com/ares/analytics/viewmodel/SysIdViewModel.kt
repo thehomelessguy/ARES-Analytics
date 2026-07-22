@@ -30,36 +30,102 @@ import kotlinx.coroutines.withContext
  * @return expected results
  */
 data class SysIdState(
+    /**
+     * sessionId val.
+     */
     val sessionId: String? = null,
+    /**
+     * summary val.
+     */
     val summary: CalculatedSummary? = null,
+    /**
+     * jitterResult val.
+     */
     val jitterResult: DriverProfileAnalysisResult? = null,
+    /**
+     * exportStatus val.
+     */
     val exportStatus: String = "",
+    /**
+     * isLoading val.
+     */
     val isLoading: Boolean = false,
+    /**
+     * errorMessage val.
+     */
     val errorMessage: String? = null,
     
     // Robot connection and live routines
+    /**
+     * isRobotConnected val.
+     */
     val isRobotConnected: Boolean = false,
+    /**
+     * isRoutineRunning val.
+     */
     val isRoutineRunning: Boolean = false,
+    /**
+     * selectedMechanism val.
+     */
     val selectedMechanism: SysIdMechanism = SysIdMechanism.LINEAR,
+    /**
+     * liveSamples val.
+     */
     val liveSamples: List<AlignedDataRow> = emptyList(),
     
     // Standalone file upload analysis
+    /**
+     * localAnalysisResult val.
+     */
     val localAnalysisResult: CalculatedSummary? = null,
+    /**
+     * fileAnalysisError val.
+     */
     val fileAnalysisError: String? = null,
 
     // New Auto-Tuning/Calibration features
+    /**
+     * activeCalibration val.
+     */
     val activeCalibration: String = "NONE", // "NONE", "PINPOINT_SPIN", "TRACK_WIDTH_SPIN", "VISION_CALIBRATION", "LINEAR_DRIVE"
+    /**
+     * liveCalibrationData val.
+     */
     val liveCalibrationData: List<DoubleArray> = emptyList(),
     
+    /**
+     * recommendedPinpointXOffsetMm val.
+     */
     val recommendedPinpointXOffsetMm: Double? = null,
+    /**
+     * recommendedPinpointYOffsetMm val.
+     */
     val recommendedPinpointYOffsetMm: Double? = null,
+    /**
+     * recommendedTrackWidthMeters val.
+     */
     val recommendedTrackWidthMeters: Double? = null,
+    /**
+     * recommendedVisionStdDevsX val.
+     */
     val recommendedVisionStdDevsX: Double? = null,
+    /**
+     * recommendedVisionStdDevsY val.
+     */
     val recommendedVisionStdDevsY: Double? = null,
+    /**
+     * recommendedVisionStdDevsHeading val.
+     */
     val recommendedVisionStdDevsHeading: Double? = null,
+    /**
+     * recommendedTicksPerMeter val.
+     */
     val recommendedTicksPerMeter: Double? = null,
 
     // For linear drive calibration distance input
+    /**
+     * linearDriveActualDistanceMeters val.
+     */
     val linearDriveActualDistanceMeters: Double = 2.0
 )
 
@@ -82,8 +148,17 @@ sealed class SysIdIntent {
      * @return expected results
      */
     data class ApplyToRobotCode(
+        /**
+         * recommendedExponent val.
+         */
         val recommendedExponent: Double,
+        /**
+         * recommendedSlewRate val.
+         */
         val recommendedSlewRate: Double,
+        /**
+         * projectPath val.
+         */
         val projectPath: String
     ) : SysIdIntent()
     /**
@@ -196,10 +271,16 @@ class SysIdViewModel(
     private val databaseService: DatabaseService,
     private val sysIdService: SysIdService,
     private val driverAnalysisService: DriverAnalysisService,
+    /**
+     * nt4ClientService val.
+     */
     val nt4ClientService: Nt4ClientService,
     private val scope: CoroutineScope
 ) {
     private val _state = MutableStateFlow(SysIdState())
+    /**
+     * state val.
+     */
     val state: StateFlow<SysIdState> = _state.asStateFlow()
 
     private val regressionSolver = SysIdRegressionSolver(nt4ClientService, _state)
@@ -222,17 +303,26 @@ class SysIdViewModel(
         scope.launch {
             when (intent) {
                 is SysIdIntent.LoadSession -> {
+                    /**
+                     * sessionId val.
+                     */
                     val sessionId = intent.sessionId
                     _state.update { it.copy(sessionId = sessionId, isLoading = true, summary = null, jitterResult = null, errorMessage = null) }
                     if (sessionId != null) {
                         try {
                             withContext(Dispatchers.IO) {
+                                /**
+                                 * summaryResult val.
+                                 */
                                 val summaryResult = sysIdService.analyzeMotorData(
                                     sessionId = sessionId,
                                     voltageKey = "/Drive/Voltage",
                                     velocityKey = "/Drive/Velocity",
                                     accelerationKey = "/Drive/Acceleration"
                                 )
+                                /**
+                                 * jitterResult val.
+                                 */
                                 val jitterResult = driverAnalysisService.analyzeDriverJitter(
                                     sessionId = sessionId
                                 )
@@ -270,12 +360,18 @@ class SysIdViewModel(
                 is SysIdIntent.LoadLocalLogFile -> {
                     _state.update { it.copy(isLoading = true, fileAnalysisError = null, localAnalysisResult = null) }
                     try {
+                        /**
+                         * rows val.
+                         */
                         val rows = withContext(Dispatchers.IO) {
                             dataCollector.parseLogFile(intent.fileContent)
                         }
                         if (rows.size < 10) {
                             _state.update { it.copy(isLoading = false, fileAnalysisError = "Not enough valid data rows found in file (minimum 10 required)") }
                         } else {
+                            /**
+                             * summary val.
+                             */
                             val summary = withContext(Dispatchers.IO) {
                                 sysIdService.analyzeRawData(rows)
                             }

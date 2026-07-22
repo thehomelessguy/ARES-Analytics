@@ -40,8 +40,17 @@ fun MechanismVisualizer(
     nt4ClientService: Nt4ClientService? = null,
     modifier: Modifier = Modifier
 ) {
+    /**
+     * scope val.
+     */
     val scope = rememberCoroutineScope()
+    /**
+     * armAngleDeg var.
+     */
     var armAngleDeg by remember { mutableStateOf(0.0) }
+    /**
+     * slideExtension var.
+     */
     var slideExtension by remember { mutableStateOf(0.0) }
 
     if (currentFrame != null) {
@@ -55,7 +64,13 @@ fun MechanismVisualizer(
         LaunchedEffect(Unit) {
             scope.launch {
                 nt4ClientService.telemetryFlow.collect { frame ->
+                    /**
+                     * key val.
+                     */
                     val key = frame.key
+                    /**
+                     * value val.
+                     */
                     val value = frame.value
                     when (key) {
                         "Mechanism/ArmAngle", "Mechanism/ArmAngleDeg" -> armAngleDeg = value
@@ -66,6 +81,9 @@ fun MechanismVisualizer(
         }
     }
 
+    /**
+     * armAngleRad val.
+     */
     val armAngleRad = Math.toRadians(armAngleDeg)
 
     Column(
@@ -92,7 +110,13 @@ fun MechanismVisualizer(
                 .border(1.dp, AresBorder, RoundedCornerShape(8.dp))
         ) {
             Canvas(modifier = Modifier.fillMaxSize()) {
+                /**
+                 * cx val.
+                 */
                 val cx = size.width / 2f
+                /**
+                 * cy val.
+                 */
                 val cy = size.height * 0.8f // Base anchored at 80% height
 
                 // Ground grid line
@@ -104,7 +128,13 @@ fun MechanismVisualizer(
                 )
 
                 // Robot base
+                /**
+                 * baseWidth val.
+                 */
                 val baseWidth = 140f
+                /**
+                 * baseHeight val.
+                 */
                 val baseHeight = 60f
                 drawRect(
                     color = AresSurfaceElevated,
@@ -119,7 +149,13 @@ fun MechanismVisualizer(
                 )
 
                 // Arm pivot anchor
+                /**
+                 * anchorX val.
+                 */
                 val anchorX = cx
+                /**
+                 * anchorY val.
+                 */
                 val anchorY = cy - baseHeight
 
                 drawCircle(
@@ -129,8 +165,17 @@ fun MechanismVisualizer(
                 )
 
                 // Base arm linkage (Length = 120 pixels)
+                /**
+                 * baseArmLength val.
+                 */
                 val baseArmLength = 120f
+                /**
+                 * armEndX val.
+                 */
                 val armEndX = anchorX + baseArmLength * cos(-armAngleRad).toFloat()
+                /**
+                 * armEndY val.
+                 */
                 val armEndY = anchorY + baseArmLength * sin(-armAngleRad).toFloat()
 
                 drawLine(
@@ -142,9 +187,21 @@ fun MechanismVisualizer(
                 )
 
                 // Slide extension linkage
+                /**
+                 * maxExtensionPx val.
+                 */
                 val maxExtensionPx = 100f
+                /**
+                 * extensionPx val.
+                 */
                 val extensionPx = (slideExtension * 120f).toFloat().coerceIn(0f, maxExtensionPx)
+                /**
+                 * slideEndX val.
+                 */
                 val slideEndX = armEndX + (baseArmLength * 0.3f + extensionPx) * cos(-armAngleRad).toFloat()
+                /**
+                 * slideEndY val.
+                 */
                 val slideEndY = armEndY + (baseArmLength * 0.3f + extensionPx) * sin(-armAngleRad).toFloat()
 
                 drawLine(
@@ -162,11 +219,29 @@ fun MechanismVisualizer(
                 )
 
                 // Gripper claw
+                /**
+                 * gripperLen val.
+                 */
                 val gripperLen = 22f
+                /**
+                 * perpAngle val.
+                 */
                 val perpAngle = -armAngleRad + Math.PI / 2
+                /**
+                 * g1x val.
+                 */
                 val g1x = slideEndX + gripperLen * cos(perpAngle).toFloat()
+                /**
+                 * g1y val.
+                 */
                 val g1y = slideEndY + gripperLen * sin(perpAngle).toFloat()
+                /**
+                 * g2x val.
+                 */
                 val g2x = slideEndX - gripperLen * cos(perpAngle).toFloat()
+                /**
+                 * g2y val.
+                 */
                 val g2y = slideEndY - gripperLen * sin(perpAngle).toFloat()
 
                 drawLine(

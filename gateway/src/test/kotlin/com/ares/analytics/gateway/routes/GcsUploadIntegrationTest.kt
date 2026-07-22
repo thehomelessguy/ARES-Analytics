@@ -34,15 +34,36 @@ import java.util.concurrent.TimeUnit
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
+/**
+ * GcsUploadIntegrationTest class.
+ */
 class GcsUploadIntegrationTest {
 
     @Suppress("UNCHECKED_CAST")
     @Test
+    /**
+     * testGcsUploadFlow fun.
+     */
     fun testGcsUploadFlow() = testApplication {
+        /**
+         * mockStorage val.
+         */
         val mockStorage = mock(Storage::class.java)
+        /**
+         * mockFirestore val.
+         */
         val mockFirestore = mock(Firestore::class.java)
+        /**
+         * mockCollection val.
+         */
         val mockCollection = mock(CollectionReference::class.java)
+        /**
+         * mockDoc val.
+         */
         val mockDoc = mock(DocumentReference::class.java)
+        /**
+         * mockFuture val.
+         */
         val mockFuture = mock(ApiFuture::class.java) as ApiFuture<WriteResult>
 
         `when`(mockFirestore.collection("summaries")).thenReturn(mockCollection)
@@ -50,9 +71,21 @@ class GcsUploadIntegrationTest {
         `when`(mockDoc.set(any())).thenReturn(mockFuture)
         `when`(mockFuture.get()).thenReturn(mock(WriteResult::class.java))
 
+        /**
+         * mockUserCollection val.
+         */
         val mockUserCollection = mock(CollectionReference::class.java)
+        /**
+         * mockUserDocRef val.
+         */
         val mockUserDocRef = mock(DocumentReference::class.java)
+        /**
+         * mockUserFuture val.
+         */
         val mockUserFuture = mock(ApiFuture::class.java) as ApiFuture<DocumentSnapshot>
+        /**
+         * mockUserDoc val.
+         */
         val mockUserDoc = mock(DocumentSnapshot::class.java)
 
         `when`(mockFirestore.collection("authorized_users")).thenReturn(mockUserCollection)
@@ -61,6 +94,9 @@ class GcsUploadIntegrationTest {
         `when`(mockUserFuture.get()).thenReturn(mockUserDoc)
         `when`(mockUserDoc.get("githubOrgs")).thenReturn(listOf("9999"))
 
+        /**
+         * mockUrl val.
+         */
         val mockUrl = URL("http://localhost/gcs-mock-upload")
         
         // Mock storage.signUrl(blobInfo, duration, unit, options)
@@ -90,6 +126,9 @@ class GcsUploadIntegrationTest {
                 
                 // Mock GCS upload destination
                 put("/gcs-mock-upload") {
+                    /**
+                     * bytes val.
+                     */
                     val bytes = call.receive<ByteArray>()
                     assertEquals("dummy-parquet-data", String(bytes))
                     call.respond(HttpStatusCode.OK, "Uploaded")
@@ -97,6 +136,9 @@ class GcsUploadIntegrationTest {
             }
         }
 
+        /**
+         * summary val.
+         */
         val summary = SessionSummary(
             sessionId = "session-123",
             teamId = "9999",
@@ -117,6 +159,9 @@ class GcsUploadIntegrationTest {
             fileSizeBytes = 0L
         )
 
+        /**
+         * uploadReq val.
+         */
         val uploadReq = UploadUrlRequest(
             teamId = "9999",
             seasonId = "2026",
@@ -126,8 +171,14 @@ class GcsUploadIntegrationTest {
             summary = summary
         )
 
+        /**
+         * reqJson val.
+         */
         val reqJson = Json.encodeToString(UploadUrlRequest.serializer(), uploadReq)
 
+        /**
+         * response val.
+         */
         val response = client.post("/api/archive/upload-url") {
             header(HttpHeaders.Authorization, "Bearer mock-token:uid:email:name:9999")
             contentType(ContentType.Application.Json)
@@ -139,10 +190,16 @@ class GcsUploadIntegrationTest {
         }
 
         assertEquals(HttpStatusCode.OK, response.status)
+        /**
+         * uploadUrlResponse val.
+         */
         val uploadUrlResponse = Json.decodeFromString<UploadUrlResponse>(response.bodyAsText())
         assertEquals("http://localhost/gcs-mock-upload", uploadUrlResponse.uploadUrl)
 
         // Upload file bytes to the pre-signed URL
+        /**
+         * putResponse val.
+         */
         val putResponse = client.put(uploadUrlResponse.uploadUrl) {
             setBody("dummy-parquet-data".toByteArray())
         }
@@ -151,8 +208,17 @@ class GcsUploadIntegrationTest {
     }
     
     @Test
+    /**
+     * testIdorAuthorizationBypass fun.
+     */
     fun testIdorAuthorizationBypass() = testApplication {
+        /**
+         * mockStorage val.
+         */
         val mockStorage = mock(Storage::class.java)
+        /**
+         * mockFirestore val.
+         */
         val mockFirestore = mock(Firestore::class.java)
         
         application {
@@ -173,6 +239,9 @@ class GcsUploadIntegrationTest {
             }
         }
         
+        /**
+         * summary val.
+         */
         val summary = SessionSummary(
             sessionId = "session-123",
             teamId = "9999", // Requesting team 9999
@@ -193,6 +262,9 @@ class GcsUploadIntegrationTest {
             fileSizeBytes = 0L
         )
 
+        /**
+         * uploadReq val.
+         */
         val uploadReq = UploadUrlRequest(
             teamId = "9999",
             seasonId = "2026",
@@ -202,9 +274,15 @@ class GcsUploadIntegrationTest {
             summary = summary
         )
 
+        /**
+         * reqJson val.
+         */
         val reqJson = Json.encodeToString(UploadUrlRequest.serializer(), uploadReq)
 
         // The mock token does not have the team claim setup correctly for team 9999, so this should fail
+        /**
+         * response val.
+         */
         val response = client.post("/api/archive/upload-url") {
             // Note: Our installFirebaseAuthentication sets teamId based on a hack if missing? Let's check auth logic, but we can pass a token with a different team or no team claim.
             // If the mock token doesn't include the 'team_id' claim, FirebasePrincipal.teamId will be null.
@@ -218,8 +296,17 @@ class GcsUploadIntegrationTest {
     }
 
     @Test
+    /**
+     * testIdorAuthorizationMultipleEndpoints fun.
+     */
     fun testIdorAuthorizationMultipleEndpoints() = testApplication {
+        /**
+         * mockStorage val.
+         */
         val mockStorage = mock(Storage::class.java)
+        /**
+         * mockFirestore val.
+         */
         val mockFirestore = mock(Firestore::class.java)
         
         application {
@@ -241,16 +328,25 @@ class GcsUploadIntegrationTest {
         }
         
         // 1. GET /api/team/{teamId}/robots with mismatched team token
+        /**
+         * getRobotsResp val.
+         */
         val getRobotsResp = client.get("/api/team/9999/robots") {
             header(HttpHeaders.Authorization, "Bearer mock-token:uid:email:name:1111")
         }
         assertEquals(HttpStatusCode.Forbidden, getRobotsResp.status)
 
         // 2. POST /api/team/robots/add with mismatched team token
+        /**
+         * addReq val.
+         */
         val addReq = AddRobotRequest(
             teamId = "9999",
             robot = RobotProfile("robot1", League.FTC, "2026", "Bot")
         )
+        /**
+         * addResp val.
+         */
         val addResp = client.post("/api/team/robots/add") {
             header(HttpHeaders.Authorization, "Bearer mock-token:uid:email:name:1111")
             contentType(ContentType.Application.Json)
@@ -259,7 +355,13 @@ class GcsUploadIntegrationTest {
         assertEquals(HttpStatusCode.Forbidden, addResp.status)
 
         // 3. POST /api/team/robots/delete with mismatched team token
+        /**
+         * delReq val.
+         */
         val delReq = DeleteRobotRequest(teamId = "9999", robotId = "robot1")
+        /**
+         * delResp val.
+         */
         val delResp = client.post("/api/team/robots/delete") {
             header(HttpHeaders.Authorization, "Bearer mock-token:uid:email:name:1111")
             contentType(ContentType.Application.Json)
@@ -268,7 +370,13 @@ class GcsUploadIntegrationTest {
         assertEquals(HttpStatusCode.Forbidden, delResp.status)
 
         // 4. POST /api/archive/upload-raw-urls with mismatched team token
+        /**
+         * rawReq val.
+         */
         val rawReq = RawUploadUrlsRequest(teamId = "9999", runTimestamp = "123", fileNames = listOf("file1"))
+        /**
+         * rawResp val.
+         */
         val rawResp = client.post("/api/archive/upload-raw-urls") {
             header(HttpHeaders.Authorization, "Bearer mock-token:uid:email:name:1111")
             contentType(ContentType.Application.Json)

@@ -26,6 +26,9 @@ data class FirebasePrincipal(val uid: String, val email: String?, val name: Stri
  */
 class FirebaseAuthenticationProvider(config: Config) : AuthenticationProvider(config) {
     override suspend fun onAuthenticate(context: AuthenticationContext) {
+        /**
+         * authHeader val.
+         */
         val authHeader = context.call.request.headers[HttpHeaders.Authorization]
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             context.challenge("Firebase", AuthenticationFailedCause.NoCredentials) { challenge, call ->
@@ -35,11 +38,20 @@ class FirebaseAuthenticationProvider(config: Config) : AuthenticationProvider(co
             return
         }
 
+        /**
+         * token val.
+         */
         val token = authHeader.substring(7)
 
         try {
             if (System.getenv("MOCK_AUTH") == "true" && token.startsWith("mock-token:")) {
+                /**
+                 * parts val.
+                 */
                 val parts = token.split(":")
+                /**
+                 * principal val.
+                 */
                 val principal = FirebasePrincipal(
                     uid = parts.getOrNull(1) ?: "mock-uid",
                     email = parts.getOrNull(2),
@@ -51,7 +63,13 @@ class FirebaseAuthenticationProvider(config: Config) : AuthenticationProvider(co
             }
 
             // Verify ID Token via Firebase Admin SDK
+            /**
+             * decodedToken val.
+             */
             val decodedToken = FirebaseAuth.getInstance().verifyIdToken(token)
+            /**
+             * principal val.
+             */
             val principal = FirebasePrincipal(
                 uid = decodedToken.uid,
                 email = decodedToken.email,
@@ -90,6 +108,9 @@ fun AuthenticationConfig.firebase(
     name: String? = "firebase",
     configure: FirebaseAuthenticationProvider.Config.() -> Unit = {}
 ) {
+    /**
+     * provider val.
+     */
     val provider = FirebaseAuthenticationProvider(FirebaseAuthenticationProvider.Config(name).apply(configure))
     register(provider)
 }

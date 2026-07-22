@@ -23,9 +23,21 @@ import kotlinx.serialization.json.Json
  * @return expected results
  */
 data class PhoenixDevice(
+    /**
+     * id val.
+     */
     val id: String,
+    /**
+     * name val.
+     */
     val name: String,
+    /**
+     * type val.
+     */
     val type: String,
+    /**
+     * canId val.
+     */
     val canId: Int? = null
 )
 
@@ -39,7 +51,13 @@ data class PhoenixDevice(
  * @return expected results
  */
 data class PhoenixTelemetryResponse(
+    /**
+     * deviceId val.
+     */
     val deviceId: String,
+    /**
+     * signals val.
+     */
     val signals: Map<String, Double>
 )
 
@@ -60,6 +78,9 @@ class PhoenixDiagnosticsService(
     }
 ) {
     private val _isConnected = MutableStateFlow(false)
+    /**
+     * isConnected val.
+     */
     val isConnected: StateFlow<Boolean> = _isConnected
 
     private var pollJob: Job? = null
@@ -81,14 +102,26 @@ class PhoenixDiagnosticsService(
                     httpClient.prepareGet("http://$host:$port/devices").execute { devicesResponse ->
                         if (devicesResponse.status == HttpStatusCode.OK) {
                             _isConnected.value = true
+                            /**
+                             * devices val.
+                             */
                             val devices = devicesResponse.body<List<PhoenixDevice>>()
                             
                             for (device in devices) {
                                 httpClient.prepareGet("http://$host:$port/device/${device.id}/telemetry").execute { telResponse ->
                                     if (telResponse.status == HttpStatusCode.OK) {
+                                        /**
+                                         * telData val.
+                                         */
                                         val telData = telResponse.body<PhoenixTelemetryResponse>()
+                                        /**
+                                         * now val.
+                                         */
                                         val now = System.currentTimeMillis()
                                         for ((signalName, signalValue) in telData.signals) {
+                                            /**
+                                             * frame val.
+                                             */
                                             val frame = TelemetryFrame(
                                                 timestampMs = now,
                                                 sessionId = "live-telemetry",

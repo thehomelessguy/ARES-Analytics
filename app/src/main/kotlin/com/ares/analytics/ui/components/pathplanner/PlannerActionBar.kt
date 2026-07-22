@@ -39,6 +39,9 @@ fun PlannerActionBar(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("$mode Name", fontSize = 11.sp, color = AresTextSecondary, fontWeight = FontWeight.Bold)
+        /**
+         * expanded var.
+         */
         var expanded by remember { mutableStateOf(false) }
         ExposedDropdownMenuBox(
             expanded = expanded,

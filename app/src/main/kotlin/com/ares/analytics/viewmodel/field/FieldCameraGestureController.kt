@@ -9,8 +9,17 @@ package com.ares.analytics.viewmodel.field
  * @return expected results
  */
 class FieldCameraGestureController {
+    /**
+     * zoomLevel var.
+     */
     var zoomLevel: Float = 1.0f
+    /**
+     * panOffsetX var.
+     */
     var panOffsetX: Float = 0.0f
+    /**
+     * panOffsetY var.
+     */
     var panOffsetY: Float = 0.0f
 
     /**

@@ -71,11 +71,26 @@ fun FtcDriverStationWidget(
     nt4Client: Nt4ClientService,
     modifier: Modifier = Modifier
 ) {
+    /**
+     * selectedOpMode var.
+     */
     var selectedOpMode by remember { mutableStateOf(cachedSelectedOpMode) } // For manual control
+    /**
+     * selectedAutoOpMode var.
+     */
     var selectedAutoOpMode by remember { mutableStateOf(cachedSelectedAutoOpMode) }
+    /**
+     * selectedTeleOpMode var.
+     */
     var selectedTeleOpMode by remember { mutableStateOf(cachedSelectedTeleOpMode) }
     
+    /**
+     * dsState var.
+     */
     var dsState by remember { mutableStateOf(cachedDsState) }
+    /**
+     * matchState var.
+     */
     var matchState by remember { mutableStateOf(cachedMatchState) }
     
     // Save to cache whenever changed
@@ -85,8 +100,14 @@ fun FtcDriverStationWidget(
     cachedDsState = dsState
     cachedMatchState = matchState
 
+    /**
+     * matchTimeRemaining var.
+     */
     var matchTimeRemaining by remember { mutableIntStateOf(0) }
     
+    /**
+     * teleOps var.
+     */
     var teleOps by remember { 
         mutableStateOf(
             nt4Client.latestValues["ARES/DriverStation/TeleOpList"]?.stringValue?.let {
@@ -94,6 +115,9 @@ fun FtcDriverStationWidget(
             } ?: emptyList()
         ) 
     }
+    /**
+     * autos var.
+     */
     var autos by remember { 
         mutableStateOf(
             nt4Client.latestValues["ARES/DriverStation/AutonomousList"]?.stringValue?.let {
@@ -101,10 +125,22 @@ fun FtcDriverStationWidget(
             } ?: emptyList()
         ) 
     }
+    /**
+     * telemetryLines val.
+     */
     val telemetryLines = remember { mutableStateListOf<String>() }
+    /**
+     * isAutoExpanded var.
+     */
     var isAutoExpanded by remember { mutableStateOf(false) }
+    /**
+     * isTeleOpExpanded var.
+     */
     var isTeleOpExpanded by remember { mutableStateOf(false) }
 
+    /**
+     * scope val.
+     */
     val scope = rememberCoroutineScope()
 
     // Match Orchestrator
@@ -212,7 +248,13 @@ fun FtcDriverStationWidget(
         launch {
             nt4Client.telemetryFlow.filter { it.key.startsWith("ARES/DriverStation/Telemetry") }.collect { frame ->
                 frame.stringValue?.let { line ->
+                    /**
+                     * indexPart val.
+                     */
                     val indexPart = frame.key.substringAfterLast("/")
+                    /**
+                     * idx val.
+                     */
                     val idx = indexPart.toIntOrNull()
                     if (idx != null) {
                         while (telemetryLines.size <= idx) {
@@ -245,7 +287,13 @@ fun FtcDriverStationWidget(
                 fontWeight = FontWeight.Bold
             )
             if (matchState != MatchState.IDLE) {
+                /**
+                 * isEndGame val.
+                 */
                 val isEndGame = (matchState == MatchState.TELEOP_RUNNING && matchTimeRemaining <= 30)
+                /**
+                 * phaseText val.
+                 */
                 val phaseText = when {
                     isEndGame -> "END GAME"
                     matchState == MatchState.AUTO_INIT || matchState == MatchState.AUTO_RUNNING -> "AUTO"
@@ -253,6 +301,9 @@ fun FtcDriverStationWidget(
                     matchState == MatchState.TELEOP_INIT || matchState == MatchState.TELEOP_RUNNING -> "TELEOP"
                     else -> ""
                 }
+                /**
+                 * phaseColor val.
+                 */
                 val phaseColor = when {
                     isEndGame -> AresError
                     matchState == MatchState.AUTO_INIT || matchState == MatchState.AUTO_RUNNING -> AresGreen
@@ -260,7 +311,13 @@ fun FtcDriverStationWidget(
                     matchState == MatchState.TELEOP_INIT || matchState == MatchState.TELEOP_RUNNING -> AresCyan
                     else -> AresTextPrimary
                 }
+                /**
+                 * minutes val.
+                 */
                 val minutes = matchTimeRemaining / 60
+                /**
+                 * seconds val.
+                 */
                 val seconds = matchTimeRemaining % 60
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -464,6 +521,9 @@ fun FtcDriverStationWidget(
                 .background(Color(0xFF1E1E1E))
                 .padding(8.dp)
         ) {
+            /**
+             * listState val.
+             */
             val listState = rememberLazyListState()
             
             LaunchedEffect(telemetryLines.size) {

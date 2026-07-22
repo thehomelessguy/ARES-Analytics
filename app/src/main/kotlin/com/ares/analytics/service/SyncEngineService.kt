@@ -60,43 +60,91 @@ class SyncEngineService(
      * Uploads a local session's log file to Google Drive.
      */
     suspend fun uploadSession(sessionId: String, authToken: String? = null) = withContext(Dispatchers.IO) {
+        /**
+         * summary val.
+         */
         val summary = databaseService.getSessionSummary(sessionId)
             ?: run {
+                /**
+                 * session val.
+                 */
                 val session = databaseService.getSessions().find { it.sessionId == sessionId }
                     ?: throw IllegalArgumentException("Session not found for $sessionId")
+                /**
+                 * generated val.
+                 */
                 val generated = summaryEngineService.generateSummary(session)
                 databaseService.insertSessionSummary(generated)
                 generated
             }
 
         // 1. Export local session to temporary Parquet file
+        /**
+         * tempDir val.
+         */
         val tempDir = File(System.getProperty("java.io.tmpdir"), "ares-sync")
         tempDir.mkdirs()
 
+        /**
+         * dateStr val.
+         */
         val dateStr = java.text.SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", java.util.Locale.getDefault()).format(java.util.Date(summary.createdAt))
+        /**
+         * robotStr val.
+         */
         val robotStr = "_${summary.robotId}"
+        /**
+         * matchStr val.
+         */
         val matchStr = if (summary.matchNumber != null) "_Match_${summary.matchNumber}" else ""
+        /**
+         * allianceStr val.
+         */
         val allianceStr = if (!summary.allianceColor.isNullOrEmpty()) "_${summary.allianceColor}" else ""
+        /**
+         * mode val.
+         */
         val mode = when {
             summary.tags.contains("Auto") -> "Auto"
             summary.tags.contains("TeleOp") -> "TeleOp"
             summary.tags.contains("Init") -> "Init"
             else -> "Init"
         }
+        /**
+         * modeStr val.
+         */
         val modeStr = "_$mode"
+        /**
+         * descriptiveName val.
+         */
         val descriptiveName = "ARES_Telemetry_${dateStr}${robotStr}${matchStr}${allianceStr}${modeStr}_$sessionId.parquet"
 
+        /**
+         * tempFile val.
+         */
         val tempFile = File(tempDir, descriptiveName)
         parquetExporterService.exportSessionToParquet(sessionId, tempFile)
 
+        /**
+         * updatedSummary val.
+         */
         val updatedSummary = summary.copy(fileSizeBytes = tempFile.length())
 
         try {
             // 2. Locate or create folder structure in Google Drive
+            /**
+             * rootFolderId val.
+             */
             val rootFolderId = googleDriveService.findOrCreateFolder("ARES-Analytics")
+            /**
+             * sessionsFolderId val.
+             */
             val sessionsFolderId = googleDriveService.findOrCreateFolder("sessions", rootFolderId)
 
             // 3. Upload Parquet file to sessions/ folder
+            /**
+             * existingParquetId val.
+             */
             val existingParquetId = googleDriveService.findFileContaining(sessionId, sessionsFolderId)
             googleDriveService.writeFileStreaming(
                 name = descriptiveName,
@@ -107,8 +155,17 @@ class SyncEngineService(
             )
 
             // 4. Update the index.json file
+            /**
+             * indexFileId val.
+             */
             val indexFileId = googleDriveService.findFile("index.json", rootFolderId)
+            /**
+             * indexList val.
+             */
             val indexList = if (indexFileId != null) {
+                /**
+                 * indexBytes val.
+                 */
                 val indexBytes = googleDriveService.readFile(indexFileId)
                 try {
                     AppJson.decodeFromString<List<SessionSummary>>(String(indexBytes, Charsets.UTF_8))
@@ -119,7 +176,13 @@ class SyncEngineService(
                 emptyList()
             }
 
+            /**
+             * updatedList val.
+             */
             val updatedList = indexList.filter { it.sessionId != sessionId } + updatedSummary
+            /**
+             * updatedIndexBytes val.
+             */
             val updatedIndexBytes = Json.encodeToString<List<SessionSummary>>(updatedList).toByteArray(Charsets.UTF_8)
             googleDriveService.writeFile(
                 name = "index.json",
@@ -150,8 +213,17 @@ class SyncEngineService(
      */
     suspend fun getRemoteSummaries(): List<SessionSummary> = withContext(Dispatchers.IO) {
         try {
+            /**
+             * rootFolderId val.
+             */
             val rootFolderId = googleDriveService.findOrCreateFolder("ARES-Analytics")
+            /**
+             * indexFileId val.
+             */
             val indexFileId = googleDriveService.findFile("index.json", rootFolderId) ?: return@withContext emptyList()
+            /**
+             * indexBytes val.
+             */
             val indexBytes = googleDriveService.readFile(indexFileId)
             AppJson.decodeFromString<List<SessionSummary>>(String(indexBytes, Charsets.UTF_8))
         } catch (e: Exception) {
@@ -165,8 +237,17 @@ class SyncEngineService(
      */
     suspend fun getRemoteRobotProfiles(): List<RobotProfile> = withContext(Dispatchers.IO) {
         try {
+            /**
+             * rootFolderId val.
+             */
             val rootFolderId = googleDriveService.findOrCreateFolder("ARES-Analytics")
+            /**
+             * fileId val.
+             */
             val fileId = googleDriveService.findFile("robots.json", rootFolderId) ?: return@withContext emptyList()
+            /**
+             * bytes val.
+             */
             val bytes = googleDriveService.readFile(fileId)
             AppJson.decodeFromString<List<RobotProfile>>(String(bytes, Charsets.UTF_8))
         } catch (e: Exception) {
@@ -180,8 +261,17 @@ class SyncEngineService(
      */
     suspend fun saveRemoteRobotProfiles(profiles: List<RobotProfile>): Unit = withContext(Dispatchers.IO) {
         try {
+            /**
+             * rootFolderId val.
+             */
             val rootFolderId = googleDriveService.findOrCreateFolder("ARES-Analytics")
+            /**
+             * fileId val.
+             */
             val fileId = googleDriveService.findFile("robots.json", rootFolderId)
+            /**
+             * bytes val.
+             */
             val bytes = Json.encodeToString<List<RobotProfile>>(profiles).toByteArray(Charsets.UTF_8)
             googleDriveService.writeFile(
                 name = "robots.json",
@@ -199,17 +289,32 @@ class SyncEngineService(
      * Downloads a single session's Parquet file from Google Drive and imports it into DuckDB.
      */
     suspend fun downloadSession(summary: SessionSummary) = withContext(Dispatchers.IO) {
+        /**
+         * rootFolderId val.
+         */
         val rootFolderId = googleDriveService.findOrCreateFolder("ARES-Analytics")
+        /**
+         * sessionsFolderId val.
+         */
         val sessionsFolderId = googleDriveService.findOrCreateFolder("sessions", rootFolderId)
+        /**
+         * parquetFileId val.
+         */
         val parquetFileId = googleDriveService.findFileContaining(summary.sessionId, sessionsFolderId)
             ?: throw Exception("Session Parquet file not found on Google Drive for session: ${summary.sessionId}")
 
+        /**
+         * tempFile val.
+         */
         val tempFile = File.createTempFile("cloud_sync_${summary.sessionId}_", ".parquet")
         googleDriveService.readFileStreaming(parquetFileId, tempFile)
 
         try {
             databaseService.importParquet(tempFile)
             databaseService.insertSessionSummary(summary)
+            /**
+             * session val.
+             */
             val session = Session(
                 sessionId = summary.sessionId,
                 teamId = summary.teamId,
@@ -231,12 +336,24 @@ class SyncEngineService(
      * Syncs local sessions with Google Drive repository.
      */
     suspend fun performDeltaSync(teamId: String, seasonId: String, authToken: String? = null) = withContext(Dispatchers.IO) {
+        /**
+         * remoteSummaries val.
+         */
         val remoteSummaries = getRemoteSummaries()
 
         // 3. Filter for active team/season summaries that we do not have locally
+        /**
+         * localSummaries val.
+         */
         val localSummaries = databaseService.getAllSessionSummaries()
+        /**
+         * localIds val.
+         */
         val localIds = localSummaries.map { it.sessionId }.toSet()
 
+        /**
+         * missingSummaries val.
+         */
         val missingSummaries = remoteSummaries.filter {
             it.teamId == teamId && it.seasonId == seasonId && !localIds.contains(it.sessionId)
         }
@@ -256,16 +373,34 @@ class SyncEngineService(
             .replace("-----BEGIN PRIVATE KEY-----", "")
             .replace("-----END PRIVATE KEY-----", "")
             .replace("\\s".toRegex(), "")
+        /**
+         * decoded val.
+         */
         val decoded = java.util.Base64.getDecoder().decode(cleanPem)
+        /**
+         * spec val.
+         */
         val spec = java.security.spec.PKCS8EncodedKeySpec(decoded)
+        /**
+         * kf val.
+         */
         val kf = java.security.KeyFactory.getInstance("RSA")
         return kf.generatePrivate(spec)
     }
 
     private fun createGcpJwt(clientEmail: String, privateKeyPem: String, tokenUri: String): String {
         val privateKey = getPrivateKey(privateKeyPem)
+        /**
+         * header val.
+         */
         val header = "{\"alg\":\"RS256\",\"typ\":\"JWT\"}"
+        /**
+         * nowSec val.
+         */
         val nowSec = System.currentTimeMillis() / 1000L
+        /**
+         * claims val.
+         */
         val claims = """
             {
               "iss": "$clientEmail",
@@ -276,29 +411,65 @@ class SyncEngineService(
             }
         """.trimIndent()
         
+        /**
+         * encoder val.
+         */
         val encoder = java.util.Base64.getUrlEncoder().withoutPadding()
+        /**
+         * headerBase64 val.
+         */
         val headerBase64 = encoder.encodeToString(header.toByteArray(Charsets.UTF_8))
+        /**
+         * claimsBase64 val.
+         */
         val claimsBase64 = encoder.encodeToString(claims.toByteArray(Charsets.UTF_8))
         
+        /**
+         * input val.
+         */
         val input = "$headerBase64.$claimsBase64"
+        /**
+         * signatureInstance val.
+         */
         val signatureInstance = java.security.Signature.getInstance("SHA256withRSA")
         signatureInstance.initSign(privateKey)
         signatureInstance.update(input.toByteArray(Charsets.UTF_8))
+        /**
+         * signatureBytes val.
+         */
         val signatureBytes = signatureInstance.sign()
+        /**
+         * signatureBase64 val.
+         */
         val signatureBase64 = encoder.encodeToString(signatureBytes)
         
         return "$input.$signatureBase64"
     }
 
     private suspend fun getVertexAccessToken(serviceAccountJsonPath: String): String {
+        /**
+         * file val.
+         */
         val file = File(serviceAccountJsonPath)
         if (!file.exists()) throw IllegalArgumentException("Service Account file not found at: $serviceAccountJsonPath")
+        /**
+         * parsedJson val.
+         */
         val parsedJson = AppJson.parseToJsonElement(file.readText()).jsonObject
+        /**
+         * clientEmail val.
+         */
         val clientEmail = parsedJson["client_email"]?.jsonPrimitive?.content ?: throw IllegalArgumentException("Missing client_email")
         val privateKeyPem = parsedJson["private_key"]?.jsonPrimitive?.content ?: throw IllegalArgumentException("Missing private_key")
+        /**
+         * tokenUri val.
+         */
         val tokenUri = parsedJson["token_uri"]?.jsonPrimitive?.content ?: "https://oauth2.googleapis.com/token"
         
         val jwt = createGcpJwt(clientEmail, privateKeyPem, tokenUri)
+        /**
+         * response val.
+         */
         val response = httpClient.post(tokenUri) {
             contentType(ContentType.Application.FormUrlEncoded)
             setBody(
@@ -311,6 +482,9 @@ class SyncEngineService(
         if (response.status != HttpStatusCode.OK) {
             throw Exception("Failed to exchange Service Account JWT for access token: ${response.bodyAsText()}")
         }
+        /**
+         * responseObj val.
+         */
         val responseObj = response.body<JsonObject>()
         return responseObj["access_token"]?.jsonPrimitive?.content ?: throw Exception("Missing access_token in response")
     }
@@ -319,11 +493,20 @@ class SyncEngineService(
      * Requests diagnostics directly on the client using Google AI Studio or Vertex AI REST API.
      */
     suspend fun requestForensics(request: ForensicsRequest, authToken: String? = null): ForensicsResponse = withContext(Dispatchers.IO) {
+        /**
+         * config val.
+         */
         val config = environmentService.loadConfig()
             ?: throw IllegalStateException("No active workspace configuration loaded")
 
+        /**
+         * aiMode val.
+         */
         val aiMode = config.aiMode ?: "STUDIO"
 
+        /**
+         * prompt val.
+         */
         val prompt = """
             You are ARES Pit Forensics AI, a diagnostic copilot for FTC/FRC robotics teams.
             Analyze the following telemetry packet containing session statistics, triggered threshold alerts, motor currents, EKF positioning drift, and hardware topology.
@@ -349,12 +532,27 @@ class SyncEngineService(
             ${Json.encodeToString(ForensicsRequest.serializer(), request)}
         """.trimIndent()
 
+        /**
+         * modelName val.
+         */
         val modelName = config.geminiModel ?: "gemini-1.5-flash"
 
+        /**
+         * jsonResponse val.
+         */
         val jsonResponse = if (aiMode == "STUDIO") {
+            /**
+             * apiKey val.
+             */
             val apiKey = config.geminiApiKey ?: throw IllegalStateException("Gemini API key is not configured in settings")
+            /**
+             * url val.
+             */
             val url = "https://generativelanguage.googleapis.com/v1beta/models/$modelName:generateContent?key=$apiKey"
             
+            /**
+             * response val.
+             */
             val response = httpClient.post(url) {
                 contentType(ContentType.Application.Json)
                 setBody(
@@ -374,16 +572,37 @@ class SyncEngineService(
             if (response.status != HttpStatusCode.OK) {
                 throw Exception("Google AI Studio request failed: ${response.bodyAsText()}")
             }
+            /**
+             * resObj val.
+             */
             val resObj = response.body<JsonObject>()
             resObj["candidates"]?.jsonArray?.get(0)?.jsonObject?.get("content")?.jsonObject?.get("parts")?.jsonArray?.get(0)?.jsonObject?.get("text")?.jsonPrimitive?.content ?: "{}"
         } else {
+            /**
+             * saPath val.
+             */
             val saPath = config.vertexServiceAccountPath ?: throw IllegalStateException("GCP Service Account path is not configured in settings")
+            /**
+             * projectId val.
+             */
             val projectId = config.vertexProjectId ?: throw IllegalStateException("GCP Project ID is not configured in settings")
+            /**
+             * location val.
+             */
             val location = config.vertexLocation ?: "us-central1"
             
+            /**
+             * accessToken val.
+             */
             val accessToken = getVertexAccessToken(saPath)
+            /**
+             * url val.
+             */
             val url = "https://$location-aiplatform.googleapis.com/v1/projects/$projectId/locations/$location/publishers/google/models/$modelName:generateContent"
             
+            /**
+             * response val.
+             */
             val response = httpClient.post(url) {
                 header(HttpHeaders.Authorization, "Bearer $accessToken")
                 contentType(ContentType.Application.Json)
@@ -405,10 +624,16 @@ class SyncEngineService(
             if (response.status != HttpStatusCode.OK) {
                 throw Exception("Vertex AI request failed: ${response.bodyAsText()}")
             }
+            /**
+             * resObj val.
+             */
             val resObj = response.body<JsonObject>()
             resObj["candidates"]?.jsonArray?.get(0)?.jsonObject?.get("content")?.jsonObject?.get("parts")?.jsonArray?.get(0)?.jsonObject?.get("text")?.jsonPrimitive?.content ?: "{}"
         }
 
+        /**
+         * sanitizedJson val.
+         */
         val sanitizedJson = jsonResponse.replace(Regex("```(?:json)?\\n?(.*?)\\n?```", RegexOption.DOT_MATCHES_ALL), "$1").trim()
 
         try {
@@ -429,16 +654,31 @@ class SyncEngineService(
         userQuestion: String,
         chatHistory: List<Pair<String, String>> = emptyList()
     ): String = withContext(Dispatchers.IO) {
+        /**
+         * config val.
+         */
         val config = environmentService.loadConfig()
             ?: throw IllegalStateException("No active workspace configuration loaded")
 
+        /**
+         * aiMode val.
+         */
         val aiMode = config.aiMode ?: "STUDIO"
+        /**
+         * modelName val.
+         */
         val modelName = config.geminiModel ?: "gemini-1.5-flash"
 
+        /**
+         * historyStr val.
+         */
         val historyStr = chatHistory.joinToString("\n") { (role, text) ->
             if (role == "user") "User: $text" else "Coach: $text"
         }
 
+        /**
+         * prompt val.
+         */
         val prompt = """
             You are ARES Pit Coach AI, a diagnostic copilot for FTC/FRC robotics teams.
             You are helping the team debug their robot using the following telemetry, alerts, and forensics context.
@@ -456,10 +696,22 @@ class SyncEngineService(
             User's Question: $userQuestion
         """.trimIndent()
 
+        /**
+         * jsonResponse val.
+         */
         val jsonResponse = if (aiMode == "STUDIO") {
+            /**
+             * apiKey val.
+             */
             val apiKey = config.geminiApiKey ?: throw IllegalStateException("Gemini API key is not configured in settings")
+            /**
+             * url val.
+             */
             val url = "https://generativelanguage.googleapis.com/v1beta/models/$modelName:generateContent?key=$apiKey"
             
+            /**
+             * response val.
+             */
             val response = httpClient.post(url) {
                 contentType(ContentType.Application.Json)
                 setBody(
@@ -479,16 +731,37 @@ class SyncEngineService(
             if (response.status != HttpStatusCode.OK) {
                 throw Exception("Google AI Studio request failed: ${response.bodyAsText()}")
             }
+            /**
+             * resObj val.
+             */
             val resObj = response.body<JsonObject>()
             resObj["candidates"]?.jsonArray?.get(0)?.jsonObject?.get("content")?.jsonObject?.get("parts")?.jsonArray?.get(0)?.jsonObject?.get("text")?.jsonPrimitive?.content ?: ""
         } else {
+            /**
+             * saPath val.
+             */
             val saPath = config.vertexServiceAccountPath ?: throw IllegalStateException("GCP Service Account path is not configured in settings")
+            /**
+             * projectId val.
+             */
             val projectId = config.vertexProjectId ?: throw IllegalStateException("GCP Project ID is not configured in settings")
+            /**
+             * location val.
+             */
             val location = config.vertexLocation ?: "us-central1"
             
+            /**
+             * accessToken val.
+             */
             val accessToken = getVertexAccessToken(saPath)
+            /**
+             * url val.
+             */
             val url = "https://$location-aiplatform.googleapis.com/v1/projects/$projectId/locations/$location/publishers/google/models/$modelName:generateContent"
             
+            /**
+             * response val.
+             */
             val response = httpClient.post(url) {
                 header(HttpHeaders.Authorization, "Bearer $accessToken")
                 contentType(ContentType.Application.Json)
@@ -510,6 +783,9 @@ class SyncEngineService(
             if (response.status != HttpStatusCode.OK) {
                 throw Exception("Vertex AI request failed: ${response.bodyAsText()}")
             }
+            /**
+             * resObj val.
+             */
             val resObj = response.body<JsonObject>()
             resObj["candidates"]?.jsonArray?.get(0)?.jsonObject?.get("content")?.jsonObject?.get("parts")?.jsonArray?.get(0)?.jsonObject?.get("text")?.jsonPrimitive?.content ?: ""
         }
@@ -520,12 +796,24 @@ class SyncEngineService(
         userQuestion: String,
         databaseService: DatabaseService
     ): String = withContext(Dispatchers.IO) {
+        /**
+         * config val.
+         */
         val config = environmentService.loadConfig()
             ?: throw IllegalStateException("No active workspace configuration loaded")
 
+        /**
+         * aiMode val.
+         */
         val aiMode = config.aiMode ?: "STUDIO"
+        /**
+         * modelName val.
+         */
         val modelName = config.geminiModel ?: "gemini-1.5-flash"
 
+        /**
+         * schemaPrompt val.
+         */
         val schemaPrompt = """
             You are ARES SQL Data Analyst, a diagnostic agent for a robotics team telemetry database.
             We run on DuckDB.
@@ -578,10 +866,22 @@ class SyncEngineService(
             User's Question: $userQuestion
         """.trimIndent()
 
+        /**
+         * jsonResponse val.
+         */
         val jsonResponse = if (aiMode == "STUDIO") {
+            /**
+             * apiKey val.
+             */
             val apiKey = config.geminiApiKey ?: throw IllegalStateException("Gemini API key is not configured in settings")
+            /**
+             * url val.
+             */
             val url = "https://generativelanguage.googleapis.com/v1beta/models/$modelName:generateContent?key=$apiKey"
             
+            /**
+             * response val.
+             */
             val response = httpClient.post(url) {
                 contentType(ContentType.Application.Json)
                 setBody(
@@ -601,16 +901,37 @@ class SyncEngineService(
             if (response.status != HttpStatusCode.OK) {
                 throw Exception("Google AI Studio request failed: ${response.bodyAsText()}")
             }
+            /**
+             * resObj val.
+             */
             val resObj = response.body<JsonObject>()
             resObj["candidates"]?.jsonArray?.get(0)?.jsonObject?.get("content")?.jsonObject?.get("parts")?.jsonArray?.get(0)?.jsonObject?.get("text")?.jsonPrimitive?.content ?: "{}"
         } else {
+            /**
+             * saPath val.
+             */
             val saPath = config.vertexServiceAccountPath ?: throw IllegalStateException("GCP Service Account path is not configured in settings")
+            /**
+             * projectId val.
+             */
             val projectId = config.vertexProjectId ?: throw IllegalStateException("GCP Project ID is not configured in settings")
+            /**
+             * location val.
+             */
             val location = config.vertexLocation ?: "us-central1"
             
+            /**
+             * accessToken val.
+             */
             val accessToken = getVertexAccessToken(saPath)
+            /**
+             * url val.
+             */
             val url = "https://$location-aiplatform.googleapis.com/v1/projects/$projectId/locations/$location/publishers/google/models/$modelName:generateContent"
             
+            /**
+             * response val.
+             */
             val response = httpClient.post(url) {
                 header(HttpHeaders.Authorization, "Bearer $accessToken")
                 contentType(ContentType.Application.Json)
@@ -632,24 +953,42 @@ class SyncEngineService(
             if (response.status != HttpStatusCode.OK) {
                 throw Exception("Vertex AI request failed: ${response.bodyAsText()}")
             }
+            /**
+             * resObj val.
+             */
             val resObj = response.body<JsonObject>()
             resObj["candidates"]?.jsonArray?.get(0)?.jsonObject?.get("content")?.jsonObject?.get("parts")?.jsonArray?.get(0)?.jsonObject?.get("text")?.jsonPrimitive?.content ?: "{}"
         }
 
+        /**
+         * sanitizedJson val.
+         */
         val sanitizedJson = jsonResponse.replace(Regex("```(?:json)?\\n?(.*?)\\n?```", RegexOption.DOT_MATCHES_ALL), "$1").trim()
+        /**
+         * sqlQuery val.
+         */
         val sqlQuery = try {
+            /**
+             * parsed val.
+             */
             val parsed = AppJson.parseToJsonElement(sanitizedJson).jsonObject
             parsed["sql"]?.jsonPrimitive?.content ?: throw IllegalArgumentException("No SQL generated")
         } catch (e: Exception) {
             return@withContext "I was unable to formulate a SQL query to extract the data. Details: $sanitizedJson"
         }
 
+        /**
+         * queryResult val.
+         */
         val queryResult = try {
             databaseService.executeQueryRaw(sqlQuery)
         } catch (e: Exception) {
             return@withContext "Failed to execute generated SQL query:\n```sql\n$sqlQuery\n```\nError: ${e.message}"
         }
 
+        /**
+         * summaryPrompt val.
+         */
         val summaryPrompt = """
             You are ARES SQL Data Analyst. 
             The user asked: "$userQuestion"
@@ -667,10 +1006,22 @@ class SyncEngineService(
             Write a clear, concise, and helpful summary answering the user's question based on the retrieved data. Use markdown formatting. Mention match numbers or averages clearly.
         """.trimIndent()
 
+        /**
+         * finalResponse val.
+         */
         val finalResponse = if (aiMode == "STUDIO") {
+            /**
+             * apiKey val.
+             */
             val apiKey = config.geminiApiKey ?: throw IllegalStateException("Gemini API key is not configured in settings")
+            /**
+             * url val.
+             */
             val url = "https://generativelanguage.googleapis.com/v1beta/models/$modelName:generateContent?key=$apiKey"
             
+            /**
+             * response val.
+             */
             val response = httpClient.post(url) {
                 contentType(ContentType.Application.Json)
                 setBody(
@@ -690,16 +1041,37 @@ class SyncEngineService(
             if (response.status != HttpStatusCode.OK) {
                 throw Exception("Google AI Studio request failed: ${response.bodyAsText()}")
             }
+            /**
+             * resObj val.
+             */
             val resObj = response.body<JsonObject>()
             resObj["candidates"]?.jsonArray?.get(0)?.jsonObject?.get("content")?.jsonObject?.get("parts")?.jsonArray?.get(0)?.jsonObject?.get("text")?.jsonPrimitive?.content ?: ""
         } else {
+            /**
+             * saPath val.
+             */
             val saPath = config.vertexServiceAccountPath ?: throw IllegalStateException("GCP Service Account path is not configured in settings")
+            /**
+             * projectId val.
+             */
             val projectId = config.vertexProjectId ?: throw IllegalStateException("GCP Project ID is not configured in settings")
+            /**
+             * location val.
+             */
             val location = config.vertexLocation ?: "us-central1"
             
+            /**
+             * accessToken val.
+             */
             val accessToken = getVertexAccessToken(saPath)
+            /**
+             * url val.
+             */
             val url = "https://$location-aiplatform.googleapis.com/v1/projects/$projectId/locations/$location/publishers/google/models/$modelName:generateContent"
             
+            /**
+             * response val.
+             */
             val response = httpClient.post(url) {
                 header(HttpHeaders.Authorization, "Bearer $accessToken")
                 contentType(ContentType.Application.Json)
@@ -721,6 +1093,9 @@ class SyncEngineService(
             if (response.status != HttpStatusCode.OK) {
                 throw Exception("Vertex AI request failed: ${response.bodyAsText()}")
             }
+            /**
+             * resObj val.
+             */
             val resObj = response.body<JsonObject>()
             resObj["candidates"]?.jsonArray?.get(0)?.jsonObject?.get("content")?.jsonObject?.get("parts")?.jsonArray?.get(0)?.jsonObject?.get("text")?.jsonPrimitive?.content ?: ""
         }
@@ -733,23 +1108,47 @@ class SyncEngineService(
      */
     suspend fun deleteCloudSession(sessionId: String, teamId: String, authToken: String? = null) = withContext(Dispatchers.IO) {
         try {
+            /**
+             * rootFolderId val.
+             */
             val rootFolderId = googleDriveService.findOrCreateFolder("ARES-Analytics")
+            /**
+             * sessionsFolderId val.
+             */
             val sessionsFolderId = googleDriveService.findOrCreateFolder("sessions", rootFolderId)
+            /**
+             * parquetFileId val.
+             */
             val parquetFileId = googleDriveService.findFileContaining(sessionId, sessionsFolderId)
             if (parquetFileId != null) {
                 googleDriveService.deleteFile(parquetFileId)
             }
 
+            /**
+             * indexFileId val.
+             */
             val indexFileId = googleDriveService.findFile("index.json", rootFolderId)
             if (indexFileId != null) {
+                /**
+                 * indexBytes val.
+                 */
                 val indexBytes = googleDriveService.readFile(indexFileId)
+                /**
+                 * indexList val.
+                 */
                 val indexList = try {
                     AppJson.decodeFromString<List<SessionSummary>>(String(indexBytes, Charsets.UTF_8))
                 } catch (e: Exception) {
                     emptyList()
                 }
 
+                /**
+                 * updatedList val.
+                 */
                 val updatedList = indexList.filter { it.sessionId != sessionId }
+                /**
+                 * updatedIndexBytes val.
+                 */
                 val updatedIndexBytes = Json.encodeToString<List<SessionSummary>>(updatedList).toByteArray(Charsets.UTF_8)
                 googleDriveService.writeFile(
                     name = "index.json",

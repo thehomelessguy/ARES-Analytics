@@ -40,7 +40,13 @@ fun AlertPanel(
     alertEngineService: AlertEngineService,
     modifier: Modifier = Modifier
 ) {
+    /**
+     * alerts val.
+     */
     val alerts by alertEngineService.alerts.collectAsState()
+    /**
+     * scope val.
+     */
     val scope = rememberCoroutineScope()
 
     Column(
@@ -118,14 +124,32 @@ private fun AlertItem(
     alert: AlertRecord,
     onTriage: () -> Unit
 ) {
+    /**
+     * isActive val.
+     */
     val isActive = alert.resolveTimestampMs == null
+    /**
+     * isLatched val.
+     */
     val isLatched = alert.resolveTimestampMs != null && !alert.triaged
+    /**
+     * isTriaged val.
+     */
     val isTriaged = alert.triaged
 
     // Pulse factor for active alerts
+    /**
+     * pulseColor var.
+     */
     var pulseColor by remember { mutableStateOf(AresAlertActive) }
     if (isActive) {
+        /**
+         * t val.
+         */
         val t = System.currentTimeMillis()
+        /**
+         * pulse val.
+         */
         val pulse = (sin(t / 150.0) + 1.0) / 2.0
         pulseColor = Color(
             red = (AresAlertActive.red * pulse + AresSurfaceElevated.red * (1.0 - pulse)).toFloat(),
@@ -135,12 +159,18 @@ private fun AlertItem(
         )
     }
 
+    /**
+     * stateColor val.
+     */
     val stateColor = when {
         isActive -> pulseColor
         isLatched -> AresAlertLatched
         else -> AresAlertTriaged
     }
 
+    /**
+     * statusText val.
+     */
     val statusText = when {
         isActive -> "ACTIVE"
         isLatched -> "LATCHED"

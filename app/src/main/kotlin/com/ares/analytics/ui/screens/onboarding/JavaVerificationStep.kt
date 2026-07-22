@@ -46,11 +46,17 @@ fun JavaVerificationStep(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.weight(1f)
         ) {
+            /**
+             * icon val.
+             */
             val icon = when (isValid) {
                 true -> Icons.Default.CheckCircle
                 false -> Icons.Default.Error
                 null -> Icons.Default.HourglassEmpty
             }
+            /**
+             * tint val.
+             */
             val tint = when (isValid) {
                 true -> AresGreen
                 false -> AresError

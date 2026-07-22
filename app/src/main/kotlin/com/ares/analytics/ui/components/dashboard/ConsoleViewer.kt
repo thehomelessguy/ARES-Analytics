@@ -48,11 +48,26 @@ fun ConsoleViewer(
     widgetConfig: WidgetConfig,
     modifier: Modifier = Modifier
 ) {
+    /**
+     * currentSessionId val.
+     */
     val currentSessionId = widgetConfig.properties["sessionId"]
+    /**
+     * primarySessionId val.
+     */
     val primarySessionId = currentSessionId // Or dynamically bind to live/replay
 
+    /**
+     * liveLogs val.
+     */
     val liveLogs = remember { mutableStateListOf<ConsoleMessage>() }
+    /**
+     * sessionLogs val.
+     */
     val sessionLogs = remember { mutableStateListOf<ConsoleMessage>() }
+    /**
+     * scope val.
+     */
     val scope = rememberCoroutineScope()
 
     // 1. Subscribe to Live Streams
@@ -70,6 +85,9 @@ fun ConsoleViewer(
         sessionLogs.clear()
         if (primarySessionId != null) {
             try {
+                /**
+                 * dbLogs val.
+                 */
                 val dbLogs = services.databaseService.getConsoleMessages(primarySessionId)
                 sessionLogs.addAll(dbLogs)
             } catch (e: Exception) {
@@ -78,15 +96,33 @@ fun ConsoleViewer(
         }
     }
 
+    /**
+     * isReplayMode val.
+     */
     val isReplayMode = primarySessionId != null
+    /**
+     * allMessages val.
+     */
     val allMessages = if (isReplayMode) sessionLogs else liveLogs
 
     // Replay synchronisation
+    /**
+     * replayFrame val.
+     */
     val replayFrame by services.replayEngineService.currentFrame.collectAsState()
+    /**
+     * replayState val.
+     */
     val replayState by services.replayEngineService.state.collectAsState()
 
+    /**
+     * displayMessages val.
+     */
     val displayMessages = remember(allMessages, replayFrame, replayState, isReplayMode) {
         if (isReplayMode && replayState != ReplayState.STOPPED && replayFrame != null) {
+            /**
+             * playheadMs val.
+             */
             val playheadMs = replayFrame!!.timestampMs
             allMessages.filter { it.timestampMs <= playheadMs }
         } else {
@@ -95,13 +131,34 @@ fun ConsoleViewer(
     }
 
     // Filters & Search
+    /**
+     * searchText var.
+     */
     var searchText by remember { mutableStateOf("") }
+    /**
+     * showInfo var.
+     */
     var showInfo by remember { mutableStateOf(true) }
+    /**
+     * showWarn var.
+     */
     var showWarn by remember { mutableStateOf(true) }
+    /**
+     * showError var.
+     */
     var showError by remember { mutableStateOf(true) }
+    /**
+     * autoScroll var.
+     */
     var autoScroll by remember { mutableStateOf(true) }
 
+    /**
+     * filteredMessages val.
+     */
     val filteredMessages = remember(displayMessages, searchText, showInfo, showWarn, showError) {
+        /**
+         * regex val.
+         */
         val regex = try {
             if (searchText.isNotEmpty()) Regex(searchText, RegexOption.IGNORE_CASE) else null
         } catch (e: Exception) {
@@ -109,12 +166,18 @@ fun ConsoleViewer(
         }
 
         displayMessages.filter { msg ->
+            /**
+             * matchesSeverity val.
+             */
             val matchesSeverity = when (msg.severity) {
                 "INFO" -> showInfo
                 "WARN" -> showWarn
                 "ERROR" -> showError
                 else -> true
             }
+            /**
+             * matchesSearch val.
+             */
             val matchesSearch = when {
                 searchText.isEmpty() -> true
                 regex != null -> regex.containsMatchIn(msg.text)
@@ -124,6 +187,9 @@ fun ConsoleViewer(
         }
     }
 
+    /**
+     * listState val.
+     */
     val listState = rememberLazyListState()
     LaunchedEffect(filteredMessages.size) {
         if (autoScroll && filteredMessages.isNotEmpty()) {
@@ -131,6 +197,9 @@ fun ConsoleViewer(
         }
     }
 
+    /**
+     * timeFormatter val.
+     */
     val timeFormatter = remember { SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()) }
 
     Column(
@@ -203,15 +272,33 @@ fun ConsoleViewer(
                     onClick = {
                         scope.launch(Dispatchers.IO) {
                             try {
+                                /**
+                                 * frame val.
+                                 */
                                 val frame = java.awt.Frame()
+                                /**
+                                 * fileDialog val.
+                                 */
                                 val fileDialog = java.awt.FileDialog(frame, "Export Console Logs", java.awt.FileDialog.SAVE)
                                 fileDialog.file = "ares_console_logs.txt"
                                 fileDialog.isVisible = true
+                                /**
+                                 * directory val.
+                                 */
                                 val directory = fileDialog.directory
+                                /**
+                                 * file val.
+                                 */
                                 val file = fileDialog.file
                                 if (directory != null && file != null) {
+                                    /**
+                                     * targetFile val.
+                                     */
                                     val targetFile = java.io.File(directory, file)
                                     targetFile.writeText(filteredMessages.joinToString("\n") { msg ->
+                                        /**
+                                         * time val.
+                                         */
                                         val time = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()).format(Date(msg.timestampMs))
                                         "[$time] [${msg.severity}] ${msg.text}"
                                     })
@@ -235,11 +322,20 @@ fun ConsoleViewer(
                 // Copy All Logs button
                 IconButton(
                     onClick = {
+                        /**
+                         * textToCopy val.
+                         */
                         val textToCopy = filteredMessages.joinToString("\n") { msg ->
+                            /**
+                             * time val.
+                             */
                             val time = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()).format(Date(msg.timestampMs))
                             "[$time] [${msg.severity}] ${msg.text}"
                         }
                         try {
+                            /**
+                             * selection val.
+                             */
                             val selection = java.awt.datatransfer.StringSelection(textToCopy)
                             java.awt.Toolkit.getDefaultToolkit().systemClipboard.setContents(selection, selection)
                         } catch (e: Exception) {
@@ -390,6 +486,9 @@ fun ConsoleViewer(
                                 verticalAlignment = Alignment.Top
                             ) {
                                 // Timestamp
+                                /**
+                                 * dateStr val.
+                                 */
                                 val dateStr = try {
                                     timeFormatter.format(Date(msg.timestampMs))
                                 } catch (e: Exception) {
@@ -404,6 +503,9 @@ fun ConsoleViewer(
                                 )
 
                                 // Severity Badge
+                                /**
+                                 * severityColor val.
+                                 */
                                 val severityColor = when (msg.severity) {
                                     "INFO" -> AresGreen
                                     "WARN" -> AresAmber

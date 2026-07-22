@@ -45,6 +45,9 @@ fun AuthStep(
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (authState is AuthState.Authenticated) {
+                /**
+                 * user val.
+                 */
                 val user = authState
                 Row(
                     verticalAlignment = Alignment.CenterVertically,

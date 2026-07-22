@@ -35,8 +35,17 @@ class LogParserService(
         allianceColor: String? = null,
         tags: List<String> = emptyList()
     ): Session = withContext(Dispatchers.IO) {
+        /**
+         * sessionId val.
+         */
         val sessionId = UUID.randomUUID().toString()
+        /**
+         * createdAt val.
+         */
         val createdAt = file.lastModified()
+        /**
+         * session val.
+         */
         val session = Session(
             sessionId = sessionId,
             teamId = teamId,
@@ -48,7 +57,13 @@ class LogParserService(
             tags = tags
         )
 
+        /**
+         * batcher val.
+         */
         val batcher = FrameBatcher(databaseService)
+        /**
+         * lowerName val.
+         */
         val lowerName = file.name.lowercase()
 
         when {
@@ -56,6 +71,9 @@ class LogParserService(
                 wpiLogDecoder.parseWpiLog(file, sessionId, batcher)
             }
             lowerName.endsWith(".wpilogxz") -> {
+                /**
+                 * tempWpiFile val.
+                 */
                 val tempWpiFile = File.createTempFile("wpilog_", ".wpilog")
                 try {
                     FileInputStream(file).use { fis ->
@@ -72,8 +90,14 @@ class LogParserService(
             }
             lowerName.endsWith(".jsonl") -> {
                 if (lowerName.startsWith("action_log_")) {
+                    /**
+                     * actionMeta val.
+                     */
                     val actionMeta = jsonlDecoder.parseActionLogJsonl(file, sessionId)
                     if (actionMeta != null) {
+                        /**
+                         * enrichedSession val.
+                         */
                         val enrichedSession = session.copy(
                             durationMs = actionMeta.durationMs,
                             matchNumber = matchNumber ?: actionMeta.matchNumber,
@@ -81,6 +105,9 @@ class LogParserService(
                             tags = tags + "action-log"
                         )
                         databaseService.insertSession(enrichedSession)
+                        /**
+                         * summary val.
+                         */
                         val summary = summaryEngineService.generateSummary(enrichedSession)
                         databaseService.insertSessionSummary(summary)
                         return@withContext enrichedSession
@@ -92,20 +119,35 @@ class LogParserService(
             lowerName.endsWith(".csv") -> {
                 databaseService.insertSession(session)
                 csvLogDecoder.parseCsvLogNative(file, sessionId)
+                /**
+                 * range val.
+                 */
                 val range = databaseService.getSessionTimestampRange(sessionId)
                 if (range != null) {
+                    /**
+                     * finalSession val.
+                     */
                     val finalSession = session.copy(durationMs = range.second - range.first)
                     databaseService.insertSession(finalSession)
+                    /**
+                     * summary val.
+                     */
                     val summary = summaryEngineService.generateSummary(finalSession)
                     databaseService.insertSessionSummary(summary)
                     return@withContext finalSession
                 } else {
+                    /**
+                     * summary val.
+                     */
                     val summary = summaryEngineService.generateSummary(session)
                     databaseService.insertSessionSummary(summary)
                     return@withContext session
                 }
             }
             lowerName.endsWith(".dslog") || lowerName.endsWith(".dsevents") -> {
+                /**
+                 * targetFile val.
+                 */
                 val targetFile = if (lowerName.endsWith(".dsevents")) {
                     File(file.parentFile, file.nameWithoutExtension + ".dslog")
                 } else {
@@ -130,8 +172,17 @@ class LogParserService(
         batcher.flush()
         databaseService.insertSession(session)
 
+        /**
+         * finalSession val.
+         */
         val finalSession = if (batcher.frameCount > 0) {
+            /**
+             * duration val.
+             */
             val duration = batcher.maxTimestamp - batcher.minTimestamp
+            /**
+             * s val.
+             */
             val s = session.copy(durationMs = duration)
             databaseService.insertSession(s)
             s
@@ -139,6 +190,9 @@ class LogParserService(
             session
         }
 
+        /**
+         * summary val.
+         */
         val summary = summaryEngineService.generateSummary(finalSession)
         databaseService.insertSessionSummary(summary)
         return@withContext finalSession
@@ -158,25 +212,55 @@ class LogParserService(
             return@withContext parseLogFile(files.first(), teamId, seasonId, robotId, matchNumber, allianceColor, tags)
         }
 
+        /**
+         * sessionId val.
+         */
         val sessionId = UUID.randomUUID().toString()
+        /**
+         * createdAt val.
+         */
         val createdAt = files.first().lastModified()
         
+        /**
+         * currentMatchNumber var.
+         */
         var currentMatchNumber = matchNumber
+        /**
+         * currentAlliance var.
+         */
         var currentAlliance = allianceColor
+        /**
+         * currentTags var.
+         */
         var currentTags = tags
 
+        /**
+         * globalMinTimestamp var.
+         */
         var globalMinTimestamp = Long.MAX_VALUE
+        /**
+         * globalMaxTimestamp var.
+         */
         var globalMaxTimestamp = Long.MIN_VALUE
 
         files.forEachIndexed { index, file ->
+            /**
+             * batcher val.
+             */
             val batcher = FrameBatcher(databaseService, keyTransform = { key ->
                 key.removePrefix("/")
             })
 
+            /**
+             * lowerName val.
+             */
             val lowerName = file.name.lowercase()
             when {
                 lowerName.endsWith(".wpilog") -> wpiLogDecoder.parseWpiLog(file, sessionId, batcher)
                 lowerName.endsWith(".wpilogxz") -> {
+                    /**
+                     * tempWpiFile val.
+                     */
                     val tempWpiFile = File.createTempFile("wpilog_", ".wpilog")
                     try {
                         FileInputStream(file).use { fis ->
@@ -193,6 +277,9 @@ class LogParserService(
                 }
                 lowerName.endsWith(".jsonl") -> {
                     if (lowerName.startsWith("action_log_")) {
+                        /**
+                         * actionMeta val.
+                         */
                         val actionMeta = jsonlDecoder.parseActionLogJsonl(file, sessionId)
                         if (actionMeta != null) {
                             currentMatchNumber = currentMatchNumber ?: actionMeta.matchNumber
@@ -209,6 +296,9 @@ class LogParserService(
                     csvLogDecoder.parseCsvLogNative(file, sessionId)
                 }
                 lowerName.endsWith(".dslog") || lowerName.endsWith(".dsevents") -> {
+                    /**
+                     * targetFile val.
+                     */
                     val targetFile = if (lowerName.endsWith(".dsevents")) {
                         File(file.parentFile, file.nameWithoutExtension + ".dslog")
                     } else {
@@ -230,6 +320,9 @@ class LogParserService(
             }
         }
 
+        /**
+         * baseSession val.
+         */
         val baseSession = Session(
             sessionId = sessionId,
             teamId = teamId,
@@ -243,9 +336,21 @@ class LogParserService(
 
         databaseService.insertSession(baseSession)
 
+        /**
+         * range val.
+         */
         val range = databaseService.getSessionTimestampRange(sessionId)
+        /**
+         * finalSession val.
+         */
         val finalSession = if (range != null) {
+            /**
+             * duration val.
+             */
             val duration = range.second - range.first
+            /**
+             * s val.
+             */
             val s = baseSession.copy(durationMs = duration)
             databaseService.insertSession(s)
             s
@@ -253,6 +358,9 @@ class LogParserService(
             baseSession
         }
         
+        /**
+         * summary val.
+         */
         val summary = summaryEngineService.generateSummary(finalSession)
         databaseService.insertSessionSummary(summary)
         

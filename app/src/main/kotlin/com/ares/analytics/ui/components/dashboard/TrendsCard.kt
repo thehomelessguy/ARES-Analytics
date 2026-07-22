@@ -39,8 +39,17 @@ fun TrendsCard(
     databaseService: DatabaseService,
     modifier: Modifier = Modifier
 ) {
+    /**
+     * scope val.
+     */
     val scope = rememberCoroutineScope()
+    /**
+     * summaries var.
+     */
     var summaries by remember { mutableStateOf<List<SessionSummary>>(emptyList()) }
+    /**
+     * selectedBatteryFilter var.
+     */
     var selectedBatteryFilter by remember { mutableStateOf("All") }
 
     LaunchedEffect(Unit) {
@@ -49,10 +58,16 @@ fun TrendsCard(
         }
     }
 
+    /**
+     * filteredSummaries val.
+     */
     val filteredSummaries = remember(summaries, selectedBatteryFilter) {
         if (selectedBatteryFilter == "All") {
             summaries
         } else {
+            /**
+             * targetTag val.
+             */
             val targetTag = "battery-${selectedBatteryFilter.removePrefix("Battery ")}"
             summaries.filter { it.tags.contains(targetTag) }
         }
@@ -91,6 +106,9 @@ fun TrendsCard(
             modifier = Modifier.fillMaxWidth()
         ) {
             listOf("All", "Battery A", "Battery B", "Battery C", "Battery D").forEach { label ->
+                /**
+                 * isSelected val.
+                 */
                 val isSelected = selectedBatteryFilter == label
                 Box(
                     modifier = Modifier
@@ -132,25 +150,64 @@ private fun BatteryTrendChart(summaries: List<SessionSummary>) {
             .border(1.dp, AresBorder, RoundedCornerShape(6.dp))
             .background(AresBackground)
     ) {
+        /**
+         * w val.
+         */
         val w = size.width
+        /**
+         * h val.
+         */
         val h = size.height
 
+        /**
+         * n val.
+         */
         val n = summaries.size
+        /**
+         * xValues val.
+         */
         val xValues = DoubleArray(n) { it.toDouble() }
+        /**
+         * yValues val.
+         */
         val yValues = DoubleArray(n) { summaries[it].minBatteryVoltage }
 
+        /**
+         * minY val.
+         */
         val minY = 10.0 // bottom limit for battery voltages
+        /**
+         * maxY val.
+         */
         val maxY = 13.5 // upper limit
 
         // 1. Draw Points
+        /**
+         * points val.
+         */
         val points = mutableListOf<Offset>()
         for (i in 0 until n) {
+            /**
+             * cx val.
+             */
             val cx = (i.toDouble() / (n - 1).toDouble() * w).toFloat()
+            /**
+             * cy val.
+             */
             val cy = (h - ((yValues[i] - minY) / (maxY - minY) * h)).toFloat().coerceIn(0f, h)
+            /**
+             * offset val.
+             */
             val offset = Offset(cx, cy)
             points.add(offset)
             
+            /**
+             * batteryTag val.
+             */
             val batteryTag = summaries[i].tags.firstOrNull { it.startsWith("battery-") } ?: "battery-A"
+            /**
+             * color val.
+             */
             val color = when (batteryTag.removePrefix("battery-").uppercase()) {
                 "A" -> AresCyan
                 "B" -> AresGold
@@ -162,26 +219,62 @@ private fun BatteryTrendChart(summaries: List<SessionSummary>) {
         }
 
         // 2. Compute Linear Regression (y = m * x + c)
+        /**
+         * xMean val.
+         */
         val xMean = xValues.average()
+        /**
+         * yMean val.
+         */
         val yMean = yValues.average()
 
+        /**
+         * num var.
+         */
         var num = 0.0
+        /**
+         * den var.
+         */
         var den = 0.0
         for (i in 0 until n) {
             num += (xValues[i] - xMean) * (yValues[i] - yMean)
             den += (xValues[i] - xMean) * (xValues[i] - xMean)
         }
 
+        /**
+         * m val.
+         */
         val m = if (den != 0.0) num / den else 0.0
+        /**
+         * c val.
+         */
         val c = yMean - m * xMean
 
         // Draw trend line
+        /**
+         * startX val.
+         */
         val startX = 0f
+        /**
+         * startYVal val.
+         */
         val startYVal = m * 0.0 + c
+        /**
+         * startY val.
+         */
         val startY = (h - ((startYVal - minY) / (maxY - minY) * h)).toFloat().coerceIn(0f, h)
 
+        /**
+         * endX val.
+         */
         val endX = w
+        /**
+         * endYVal val.
+         */
         val endYVal = m * (n - 1).toDouble() + c
+        /**
+         * endY val.
+         */
         val endY = (h - ((endYVal - minY) / (maxY - minY) * h)).toFloat().coerceIn(0f, h)
 
         drawLine(

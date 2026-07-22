@@ -27,16 +27,40 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
+/**
+ * DeltaSyncIntegrationTest class.
+ */
 class DeltaSyncIntegrationTest {
 
     @Suppress("UNCHECKED_CAST")
     @Test
+    /**
+     * testDeltaSyncFlow fun.
+     */
     fun testDeltaSyncFlow() = testApplication {
+        /**
+         * mockFirestore val.
+         */
         val mockFirestore = mock(Firestore::class.java)
+        /**
+         * mockCollection val.
+         */
         val mockCollection = mock(CollectionReference::class.java)
+        /**
+         * mockQuery1 val.
+         */
         val mockQuery1 = mock(Query::class.java)
+        /**
+         * mockQuery2 val.
+         */
         val mockQuery2 = mock(Query::class.java)
+        /**
+         * mockFuture val.
+         */
         val mockFuture = mock(ApiFuture::class.java) as ApiFuture<QuerySnapshot>
+        /**
+         * mockQuerySnapshot val.
+         */
         val mockQuerySnapshot = mock(QuerySnapshot::class.java)
 
         `when`(mockFirestore.collection("summaries")).thenReturn(mockCollection)
@@ -45,9 +69,21 @@ class DeltaSyncIntegrationTest {
         `when`(mockQuery2.get()).thenReturn(mockFuture)
         `when`(mockFuture.get()).thenReturn(mockQuerySnapshot)
 
+        /**
+         * mockUserCollection val.
+         */
         val mockUserCollection = mock(CollectionReference::class.java)
+        /**
+         * mockUserDocRef val.
+         */
         val mockUserDocRef = mock(DocumentReference::class.java)
+        /**
+         * mockUserFuture val.
+         */
         val mockUserFuture = mock(ApiFuture::class.java) as ApiFuture<DocumentSnapshot>
+        /**
+         * mockUserDoc val.
+         */
         val mockUserDoc = mock(DocumentSnapshot::class.java)
 
         `when`(mockFirestore.collection("users")).thenReturn(mockUserCollection)
@@ -56,6 +92,9 @@ class DeltaSyncIntegrationTest {
         `when`(mockUserFuture.get()).thenReturn(mockUserDoc)
         `when`(mockUserDoc.get("githubOrgs")).thenReturn(listOf("9999"))
 
+        /**
+         * summary1 val.
+         */
         val summary1 = SessionSummary(
             sessionId = "session-1",
             teamId = "9999",
@@ -74,6 +113,9 @@ class DeltaSyncIntegrationTest {
             allianceColor = "blue"
         )
 
+        /**
+         * summary2 val.
+         */
         val summary2 = SessionSummary(
             sessionId = "session-2",
             teamId = "9999",
@@ -92,7 +134,13 @@ class DeltaSyncIntegrationTest {
             allianceColor = "red"
         )
 
+        /**
+         * doc1 val.
+         */
         val doc1 = mock(QueryDocumentSnapshot::class.java)
+        /**
+         * doc2 val.
+         */
         val doc2 = mock(QueryDocumentSnapshot::class.java)
 
         `when`(doc1.data).thenReturn(summary1.toTestMap())
@@ -118,14 +166,23 @@ class DeltaSyncIntegrationTest {
         }
 
         // We already know about session-1, so only session-2 is missing and should be returned
+        /**
+         * syncReq val.
+         */
         val syncReq = SyncRequest(
             teamId = "9999",
             seasonId = "2026",
             knownSessionIds = listOf("session-1")
         )
 
+        /**
+         * reqJson val.
+         */
         val reqJson = Json.encodeToString(SyncRequest.serializer(), syncReq)
 
+        /**
+         * response val.
+         */
         val response = client.post("/api/archive/sync") {
             header(HttpHeaders.Authorization, "Bearer mock-token:uid:email:name:9999")
             contentType(ContentType.Application.Json)
@@ -133,9 +190,15 @@ class DeltaSyncIntegrationTest {
         }
 
         assertEquals(HttpStatusCode.OK, response.status)
+        /**
+         * syncResponse val.
+         */
         val syncResponse = Json.decodeFromString<SyncResponse>(response.bodyAsText())
         
         assertEquals(1, syncResponse.missingSummaries.size)
+        /**
+         * missing val.
+         */
         val missing = syncResponse.missingSummaries.first()
         assertEquals("session-2", missing.sessionId)
         assertEquals("red", missing.allianceColor)

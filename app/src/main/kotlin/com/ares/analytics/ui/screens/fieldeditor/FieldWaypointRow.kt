@@ -43,6 +43,9 @@ fun FieldWaypointRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
+            /**
+             * nameText var.
+             */
             var nameText by remember(wp.id, wp.name) { mutableStateOf(wp.name) }
             AresTextField(
                 value = nameText,
@@ -57,6 +60,9 @@ fun FieldWaypointRow(
             )
             Spacer(modifier = Modifier.height(4.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                /**
+                 * wpXText var.
+                 */
                 var wpXText by remember(wp.id, wp.x) { mutableStateOf(wp.x.toString()) }
                 AresTextField(
                     value = wpXText,
@@ -69,6 +75,9 @@ fun FieldWaypointRow(
                     modifier = Modifier.weight(1f),
                     textStyle = MaterialTheme.typography.bodySmall.copy(color = AresTextPrimary)
                 )
+                /**
+                 * wpYText var.
+                 */
                 var wpYText by remember(wp.id, wp.y) { mutableStateOf(wp.y.toString()) }
                 AresTextField(
                     value = wpYText,
@@ -81,6 +90,9 @@ fun FieldWaypointRow(
                     modifier = Modifier.weight(1f),
                     textStyle = MaterialTheme.typography.bodySmall.copy(color = AresTextPrimary)
                 )
+                /**
+                 * headingText var.
+                 */
                 var headingText by remember(wp.id, wp.headingDegrees) { mutableStateOf(wp.headingDegrees.toString()) }
                 AresTextField(
                     value = headingText,

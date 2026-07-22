@@ -38,43 +38,133 @@ data class PathPreview(val name: String, val trajectory: Trajectory?)
  * @return expected results
  */
 data class PathPlannerState(
+    /**
+     * pathName val.
+     */
     val pathName: String = "autonomous_route",
+    /**
+     * availablePaths val.
+     */
     val availablePaths: List<String> = emptyList(),
+    /**
+     * saveStatus val.
+     */
     val saveStatus: String = "",
+    /**
+     * waypoints val.
+     */
     val waypoints: List<Waypoint> = listOf(
         Waypoint(-1.2, -1.2, 0.0),
         Waypoint(0.0, 0.0, Math.toRadians(45.0)),
         Waypoint(1.2, 1.2, Math.toRadians(90.0))
     ),
+    /**
+     * eventMarkers val.
+     */
     val eventMarkers: List<PathPlannerEventMarker> = emptyList(),
+    /**
+     * rotationTargets val.
+     */
     val rotationTargets: List<RotationTarget> = emptyList(),
+    /**
+     * constraintZones val.
+     */
     val constraintZones: List<ConstraintsZone> = emptyList(),
+    /**
+     * pointTowardsZones val.
+     */
     val pointTowardsZones: List<PointTowardsZone> = emptyList(),
+    /**
+     * globalConstraints val.
+     */
     val globalConstraints: PathConstraints = PathConstraints(),
+    /**
+     * idealStartingState val.
+     */
     val idealStartingState: IdealStartingState? = null,
+    /**
+     * goalEndState val.
+     */
     val goalEndState: GoalEndState? = null,
+    /**
+     * reversed val.
+     */
     val reversed: Boolean = false,
+    /**
+     * useDefaultConstraints val.
+     */
     val useDefaultConstraints: Boolean = true,
+    /**
+     * estimatedDuration val.
+     */
     val estimatedDuration: Double = 0.0,
+    /**
+     * selectedWaypointIndex val.
+     */
     val selectedWaypointIndex: Int? = null,
+    /**
+     * toolMode val.
+     */
     val toolMode: String = "Select",
+    /**
+     * viewRotation val.
+     */
     val viewRotation: Float = 0f,
+    /**
+     * trajectory val.
+     */
     val trajectory: Trajectory? = null,
+    /**
+     * isPlaying val.
+     */
     val isPlaying: Boolean = false,
+    /**
+     * playbackTime val.
+     */
     val playbackTime: Double = 0.0,
     
     // Auto Editor specific state
+    /**
+     * activeEditorMode val.
+     */
     val activeEditorMode: String = "Path", // "Path" or "Auto"
+    /**
+     * availableAutos val.
+     */
     val availableAutos: List<String> = emptyList(),
+    /**
+     * autoStartingPose val.
+     */
     val autoStartingPose: AutoStartingPose? = null,
+    /**
+     * currentAutoCommands val.
+     */
     val currentAutoCommands: List<AutoCommandNode> = emptyList(),
+    /**
+     * contextAutoName val.
+     */
     val contextAutoName: String? = null,
+    /**
+     * contextTrajectory val.
+     */
     val contextTrajectory: Trajectory? = null,
+    /**
+     * contextWaypoints val.
+     */
     val contextWaypoints: List<Waypoint> = emptyList(),
     
     // Browser specific state
+    /**
+     * showBrowser val.
+     */
     val showBrowser: Boolean = false,
+    /**
+     * availablePathPreviews val.
+     */
     val availablePathPreviews: List<PathPreview> = emptyList(),
+    /**
+     * availableAutoPreviews val.
+     */
     val availableAutoPreviews: List<PathPreview> = emptyList()
 )
 
@@ -521,6 +611,9 @@ class PathPlannerViewModel(
     private val scope: CoroutineScope
 ) {
     private val _state = MutableStateFlow(PathPlannerState())
+    /**
+     * state val.
+     */
     val state: StateFlow<PathPlannerState> = _state.asStateFlow()
 
     private var playbackJob: kotlinx.coroutines.Job? = null
@@ -530,7 +623,13 @@ class PathPlannerViewModel(
     private val serializationManager = com.ares.analytics.viewmodel.pathing.PathSerializationManager(scope, _state, this::recalculateDuration)
 
     private fun recalculateDuration() {
+        /**
+         * s val.
+         */
         val s = _state.value
+        /**
+         * trajectory val.
+         */
         val trajectory = com.ares.analytics.service.TrajectoryEstimator.generateTrajectory(
             waypoints = s.waypoints,
             globalConstraints = s.globalConstraints,
@@ -579,6 +678,9 @@ class PathPlannerViewModel(
                 is PathPlannerIntent.UpdateViewRotation -> _state.update { it.copy(viewRotation = intent.viewRotation) }
                 
                 is PathPlannerIntent.TogglePlayback -> {
+                    /**
+                     * currentlyPlaying val.
+                     */
                     val currentlyPlaying = _state.value.isPlaying
                     if (currentlyPlaying) {
                         _state.update { it.copy(isPlaying = false) }
@@ -589,12 +691,24 @@ class PathPlannerViewModel(
                         }
                         _state.update { it.copy(isPlaying = true) }
                         playbackJob = scope.launch {
+                            /**
+                             * lastTime var.
+                             */
                             var lastTime = System.currentTimeMillis()
                             while (_state.value.isPlaying) {
                                 kotlinx.coroutines.delay(16)
+                                /**
+                                 * now val.
+                                 */
                                 val now = System.currentTimeMillis()
+                                /**
+                                 * dt val.
+                                 */
                                 val dt = (now - lastTime) / 1000.0
                                 lastTime = now
+                                /**
+                                 * nextTime val.
+                                 */
                                 val nextTime = _state.value.playbackTime + dt
                                 if (nextTime >= _state.value.estimatedDuration) {
                                     _state.update { it.copy(playbackTime = _state.value.estimatedDuration, isPlaying = false) }

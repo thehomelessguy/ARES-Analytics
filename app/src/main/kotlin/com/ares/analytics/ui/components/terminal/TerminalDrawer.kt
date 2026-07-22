@@ -44,16 +44,40 @@ fun TerminalDrawer(
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    /**
+     * activeTab var.
+     */
     var activeTab by remember { mutableStateOf(0) } // 0 = Build, 1 = Logcat
+    /**
+     * buildLines val.
+     */
     val buildLines by processManagerService.buildOutput.collectAsState(initial = "")
+    /**
+     * logcatLines val.
+     */
     val logcatLines by processManagerService.logcatOutput.collectAsState(initial = "")
 
+    /**
+     * buildListState val.
+     */
     val buildListState = rememberLazyListState()
+    /**
+     * logcatListState val.
+     */
     val logcatListState = rememberLazyListState()
+    /**
+     * scope val.
+     */
     val scope = rememberCoroutineScope()
 
     // Store lines in memory to render in LazyColumn
+    /**
+     * buildLog val.
+     */
     val buildLog = remember { mutableStateListOf<String>() }
+    /**
+     * logcatLog val.
+     */
     val logcatLog = remember { mutableStateListOf<String>() }
 
     // Collect flows
@@ -147,9 +171,18 @@ fun TerminalDrawer(
                     // Copy All Logs button
                     IconButton(
                         onClick = {
+                            /**
+                             * logLines val.
+                             */
                             val logLines = if (activeTab == 0) buildLog else logcatLog
+                            /**
+                             * textToCopy val.
+                             */
                             val textToCopy = logLines.joinToString("\n")
                             try {
+                                /**
+                                 * selection val.
+                                 */
                                 val selection = java.awt.datatransfer.StringSelection(textToCopy)
                                 java.awt.Toolkit.getDefaultToolkit().systemClipboard.setContents(selection, selection)
                             } catch (e: Exception) {
@@ -220,8 +253,14 @@ fun TerminalDrawer(
 
 private fun parseAnsi(input: String): androidx.compose.ui.text.AnnotatedString {
     return androidx.compose.ui.text.buildAnnotatedString {
+        /**
+         * currentIndex var.
+         */
         var currentIndex = 0
         while (currentIndex < input.length) {
+            /**
+             * escIndex val.
+             */
             val escIndex = input.indexOf("\u001B[", currentIndex)
             if (escIndex == -1) {
                 append(input.substring(currentIndex))
@@ -231,18 +270,36 @@ private fun parseAnsi(input: String): androidx.compose.ui.text.AnnotatedString {
                 append(input.substring(currentIndex, escIndex))
             }
             
+            /**
+             * mIndex val.
+             */
             val mIndex = input.indexOf('m', escIndex)
             if (mIndex == -1) {
                 append(input.substring(escIndex))
                 break
             }
             
+            /**
+             * codeStr val.
+             */
             val codeStr = input.substring(escIndex + 2, mIndex)
+            /**
+             * codes val.
+             */
             val codes = codeStr.split(';').mapNotNull { it.toIntOrNull() }
             
+            /**
+             * style var.
+             */
             var style = androidx.compose.ui.text.SpanStyle()
+            /**
+             * idx var.
+             */
             var idx = 0
             while (idx < codes.size) {
+                /**
+                 * code val.
+                 */
                 val code = codes[idx]
                 when {
                     code == 0 -> {
@@ -258,6 +315,9 @@ private fun parseAnsi(input: String): androidx.compose.ui.text.AnnotatedString {
                         style = style.copy(color = getAnsiColor(code - 90, bright = true))
                     }
                     code == 38 && idx + 2 < codes.size && codes[idx + 1] == 5 -> {
+                        /**
+                         * colorIndex val.
+                         */
                         val colorIndex = codes[idx + 2]
                         style = style.copy(color = get256Color(colorIndex))
                         idx += 2
@@ -269,7 +329,13 @@ private fun parseAnsi(input: String): androidx.compose.ui.text.AnnotatedString {
                 idx++
             }
             
+            /**
+             * nextEsc val.
+             */
             val nextEsc = input.indexOf("\u001B[", mIndex + 1)
+            /**
+             * textSegment val.
+             */
             val textSegment = if (nextEsc == -1) {
                 input.substring(mIndex + 1)
             } else {
@@ -308,13 +374,25 @@ private fun get256Color(index: Int): Color {
     if (index in 8..15) return getAnsiColor(index - 8, true)
     
     if (index in 16..231) {
+        /**
+         * r val.
+         */
         val r = ((index - 16) / 36) * 51
+        /**
+         * g val.
+         */
         val g = (((index - 16) % 36) / 6) * 51
+        /**
+         * b val.
+         */
         val b = ((index - 16) % 6) * 51
         return Color(r, g, b)
     }
     
     if (index in 232..255) {
+        /**
+         * gray val.
+         */
         val gray = (index - 232) * 10 + 8
         return Color(gray, gray, gray)
     }
@@ -328,7 +406,13 @@ private fun TabItem(
     isActive: Boolean,
     onClick: () -> Unit
 ) {
+    /**
+     * bgCol val.
+     */
     val bgCol = if (isActive) AresBorder else Color.Transparent
+    /**
+     * textCol val.
+     */
     val textCol = if (isActive) AresCyan else AresTextSecondary
 
     Box(

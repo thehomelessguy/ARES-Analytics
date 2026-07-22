@@ -102,6 +102,9 @@ fun SyncStep(
             )
 
             if (cloudRobots.isNotEmpty()) {
+                /**
+                 * dropdownExpanded var.
+                 */
                 var dropdownExpanded by remember { mutableStateOf(false) }
                 Box(modifier = Modifier.weight(1f)) {
                     AresTextField(

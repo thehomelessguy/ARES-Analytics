@@ -29,9 +29,15 @@ class DriverAnalysisService(
     }
 
     private fun loadProfiles() {
+        /**
+         * file val.
+         */
         val file = File(profilesPath)
         if (!file.exists()) {
             file.parentFile?.mkdirs()
+            /**
+             * defaults val.
+             */
             val defaults = listOf(
                 DriverProfile("Default Alpha", 1.2, 3.5),
                 DriverProfile("Precision Mode", 1.5, 2.0),
@@ -41,6 +47,9 @@ class DriverAnalysisService(
         }
 
         try {
+            /**
+             * list val.
+             */
             val list = json.decodeFromString<List<DriverProfile>>(file.readText())
             list.forEach { profiles[it.name] = it }
         } catch (e: Exception) {
@@ -70,12 +79,18 @@ class DriverAnalysisService(
 
     suspend fun saveProfile(profile: DriverProfile) = withContext(Dispatchers.IO) {
         profiles[profile.name] = profile
+        /**
+         * file val.
+         */
         val file = File(profilesPath)
         file.writeText(json.encodeToString(profiles.values.toList()))
     }
 
     suspend fun deleteProfile(name: String) = withContext(Dispatchers.IO) {
         profiles.remove(name)
+        /**
+         * file val.
+         */
         val file = File(profilesPath)
         file.writeText(json.encodeToString(profiles.values.toList()))
     }
@@ -89,7 +104,13 @@ class DriverAnalysisService(
         gamepadXKey: String = "/Gamepad1/LeftX",
         gamepadYKey: String = "/Gamepad1/LeftY"
     ): DriverProfileAnalysisResult = withContext(Dispatchers.Default) {
+        /**
+         * xFrames val.
+         */
         val xFrames = databaseService.getTelemetryRange(sessionId, 0, Long.MAX_VALUE).filter { it.key == gamepadXKey }
+        /**
+         * yFrames val.
+         */
         val yFrames = databaseService.getTelemetryRange(sessionId, 0, Long.MAX_VALUE).filter { it.key == gamepadYKey }
 
         if (xFrames.size < 64) {
@@ -102,25 +123,55 @@ class DriverAnalysisService(
             )
         }
 
+        /**
+         * alignedTimes val.
+         */
         val alignedTimes = xFrames.map { it.timestampMs }.sorted()
         if (alignedTimes.size < 2) {
             return@withContext DriverProfileAnalysisResult(false, 0.0, 1.0, Double.MAX_VALUE, "Time delta calculation failed.")
         }
+        /**
+         * avgDtMs val.
+         */
         val avgDtMs = (alignedTimes.last() - alignedTimes.first()).toDouble() / (alignedTimes.size - 1)
+        /**
+         * sampleRateHz val.
+         */
         val sampleRateHz = 1000.0 / avgDtMs
 
+        /**
+         * xValues val.
+         */
         val xValues = DoubleArray(xFrames.size) { xFrames[it].value }
 
         // Run FFT
+        /**
+         * fftRes val.
+         */
         val fftRes = sysIdService.performFftAnalysis(xValues, sampleRateHz)
 
         // Check for dominant peak in the 8-12 Hz jitter band
+        /**
+         * isJitterPresent val.
+         */
         val isJitterPresent = fftRes.dominantFrequency in 8.0..12.0
+        /**
+         * peakFreq val.
+         */
         val peakFreq = fftRes.dominantFrequency
 
         // Calculate recommendations
+        /**
+         * recommendedExp var.
+         */
         var recommendedExp = 1.0
+        /**
+         * recommendedSlew var.
+         */
         var recommendedSlew = Double.MAX_VALUE
+        /**
+         * msg var.
+         */
         var msg = "Driver inputs are smooth and stable. No high-frequency jitter detected."
 
         if (isJitterPresent) {
@@ -150,9 +201,24 @@ class DriverAnalysisService(
  * @return expected results
  */
 data class DriverProfileAnalysisResult(
+    /**
+     * hasJitter val.
+     */
     val hasJitter: Boolean,
+    /**
+     * peakFrequencyHz val.
+     */
     val peakFrequencyHz: Double,
+    /**
+     * recommendedExponent val.
+     */
     val recommendedExponent: Double,
+    /**
+     * recommendedSlewRate val.
+     */
     val recommendedSlewRate: Double,
+    /**
+     * message val.
+     */
     val message: String
 )

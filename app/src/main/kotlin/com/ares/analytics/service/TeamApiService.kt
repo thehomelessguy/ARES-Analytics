@@ -40,6 +40,9 @@ class TeamApiService(
     }
 
     suspend fun fetchTeamRobots(teamId: String, authToken: String? = null): List<RobotProfile> = withContext(Dispatchers.IO) {
+        /**
+         * token val.
+         */
         val token = try { getActiveToken(authToken) } catch (e: Exception) { return@withContext emptyList() }
         try {
             httpClient.prepareGet("$gatewayUrl/api/team/$teamId/robots") {
@@ -58,6 +61,9 @@ class TeamApiService(
     }
 
     suspend fun addRobotProfile(teamId: String, robot: RobotProfile, authToken: String? = null): Boolean = withContext(Dispatchers.IO) {
+        /**
+         * token val.
+         */
         val token = getActiveToken(authToken)
         return@withContext try {
             httpClient.preparePost("$gatewayUrl/api/team/robots/add") {
@@ -79,6 +85,9 @@ class TeamApiService(
     }
 
     suspend fun deleteRobotProfile(teamId: String, robotId: String, authToken: String? = null): Boolean = withContext(Dispatchers.IO) {
+        /**
+         * token val.
+         */
         val token = getActiveToken(authToken)
         try {
             httpClient.preparePost("$gatewayUrl/api/team/robots/delete") {

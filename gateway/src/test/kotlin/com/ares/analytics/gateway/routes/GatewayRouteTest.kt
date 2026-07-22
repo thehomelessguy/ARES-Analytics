@@ -17,9 +17,15 @@ import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
+/**
+ * GatewayRouteTest class.
+ */
 class GatewayRouteTest {
 
     @Test
+    /**
+     * testHealthz fun.
+     */
     fun testHealthz() = testApplication {
         application {
             routing {
@@ -28,12 +34,18 @@ class GatewayRouteTest {
                 }
             }
         }
+        /**
+         * response val.
+         */
         val response = client.get("/healthz")
         assertEquals(HttpStatusCode.OK, response.status)
         assertEquals("ok", response.bodyAsText())
     }
 
     @Test
+    /**
+     * testAuthDiagnosticsWithoutToken fun.
+     */
     fun testAuthDiagnosticsWithoutToken() = testApplication {
         application {
             install(ContentNegotiation) {
@@ -55,6 +67,9 @@ class GatewayRouteTest {
             }
         }
 
+        /**
+         * response val.
+         */
         val response = client.post("/api/diagnostics/forensics") {
             contentType(ContentType.Application.Json)
             setBody("{}")

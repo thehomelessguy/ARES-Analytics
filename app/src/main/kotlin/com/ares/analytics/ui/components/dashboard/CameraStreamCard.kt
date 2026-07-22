@@ -33,11 +33,20 @@ fun CameraStreamCard(
     onPropertiesChanged: (Map<String, String>) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    /**
+     * scope val.
+     */
     val scope = rememberCoroutineScope()
+    /**
+     * viewModel val.
+     */
     val viewModel = remember(properties["streamUrl"]) { 
         CameraStreamViewModel(properties["streamUrl"], scope)
     }
     
+    /**
+     * state val.
+     */
     val state by viewModel.state.collectAsState()
 
     DisposableEffect(viewModel) {

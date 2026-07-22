@@ -41,26 +41,59 @@ fun ControlLoopProfilerCard(
     nt4ClientService: Nt4ClientService,
     modifier: Modifier = Modifier
 ) {
+    /**
+     * scope val.
+     */
     val scope = rememberCoroutineScope()
     
+    /**
+     * expanded var.
+     */
     var expanded by remember { mutableStateOf(false) }
+    /**
+     * selectedMotor var.
+     */
     var selectedMotor by remember { mutableStateOf("Select Motor") }
+    /**
+     * availableMotors var.
+     */
     var availableMotors by remember { mutableStateOf<List<String>>(emptyList()) }
     
+    /**
+     * targetValue var.
+     */
     var targetValue by remember { mutableStateOf<Double?>(null) }
+    /**
+     * actualValue var.
+     */
     var actualValue by remember { mutableStateOf<Double?>(null) }
 
     // History buffers for plotting (TimeMs, Value)
+    /**
+     * targetHistory val.
+     */
     val targetHistory = remember { mutableStateListOf<Pair<Long, Double>>() }
+    /**
+     * actualHistory val.
+     */
     val actualHistory = remember { mutableStateListOf<Pair<Long, Double>>() }
+    /**
+     * historyWindowMs val.
+     */
     val historyWindowMs = 5000L
 
     LaunchedEffect(Unit) {
         scope.launch {
             while (true) {
                 // Periodically update available motors based on active topics
+                /**
+                 * topics val.
+                 */
                 val topics = nt4ClientService.getActiveTopics()
                 // Find topics that look like motor targets/actuals
+                /**
+                 * motors val.
+                 */
                 val motors = topics.filter { it.endsWith("/TargetPosition") || it.endsWith("/TargetVelocity") }
                     .map { it.substringBeforeLast("/") }
                     .distinct()
@@ -84,9 +117,15 @@ fun ControlLoopProfilerCard(
             
             scope.launch {
                 nt4ClientService.telemetryFlow.collect { frame ->
+                    /**
+                     * now val.
+                     */
                     val now = System.currentTimeMillis()
                     when {
                         frame.key == "$selectedMotor/TargetPosition" || frame.key == "$selectedMotor/TargetVelocity" -> {
+                            /**
+                             * v val.
+                             */
                             val v = frame.value as? Double
                             targetValue = v
                             if (v != null) {
@@ -98,6 +137,9 @@ fun ControlLoopProfilerCard(
                             }
                         }
                         frame.key == "$selectedMotor/ActualPosition" || frame.key == "$selectedMotor/ActualVelocity" -> {
+                            /**
+                             * v val.
+                             */
                             val v = frame.value as? Double
                             actualValue = v
                             if (v != null) {
@@ -115,6 +157,9 @@ fun ControlLoopProfilerCard(
             // Background cleanup loop for periods of inactivity
             scope.launch {
                 while (true) {
+                    /**
+                     * now val.
+                     */
                     val now = System.currentTimeMillis()
                     if (targetHistory.isNotEmpty() && now - targetHistory.last().first > historyWindowMs) {
                         targetHistory.clear()
@@ -218,6 +263,9 @@ fun ControlLoopProfilerCard(
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("ERROR", color = AresTextTertiary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    /**
+                     * error val.
+                     */
                     val error = if (targetValue != null && actualValue != null) targetValue!! - actualValue!! else null
                     Text(
                         text = error?.let { String.format("%.2f", it) } ?: "--",
@@ -251,11 +299,23 @@ fun ControlLoopProfilerCard(
                             .fillMaxSize()
                             .clipToBounds()
                     ) {
+                        /**
+                         * width val.
+                         */
                         val width = size.width
+                        /**
+                         * height val.
+                         */
                         val height = size.height
                         
                         // Determine value range
+                        /**
+                         * minValue var.
+                         */
                         var minValue = Double.MAX_VALUE
+                        /**
+                         * maxValue var.
+                         */
                         var maxValue = Double.MIN_VALUE
                         
                         targetHistory.forEach { (_, v) ->
@@ -274,14 +334,26 @@ fun ControlLoopProfilerCard(
                         }
                         
                         // Add some padding to Y scale
+                        /**
+                         * range val.
+                         */
                         val range = maxValue - minValue
                         minValue -= range * 0.1
                         maxValue += range * 0.1
+                        /**
+                         * newRange val.
+                         */
                         val newRange = maxValue - minValue
                         
                         // Draw grid lines
+                        /**
+                         * steps val.
+                         */
                         val steps = 4
                         for (i in 0..steps) {
+                            /**
+                             * y val.
+                             */
                             val y = height - (i.toFloat() / steps) * height
                             drawLine(
                                 color = AresBorder,
@@ -291,7 +363,13 @@ fun ControlLoopProfilerCard(
                             )
                         }
                         
+                        /**
+                         * now val.
+                         */
                         val now = System.currentTimeMillis()
+                        /**
+                         * startTimeMs val.
+                         */
                         val startTimeMs = now - historyWindowMs
                         
                         /**
@@ -303,16 +381,31 @@ fun ControlLoopProfilerCard(
                          * @return expected results
                          */
                         fun mapToOffset(timeMs: Long, value: Double): Offset {
+                            /**
+                             * x val.
+                             */
                             val x = ((timeMs - startTimeMs).toFloat() / historyWindowMs.toFloat()) * width
+                            /**
+                             * y val.
+                             */
                             val y = height - ((value - minValue) / newRange).toFloat() * height
                             return Offset(x, y)
                         }
                         
                         // Plot Actual (White)
                         if (actualHistory.size > 1) {
+                            /**
+                             * path val.
+                             */
                             val path = Path()
+                            /**
+                             * first var.
+                             */
                             var first = true
                             actualHistory.forEach { (t, v) ->
+                                /**
+                                 * pt val.
+                                 */
                                 val pt = mapToOffset(t, v)
                                 if (first) {
                                     path.moveTo(pt.x, pt.y)
@@ -326,9 +419,18 @@ fun ControlLoopProfilerCard(
                         
                         // Plot Target (Cyan)
                         if (targetHistory.size > 1) {
+                            /**
+                             * path val.
+                             */
                             val path = Path()
+                            /**
+                             * first var.
+                             */
                             var first = true
                             targetHistory.forEach { (t, v) ->
+                                /**
+                                 * pt val.
+                                 */
                                 val pt = mapToOffset(t, v)
                                 if (first) {
                                     path.moveTo(pt.x, pt.y)

@@ -43,6 +43,9 @@ fun AutoEditorPanel(
     league: League,
     onIntent: (PathPlannerIntent) -> Unit
 ) {
+    /**
+     * expandedAddCommand var.
+     */
     var expandedAddCommand by remember { mutableStateOf(false) }
 
     Column(
@@ -80,7 +83,13 @@ fun AutoEditorPanel(
         HorizontalDivider(color = AresBorder)
         
         // Command List
+        /**
+         * rootNode val.
+         */
         val rootNode = state.currentAutoCommands.firstOrNull()
+        /**
+         * commandsArray val.
+         */
         val commandsArray = rootNode?.data?.get("commands") as? JsonArray ?: JsonArray(emptyList())
 
         LazyColumn(
@@ -89,9 +98,18 @@ fun AutoEditorPanel(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             itemsIndexed(commandsArray) { index, element ->
+                /**
+                 * commandObj val.
+                 */
                 val commandObj = element as? JsonObject
                 if (commandObj != null) {
+                    /**
+                     * type val.
+                     */
                     val type = commandObj["type"]?.jsonPrimitive?.content ?: "unknown"
+                    /**
+                     * dataObj val.
+                     */
                     val dataObj = commandObj["data"] as? JsonObject
                     
                     Card(
@@ -110,12 +128,21 @@ fun AutoEditorPanel(
                                 
                                 when (type) {
                                     "path" -> {
+                                        /**
+                                         * pathName val.
+                                         */
                                         val pathName = dataObj?.get("pathName")?.jsonPrimitive?.content ?: ""
+                                        /**
+                                         * expanded var.
+                                         */
                                         var expanded by remember { mutableStateOf(false) }
                                         Box {
                                             OutlinedTextField(
                                                 value = pathName,
                                                 onValueChange = { 
+                                                    /**
+                                                     * newNode val.
+                                                     */
                                                     val newNode = AutoCommandNode("path", buildJsonObject { put("pathName", it) })
                                                     onIntent(PathPlannerIntent.UpdateAutoCommand(index, newNode, projectPath, league))
                                                 },
@@ -142,6 +169,9 @@ fun AutoEditorPanel(
                                                     DropdownMenuItem(
                                                         text = { Text(p, color = AresTextPrimary) },
                                                         onClick = {
+                                                            /**
+                                                             * newNode val.
+                                                             */
                                                             val newNode = AutoCommandNode("path", buildJsonObject { put("pathName", p) })
                                                             onIntent(PathPlannerIntent.UpdateAutoCommand(index, newNode, projectPath, league))
                                                             expanded = false
@@ -152,11 +182,20 @@ fun AutoEditorPanel(
                                         }
                                     }
                                     "wait" -> {
+                                        /**
+                                         * waitTimeStr val.
+                                         */
                                         val waitTimeStr = dataObj?.get("waitTime")?.jsonPrimitive?.content ?: "0.0"
                                         OutlinedTextField(
                                             value = waitTimeStr,
                                             onValueChange = { 
+                                                /**
+                                                 * num val.
+                                                 */
                                                 val num = it.toDoubleOrNull() ?: 0.0
+                                                /**
+                                                 * newNode val.
+                                                 */
                                                 val newNode = AutoCommandNode("wait", buildJsonObject { put("waitTime", num) })
                                                 onIntent(PathPlannerIntent.UpdateAutoCommand(index, newNode, projectPath, league))
                                             },
@@ -171,11 +210,26 @@ fun AutoEditorPanel(
                                         )
                                     }
                                     "named" -> {
+                                        /**
+                                         * fullName val.
+                                         */
                                         val fullName = dataObj?.get("name")?.jsonPrimitive?.content ?: ""
+                                        /**
+                                         * isIndicator val.
+                                         */
                                         val isIndicator = fullName.startsWith("SetIndicatorColor")
+                                        /**
+                                         * baseName val.
+                                         */
                                         val baseName = if (isIndicator) "SetIndicatorColor" else fullName
                                         
+                                        /**
+                                         * expandedAction var.
+                                         */
                                         var expandedAction by remember { mutableStateOf(false) }
+                                        /**
+                                         * defaultActions val.
+                                         */
                                         val defaultActions = listOf("Intake", "Outtake", "Shoot", "Score", "Climb", "Stop", "SetIndicatorColor")
                                         
                                         Row(
@@ -186,7 +240,13 @@ fun AutoEditorPanel(
                                                 OutlinedTextField(
                                                     value = baseName,
                                                     onValueChange = { 
+                                                        /**
+                                                         * finalName val.
+                                                         */
                                                         val finalName = if (it == "SetIndicatorColor") "SetIndicatorColor_OFF" else it
+                                                        /**
+                                                         * newNode val.
+                                                         */
                                                         val newNode = AutoCommandNode("named", buildJsonObject { put("name", finalName) })
                                                         onIntent(PathPlannerIntent.UpdateAutoCommand(index, newNode, projectPath, league))
                                                     },
@@ -213,7 +273,13 @@ fun AutoEditorPanel(
                                                         DropdownMenuItem(
                                                             text = { Text(a, color = AresTextPrimary) },
                                                             onClick = {
+                                                                /**
+                                                                 * finalName val.
+                                                                 */
                                                                 val finalName = if (a == "SetIndicatorColor") "SetIndicatorColor_OFF" else a
+                                                                /**
+                                                                 * newNode val.
+                                                                 */
                                                                 val newNode = AutoCommandNode("named", buildJsonObject { put("name", finalName) })
                                                                 onIntent(PathPlannerIntent.UpdateAutoCommand(index, newNode, projectPath, league))
                                                                 expandedAction = false
@@ -224,8 +290,17 @@ fun AutoEditorPanel(
                                             }
 
                                             if (isIndicator) {
+                                                /**
+                                                 * currentColor val.
+                                                 */
                                                 val currentColor = fullName.substringAfter("_", "OFF")
+                                                /**
+                                                 * colors val.
+                                                 */
                                                 val colors = listOf("OFF", "RED", "GREEN", "BLUE", "YELLOW", "VIOLET", "WHITE")
+                                                /**
+                                                 * expandedColor var.
+                                                 */
                                                 var expandedColor by remember { mutableStateOf(false) }
 
                                                 Box(modifier = Modifier.weight(1f)) {
@@ -256,6 +331,9 @@ fun AutoEditorPanel(
                                                             DropdownMenuItem(
                                                                 text = { Text(c, color = AresTextPrimary) },
                                                                 onClick = {
+                                                                    /**
+                                                                     * newNode val.
+                                                                     */
                                                                     val newNode = AutoCommandNode("named", buildJsonObject { put("name", "SetIndicatorColor_$c") })
                                                                     onIntent(PathPlannerIntent.UpdateAutoCommand(index, newNode, projectPath, league))
                                                                     expandedColor = false
@@ -314,6 +392,9 @@ fun AutoEditorPanel(
                 DropdownMenuItem(
                     text = { Text("Run Path") },
                     onClick = {
+                        /**
+                         * node val.
+                         */
                         val node = AutoCommandNode("path", buildJsonObject { put("pathName", "NewPath") })
                         onIntent(PathPlannerIntent.AddAutoCommand(node, projectPath, league))
                         expandedAddCommand = false
@@ -322,6 +403,9 @@ fun AutoEditorPanel(
                 DropdownMenuItem(
                     text = { Text("Wait") },
                     onClick = {
+                        /**
+                         * node val.
+                         */
                         val node = AutoCommandNode("wait", buildJsonObject { put("waitTime", 1.0) })
                         onIntent(PathPlannerIntent.AddAutoCommand(node, projectPath, league))
                         expandedAddCommand = false
@@ -330,6 +414,9 @@ fun AutoEditorPanel(
                 DropdownMenuItem(
                     text = { Text("Named Action") },
                     onClick = {
+                        /**
+                         * node val.
+                         */
                         val node = AutoCommandNode("named", buildJsonObject { put("name", "Intake") })
                         onIntent(PathPlannerIntent.AddAutoCommand(node, projectPath, league))
                         expandedAddCommand = false
