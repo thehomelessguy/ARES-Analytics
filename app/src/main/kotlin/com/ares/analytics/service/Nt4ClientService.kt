@@ -456,62 +456,16 @@ open class Nt4ClientService(
         seasonId: String,
         robotId: String
     ) {
-        if (bytes.isEmpty()) return
-        println("[Nt4ClientService] Received binary frame: size=${bytes.size}")
-        try {
-            var offset = 0
-            while (offset < bytes.size) {
-                val marker = bytes[offset].toInt() and 0xFF
-                val (arrayLen, headerSize) = Nt4Decoder.getArrayLengthAndHeader(marker, bytes, offset)
-                
-                if (arrayLen != 4) {
-                    // NT4 Spec: payload is an array of messages (arrays of 4 elements).
-                    // Skip the outer array header to step inside and parse the inner messages.
-                    offset += headerSize
-                    continue
-                }
-                
-                offset = parseAndDispatchUpdate(bytes, offset, headerSize, teamId, seasonId, robotId)
+        val messages = com.areslib.networktables.NT4WireProtocol.unpackMessageFrames(bytes)
+        for (msg in messages) {
+            val timestampMs = msg.timestampUs / 1000
+            val ntTopic = topicMap[msg.topicId.toInt()]
+            if (ntTopic != null) {
+                dispatchValue(ntTopic, msg.value, timestampMs, teamId, seasonId, robotId)
             }
-        } catch (e: Exception) {
-            println("[Nt4ClientService] Error handling incoming binary: ${e.message}")
-            e.printStackTrace()
         }
     }
 
-    private suspend fun parseAndDispatchUpdate(
-        bytes: ByteArray,
-        offset: Int,
-        headerSize: Int,
-        teamId: String,
-        seasonId: String,
-        robotId: String
-    ): Int {
-        var elementOffset = offset + headerSize
-        
-        // 1. Topic ID
-        val (topicId, topicIdSize) = Nt4Decoder.decodeMsgPackInt(bytes, elementOffset)
-        elementOffset += topicIdSize
-        
-        // 2. Timestamp (us)
-        val (timestampUs, timestampSize) = Nt4Decoder.decodeMsgPackLong(bytes, elementOffset)
-        elementOffset += timestampSize
-        
-        // 3. Type ID
-        val (typeId, typeIdSize) = Nt4Decoder.decodeMsgPackInt(bytes, elementOffset)
-        elementOffset += typeIdSize
-        
-        // 4. Value
-        val (valueElement, valueSize) = Nt4Decoder.parseMsgPackValue(bytes, elementOffset)
-        elementOffset += valueSize
-        val timestampMs = timestampUs / 1000
-        val ntTopic = topicMap[topicId]
-        if (ntTopic != null) {
-            dispatchValue(ntTopic, valueElement, timestampMs, teamId, seasonId, robotId)
-        }
-        
-        return elementOffset
-    }
 
     private suspend fun dispatchValue(
         ntTopic: Nt4Topic,

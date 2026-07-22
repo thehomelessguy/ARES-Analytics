@@ -18,7 +18,16 @@ import androidx.compose.ui.unit.sp
 import com.ares.analytics.service.ReplayFrame
 import com.ares.analytics.service.Nt4ClientService
 import com.ares.analytics.ui.theme.*
+import com.areslib.math.InputMath
 import kotlinx.coroutines.launch
+
+@Composable
+fun JoystickVisualizer(
+    nt4ClientService: Nt4ClientService,
+    modifier: Modifier = Modifier
+) {
+    // ...
+}
 
 @Composable
 /**
@@ -64,9 +73,12 @@ fun JoystickVisualizer(
                 val g1 = gamepad1StateFlow?.value
 
                 val (vx, vy, omega) = if (keyboardState.useGamepad && g1 != null && g1.connected) {
-                    val activeVx = g1.leftStickY.toDouble() * 4.0
-                    val activeVy = g1.leftStickX.toDouble() * -4.0
-                    val activeOmega = g1.rightStickX.toDouble() * -4.0
+                    val rawY = InputMath.applyDeadband(g1.leftStickY.toDouble(), 0.02)
+                    val rawX = InputMath.applyDeadband(g1.leftStickX.toDouble(), 0.02)
+                    val rawOmega = InputMath.applyDeadband(g1.rightStickX.toDouble(), 0.02)
+                    val activeVx = InputMath.applyCurve(rawY, 1.2) * 4.0
+                    val activeVy = InputMath.applyCurve(rawX, 1.2) * -4.0
+                    val activeOmega = InputMath.applyCurve(rawOmega, 1.2) * -4.0
                     Triple(activeVx, activeVy, activeOmega)
                 } else {
                     val activeVx = when {
