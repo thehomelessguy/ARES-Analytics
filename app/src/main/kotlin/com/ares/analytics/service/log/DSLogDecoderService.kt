@@ -205,22 +205,8 @@ class DSLogDecoderService(private val databaseService: DatabaseService) : BaseLo
                         dis.readFully(textBytes)
                         var text = String(textBytes, Charsets.UTF_8)
 
-                        // Filter XML tags
-                        val tags = listOf("<TagVersion>", "<time>", "<count>", "<flags>", "<Code>", "<location>", "<stack>")
-                        for (tag in tags) {
-                            while (text.contains(tag)) {
-                                val tagIndex = text.indexOf(tag)
-                                val nextIndex = text.indexOf("<", tagIndex + 1)
-                                if (nextIndex != -1) {
-                                    text = text.substring(0, tagIndex) + text.substring(nextIndex)
-                                } else {
-                                    text = text.substring(0, tagIndex)
-                                }
-                            }
-                        }
-                        text = text.replace("<message> ", "")
-                        text = text.replace("<details> ", "")
-                        text = text.trim()
+                        // Filter XML tags using ARESLib DsEventLogParser
+                        text = com.areslib.logging.DsEventLogParser.cleanXmlTags(text)
                         val relativeSec = (eventTimeMs - fileStartTimeMs) / 1000.0
                         val annotation = SessionAnnotation(
                             annotationId = UUID.randomUUID().toString(),
