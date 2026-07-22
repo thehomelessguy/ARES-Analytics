@@ -290,19 +290,19 @@ fun FtcDriverStationWidget(
                     value = selectedAutoOpMode?.substringAfterLast(".") ?: "Select Auto",
                     onValueChange = {},
                     readOnly = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = false,
+                    enabled = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { isAutoExpanded = !isAutoExpanded },
                     colors = OutlinedTextFieldDefaults.colors(
-                        disabledTextColor = if (selectedAutoOpMode != null) AresTextPrimary else AresTextSecondary,
-                        disabledBorderColor = AresBorder,
-                        disabledContainerColor = AresSurfaceElevated,
+                        focusedTextColor = if (selectedAutoOpMode != null) AresTextPrimary else AresTextSecondary,
+                        unfocusedTextColor = if (selectedAutoOpMode != null) AresTextPrimary else AresTextSecondary,
+                        focusedBorderColor = AresBorder,
+                        unfocusedBorderColor = AresBorder,
+                        focusedContainerColor = AresSurfaceElevated,
+                        unfocusedContainerColor = AresSurfaceElevated,
                     ),
                     trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = AresTextSecondary) }
-                )
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .clickable { isAutoExpanded = true }
                 )
                 DropdownMenu(
                     expanded = isAutoExpanded,
@@ -328,19 +328,19 @@ fun FtcDriverStationWidget(
                     value = selectedTeleOpMode?.substringAfterLast(".") ?: "Select TeleOp",
                     onValueChange = {},
                     readOnly = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = false,
+                    enabled = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { isTeleOpExpanded = !isTeleOpExpanded },
                     colors = OutlinedTextFieldDefaults.colors(
-                        disabledTextColor = if (selectedTeleOpMode != null) AresTextPrimary else AresTextSecondary,
-                        disabledBorderColor = AresBorder,
-                        disabledContainerColor = AresSurfaceElevated,
+                        focusedTextColor = if (selectedTeleOpMode != null) AresTextPrimary else AresTextSecondary,
+                        unfocusedTextColor = if (selectedTeleOpMode != null) AresTextPrimary else AresTextSecondary,
+                        focusedBorderColor = AresBorder,
+                        unfocusedBorderColor = AresBorder,
+                        focusedContainerColor = AresSurfaceElevated,
+                        unfocusedContainerColor = AresSurfaceElevated,
                     ),
                     trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = AresTextSecondary) }
-                )
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .clickable { isTeleOpExpanded = true }
                 )
                 DropdownMenu(
                     expanded = isTeleOpExpanded,

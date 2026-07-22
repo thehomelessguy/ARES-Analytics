@@ -37,7 +37,7 @@ tasks.register("killExisting") {
         var killedCount = 0
         
         // 1. Clean by Port
-        val portsToClean = listOf(8080)
+        val portsToClean = listOf(5810, 8080)
         val isWindows = System.getProperty("os.name").lowercase().contains("windows")
         for (port in portsToClean) {
             try {
