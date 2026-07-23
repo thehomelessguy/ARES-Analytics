@@ -107,6 +107,77 @@ fun MainScreen(services: ServiceRegistry) {
         }
     }
 
+    // Global 50Hz Drive Input Loop (Keyboard & Gamepad)
+    val isNt4Connected by services.nt4ClientService.isConnected.collectAsState()
+    LaunchedEffect(isNt4Connected) {
+        if (isNt4Connected) {
+            var lastVx: Double? = null
+            var lastVy: Double? = null
+            var lastOmega: Double? = null
+            var lastQ: Boolean? = null
+            var lastE: Boolean? = null
+            var lastShift: Boolean? = null
+            var lastJ: Boolean? = null
+            var lastL: Boolean? = null
+            var lastU: Boolean? = null
+
+            services.nt4ClientService.publishBoolean("ARES/Input/isTeleopMode", true)
+            services.nt4ClientService.publishBoolean("ARES/Input/isFieldCentric", false)
+            services.nt4ClientService.publishBoolean("ARES/Input/isRedAlliance", true)
+
+            while (true) {
+                val ks = services.keyboardDriveState
+                val g1 = services.gamepadService.gamepad1State.value
+
+                val (vx, vy, omega) = if (ks.useGamepad && g1 != null && g1.connected) {
+                    val rawY = com.areslib.math.InputMath.applyDeadband(g1.leftStickY.toDouble(), 0.02)
+                    val rawX = com.areslib.math.InputMath.applyDeadband(g1.leftStickX.toDouble(), 0.02)
+                    val rawRot = com.areslib.math.InputMath.applyDeadband(g1.rightStickX.toDouble(), 0.02)
+                    val activeVx = com.areslib.math.InputMath.applyCurve(rawY, 1.2) * 4.0
+                    val activeVy = com.areslib.math.InputMath.applyCurve(rawX, 1.2) * -4.0
+                    val activeOmega = com.areslib.math.InputMath.applyCurve(rawRot, 1.2) * -4.0
+                    Triple(activeVx, activeVy, activeOmega)
+                } else {
+                    val activeVx = when {
+                        ks.isWPressed -> 4.0
+                        ks.isSPressed -> -4.0
+                        else -> 0.0
+                    }
+                    val activeVy = when {
+                        ks.isAPressed -> 4.0
+                        ks.isDPressed -> -4.0
+                        else -> 0.0
+                    }
+                    val activeOmega = when {
+                        ks.isLeftPressed -> 4.0
+                        ks.isRightPressed -> -4.0
+                        else -> 0.0
+                    }
+                    Triple(activeVx, activeVy, activeOmega)
+                }
+
+                val qPressed = if (ks.useGamepad && g1 != null && g1.connected) g1.leftBumper else ks.isQPressed
+                val ePressed = if (ks.useGamepad && g1 != null && g1.connected) g1.rightBumper else ks.isEPressed
+                val shiftPressed = if (ks.useGamepad && g1 != null && g1.connected) g1.rightTrigger > 0.5f else ks.isShiftPressed
+                val jPressed = if (ks.useGamepad && g1 != null && g1.connected) g1.a else ks.isJPressed
+                val lPressed = if (ks.useGamepad && g1 != null && g1.connected) g1.b else ks.isLPressed
+                val uPressed = if (ks.useGamepad && g1 != null && g1.connected) g1.x else ks.isUPressed
+
+                if (vx != lastVx) { services.nt4ClientService.publishDouble("ARES/Input/vx", vx); lastVx = vx }
+                if (vy != lastVy) { services.nt4ClientService.publishDouble("ARES/Input/vy", vy); lastVy = vy }
+                if (omega != lastOmega) { services.nt4ClientService.publishDouble("ARES/Input/omega", omega); lastOmega = omega }
+                if (qPressed != lastQ) { services.nt4ClientService.publishBoolean("ARES/Input/isIntaking", qPressed); lastQ = qPressed }
+                if (ePressed != lastE) { services.nt4ClientService.publishBoolean("ARES/Input/isFlywheelOn", ePressed); lastE = ePressed }
+                if (shiftPressed != lastShift) { services.nt4ClientService.publishBoolean("ARES/Input/isTransferring", shiftPressed); lastShift = shiftPressed }
+                if (jPressed != lastJ) { services.nt4ClientService.publishBoolean("ARES/Input/isButtonAPressed", jPressed); lastJ = jPressed }
+                if (lPressed != lastL) { services.nt4ClientService.publishBoolean("ARES/Input/isButtonBPressed", lPressed); lastL = lPressed }
+                if (uPressed != lastU) { services.nt4ClientService.publishBoolean("ARES/Input/isButtonXPressed", uPressed); lastU = uPressed }
+
+                delay(20)
+            }
+        }
+    }
+
     if (currentConfig == null) {
         val onboardingViewModel = remember {
             OnboardingViewModel(services.environmentService, services.teamApiService, scope) { loaded ->
