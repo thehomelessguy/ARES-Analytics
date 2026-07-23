@@ -141,8 +141,8 @@ open class Nt4ClientService(
      *
 
      */
-    fun start(host: String, teamId: String, seasonId: String, robotId: String) {
-        println("[Nt4ClientService] start() called with host=$host, teamId=$teamId, seasonId=$seasonId, robotId=$robotId")
+    fun start(host: String, teamId: String, seasonId: String, robotId: String, port: Int = 5810) {
+        println("[Nt4ClientService] start() called with host=$host, port=$port, teamId=$teamId, seasonId=$seasonId, robotId=$robotId")
         clientJob?.cancel()
         clientJob = CoroutineScope(Dispatchers.IO + SupervisorJob() + CoroutineExceptionHandler { _, e -> e.printStackTrace() }).launch {
             try {
@@ -162,7 +162,7 @@ open class Nt4ClientService(
                 var activeHost = host
                 val clientName = "ARES-Analytics-${System.currentTimeMillis()}"
                 val path = "/nt/$clientName"
-                val url = "ws://$activeHost:5810$path"
+                val url = "ws://$activeHost:$port$path"
                 this@Nt4ClientService.serverIp = activeHost
                 try {
                     val activeEngine = if (activeHost == "127.0.0.1" || activeHost == "localhost") "CIO" else "OkHttp"
@@ -170,7 +170,7 @@ open class Nt4ClientService(
                     clientFor(activeHost).webSocket(
                         method = HttpMethod.Get,
                         host = activeHost,
-                        port = 5810,
+                        port = port,
                         path = path,
                         request = {
                             header("Sec-WebSocket-Protocol", "v4.1.networktables.first.wpi.edu")
