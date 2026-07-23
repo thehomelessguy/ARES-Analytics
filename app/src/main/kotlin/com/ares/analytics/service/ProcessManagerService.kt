@@ -225,7 +225,11 @@ class ProcessManagerService {
                     if (isWindows) listOf("cmd.exe", "/c") + userCmd.trim().split("\\s+".toRegex())
                     else userCmd.trim().split("\\s+".toRegex())
                 } else {
-                    if (isWindows) {
+                    val fatJarFile = File(projectPath, "simulator/build/libs/simulator-all.jar")
+                    val javaExe = System.getProperty("java.home") + File.separator + "bin" + File.separator + (if (isWindows) "java.exe" else "java")
+                    if (fatJarFile.exists()) {
+                        listOf(javaExe, "-jar", fatJarFile.absolutePath)
+                    } else if (isWindows) {
                         when (league) {
                             League.FTC -> listOf("cmd.exe", "/c", "gradlew.bat", ":TeamCode:runSim")
                             League.FRC -> listOf("cmd.exe", "/c", "gradlew.bat", "simulateJava")
