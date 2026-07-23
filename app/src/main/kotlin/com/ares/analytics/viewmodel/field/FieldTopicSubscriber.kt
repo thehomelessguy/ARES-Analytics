@@ -9,11 +9,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
-
  * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
-
- *
-
  */
 class FieldTopicSubscriber(
     private val nt4ClientService: Nt4ClientService,
@@ -38,7 +34,7 @@ class FieldTopicSubscriber(
 
         scope.launch {
             var lastEmit = System.currentTimeMillis()
-            var currentBuilder = FieldViewerStateBuilder(stateFlow.value)
+            val currentBuilder = FieldViewerStateBuilder(stateFlow.value)
             var frameCount = 0L
             var lastDiagLog = System.currentTimeMillis()
             
@@ -76,7 +72,10 @@ class FieldTopicSubscriber(
                             currentBuilder.visionX = null
                             currentBuilder.visionY = null
                             currentBuilder.visionHeading = null
-                            currentBuilder.visionPoses.clear()
+                            if (currentBuilder.visionPoses.isNotEmpty()) {
+                                currentBuilder.visionPoses.clear()
+                                currentBuilder.visionPosesDirty = true
+                            }
                         }
                     }
                     "Vision/Pose_X", "Vision/Pose/X" -> if (currentBuilder.visionHasTarget) currentBuilder.visionX = value
@@ -87,17 +86,24 @@ class FieldTopicSubscriber(
 
                 if (key.startsWith("Superstructure/IndicatorLight/")) {
                     val lightName = key.substringAfterLast("/")
-                    currentBuilder.indicatorLights[lightName] = value
+                    if (currentBuilder.indicatorLights[lightName] != value) {
+                        currentBuilder.indicatorLights[lightName] = value
+                        currentBuilder.indicatorLightsDirty = true
+                    }
                 }
 
                 if (key.startsWith("Vision/PoseArray/") || key.startsWith("AdvantageScope/VisionPose/")) {
                     if (currentBuilder.visionHasTarget) {
                         val idx = key.substringAfterLast("/").toIntOrNull()
                         if (idx != null) {
-                            currentBuilder.visionPoses[idx] = value
+                            if (currentBuilder.visionPoses[idx] != value) {
+                                currentBuilder.visionPoses[idx] = value
+                                currentBuilder.visionPosesDirty = true
+                            }
                         }
-                    } else {
+                    } else if (currentBuilder.visionPoses.isNotEmpty()) {
                         currentBuilder.visionPoses.clear()
+                        currentBuilder.visionPosesDirty = true
                     }
                 }
 
@@ -120,13 +126,13 @@ class FieldTopicSubscriber(
                         }
                         
                         currentBuilder.liveGamePieces[pieceIdx] = updatedPiece
+                        currentBuilder.liveGamePiecesDirty = true
                     }
                 }
                 val now = System.currentTimeMillis()
                 if (now - lastEmit > 16) {
                     stateFlow.update { currentBuilder.build(it) }
                     lastEmit = now
-                    currentBuilder = FieldViewerStateBuilder(stateFlow.value)
                 }
             }
         }
@@ -134,11 +140,7 @@ class FieldTopicSubscriber(
 }
 
 /**
-
  * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
-
- *
-
  */
 class FieldViewerStateBuilder(state: FieldViewerState) {
     var trueX: Double = state.trueX
@@ -160,14 +162,28 @@ class FieldViewerStateBuilder(state: FieldViewerState) {
     var isRedAlliance: Boolean = state.isRedAlliance
     var indicatorLights: MutableMap<String, Double> = state.indicatorLights.toMutableMap()
 
-    /**
+    var visionPosesDirty: Boolean = false
+    var liveGamePiecesDirty: Boolean = false
+    var indicatorLightsDirty: Boolean = false
 
-     * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
+    private var cachedVisionPoses: Map<Int, Double> = state.visionPoses
+    private var cachedLiveGamePieces: Map<Int, GamePiece> = state.liveGamePieces
+    private var cachedIndicatorLights: Map<String, Double> = state.indicatorLights
 
-     *
-
-     */
     fun build(original: FieldViewerState): FieldViewerState {
+        if (visionPosesDirty) {
+            cachedVisionPoses = visionPoses.toMap()
+            visionPosesDirty = false
+        }
+        if (liveGamePiecesDirty) {
+            cachedLiveGamePieces = liveGamePieces.toMap()
+            liveGamePiecesDirty = false
+        }
+        if (indicatorLightsDirty) {
+            cachedIndicatorLights = indicatorLights.toMap()
+            indicatorLightsDirty = false
+        }
+
         return original.copy(
             trueX = trueX,
             trueY = trueY,
@@ -182,11 +198,11 @@ class FieldViewerStateBuilder(state: FieldViewerState) {
             visionX = visionX,
             visionY = visionY,
             visionHeading = visionHeading,
-            visionPoses = visionPoses.toMap(),
+            visionPoses = cachedVisionPoses,
             visionHasTarget = visionHasTarget,
-            liveGamePieces = liveGamePieces.toMap(),
+            liveGamePieces = cachedLiveGamePieces,
             isRedAlliance = isRedAlliance,
-            indicatorLights = indicatorLights.toMap()
+            indicatorLights = cachedIndicatorLights
         )
     }
 }

@@ -19,15 +19,43 @@ import io.ktor.client.engine.okhttp.OkHttp
 open class Nt4ClientService(
     private val databaseService: DatabaseService
 ) {
-    /** OkHttp engine for localhost (clean WebSocket frames, no RSV bit crashes) */
-    private val localClient: HttpClient = HttpClient(OkHttp) { install(WebSockets) }
-    /** OkHttp engine for remote robot connections (clean WebSocket frames, no RSV bit crashes) */
-    private val remoteClient: HttpClient = HttpClient(OkHttp) { install(WebSockets) }
+    @Volatile
+    private var localClient: HttpClient? = null
+    @Volatile
+    private var remoteClient: HttpClient? = null
+
+    private fun getOrCreateLocalClient(): HttpClient {
+        var client = localClient
+        if (client == null || !client.coroutineContext.isActive) {
+            synchronized(this) {
+                client = localClient
+                if (client == null || !client.coroutineContext.isActive) {
+                    client = HttpClient(OkHttp) { install(WebSockets) }
+                    localClient = client
+                }
+            }
+        }
+        return client!!
+    }
+
+    private fun getOrCreateRemoteClient(): HttpClient {
+        var client = remoteClient
+        if (client == null || !client.coroutineContext.isActive) {
+            synchronized(this) {
+                client = remoteClient
+                if (client == null || !client.coroutineContext.isActive) {
+                    client = HttpClient(OkHttp) { install(WebSockets) }
+                    remoteClient = client
+                }
+            }
+        }
+        return client!!
+    }
 
     /** Select the appropriate engine based on target host */
     private fun clientFor(host: String): HttpClient = when (host) {
-        "127.0.0.1", "localhost" -> localClient
-        else -> remoteClient
+        "127.0.0.1", "localhost" -> getOrCreateLocalClient()
+        else -> getOrCreateRemoteClient()
     }
     var serverIp: String = "127.0.0.1"
 
@@ -360,8 +388,12 @@ open class Nt4ClientService(
         CoroutineScope(Dispatchers.IO + SupervisorJob() + CoroutineExceptionHandler { _, e -> e.printStackTrace() }).launch {
             flushPendingFrames()
         }
-        localClient.close()
-        remoteClient.close()
+        synchronized(this) {
+            localClient?.close()
+            localClient = null
+            remoteClient?.close()
+            remoteClient = null
+        }
     }
 
     suspend fun publishFrame(frame: TelemetryFrame) {

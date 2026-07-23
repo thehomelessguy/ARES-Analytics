@@ -9,33 +9,37 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
-
  * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
-
- *
-
  */
 class FieldPoseBufferManager(
     private val scope: CoroutineScope,
     private val stateFlow: MutableStateFlow<FieldViewerState>
 ) {
+    private val poseBuffer = ArrayDeque<Waypoint>(150)
+
     init {
         scope.launch {
             while (true) {
                 delay(50)
                 val currentState = stateFlow.value
-                val newWp = Waypoint(currentState.trueX, currentState.trueY, currentState.trueHeading)
-                val lastWp = currentState.poseHistory.lastOrNull()
-                if (lastWp == null || kotlin.math.abs(lastWp.x - newWp.x) > 0.01 || kotlin.math.abs(lastWp.y - newWp.y) > 0.01) {
-                    val newHistory = currentState.poseHistory.toMutableList()
-                    newHistory.add(newWp)
-                    if (newHistory.size > 150) {
-                        newHistory.removeAt(0)
+                val x = currentState.trueX
+                val y = currentState.trueY
+                val heading = currentState.trueHeading
+
+                val lastWp = poseBuffer.lastOrNull()
+                if (lastWp == null || kotlin.math.abs(lastWp.x - x) > 0.01 || kotlin.math.abs(lastWp.y - y) > 0.01) {
+                    if (poseBuffer.size >= 150) {
+                        poseBuffer.removeFirst()
                     }
+                    val newWp = Waypoint(x, y, heading)
+                    poseBuffer.addLast(newWp)
+                    val newHistory = poseBuffer.toList()
                     stateFlow.update { it.copy(poseHistory = newHistory) }
-                } else if (lastWp.headingRad != newWp.headingRad) {
-                    val newHistory = currentState.poseHistory.toMutableList()
-                    newHistory[newHistory.size - 1] = newWp
+                } else if (lastWp.headingRad != heading) {
+                    poseBuffer.removeLast()
+                    val newWp = Waypoint(x, y, heading)
+                    poseBuffer.addLast(newWp)
+                    val newHistory = poseBuffer.toList()
                     stateFlow.update { it.copy(poseHistory = newHistory) }
                 }
             }
@@ -43,13 +47,10 @@ class FieldPoseBufferManager(
     }
 
     /**
-
      * Physical units: Distances in $m$, angles in $rad$, velocities in $m/s$ or $rad/s$, time in $s$.
-
-     *
-
      */
     fun clearTrace() {
+        poseBuffer.clear()
         stateFlow.update { it.copy(poseHistory = emptyList()) }
     }
 }
