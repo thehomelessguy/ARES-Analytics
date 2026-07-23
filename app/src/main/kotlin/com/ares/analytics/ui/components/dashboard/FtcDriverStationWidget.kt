@@ -277,8 +277,8 @@ fun FtcDriverStationWidget(
         }
 
         // Dropdown Selectors
-        val displayAutos = if (autos.isNotEmpty()) autos else listOf("ARESMecanumAuto", "AresHardwareTestOpMode")
-        val displayTeleOps = if (teleOps.isNotEmpty()) teleOps else listOf("ARESMecanumTeleOp", "AresHardwareTestOpMode")
+        val displayAutos = if (autos.isNotEmpty()) autos else listOf("com.areslib.ftc.hardware.AresHardwareTestOpMode")
+        val displayTeleOps = if (teleOps.isNotEmpty()) teleOps else listOf("com.areslib.ftc.hardware.AresHardwareTestOpMode")
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -379,9 +379,13 @@ fun FtcDriverStationWidget(
         // Match Start Button
         Button(
             onClick = {
-                if (matchState == MatchState.IDLE && selectedAutoOpMode != null && selectedTeleOpMode != null) {
+                if (matchState == MatchState.IDLE && (selectedTeleOpMode != null || selectedAutoOpMode != null)) {
                     telemetryLines.clear()
-                    matchState = MatchState.AUTO_INIT
+                    if (selectedAutoOpMode != null) {
+                        matchState = MatchState.AUTO_INIT
+                    } else {
+                        matchState = MatchState.TELEOP_INIT
+                    }
                 } else if (matchState != MatchState.IDLE) {
                     matchState = MatchState.IDLE
                     dsState = DsState.STOP
