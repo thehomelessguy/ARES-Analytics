@@ -322,7 +322,7 @@ fun FieldViewerCard(
                 FieldCanvas(
                     league = league,
                     waypoints = displayWaypoints,
-                    actualPath = if (tracerEnabled) state.poseHistory else listOfNotNull(state.poseHistory.lastOrNull() ?: if (state.trueX != 0.0 || state.trueY != 0.0) Waypoint(state.trueX, state.trueY, state.trueHeading) else null),
+                    actualPath = if (tracerEnabled) state.poseHistory else listOfNotNull(state.poseHistory.lastOrNull() ?: Waypoint(state.trueX, state.trueY, state.trueHeading)),
                     onWaypointsChanged = {},
                     projectPath = projectPath,
                     estimatedPose = estimatedPose,

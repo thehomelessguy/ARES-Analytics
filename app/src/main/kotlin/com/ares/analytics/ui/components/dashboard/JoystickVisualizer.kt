@@ -277,7 +277,7 @@ fun SingleGamepadVisualizer(
     var btnRS by remember { mutableStateOf(false) }
 
     when {
-        currentFrame != null -> {
+        currentFrame != null && !keyboardControlEnabled -> {
             lx = currentFrame.values["$gamepadId/LeftStick_X"] ?: 0.0
             ly = currentFrame.values["$gamepadId/LeftStick_Y"] ?: 0.0
             rx = currentFrame.values["$gamepadId/RightStick_X"] ?: 0.0

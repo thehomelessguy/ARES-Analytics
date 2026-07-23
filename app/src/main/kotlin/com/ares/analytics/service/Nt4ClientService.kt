@@ -454,6 +454,9 @@ open class Nt4ClientService(
         }
     }
 
+    private var binaryFrameCount = 0L
+    private var lastBinaryDiagLog = System.currentTimeMillis()
+
     internal suspend fun handleIncomingBinary(
         bytes: ByteArray,
         teamId: String,
@@ -461,6 +464,13 @@ open class Nt4ClientService(
         robotId: String
     ) {
         val messages = com.areslib.networktables.NT4WireProtocol.unpackMessageFrames(bytes)
+        binaryFrameCount += messages.size
+        val now = System.currentTimeMillis()
+        if (now - lastBinaryDiagLog > 2000) {
+            println("[Nt4ClientService] DIAG: $binaryFrameCount binary messages decoded in last 2s, topicMap.size=${topicMap.size}")
+            lastBinaryDiagLog = now
+            binaryFrameCount = 0
+        }
         for (msg in messages) {
             val timestampMs = msg.timestampUs / 1000
             val ntTopic = topicMap[msg.topicId.toInt()]

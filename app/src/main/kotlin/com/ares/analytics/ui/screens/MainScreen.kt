@@ -129,7 +129,7 @@ fun MainScreen(services: ServiceRegistry) {
                 val ks = services.keyboardDriveState
                 val g1 = services.gamepadService.gamepad1State.value
 
-                val (vx, vy, omega) = if (ks.useGamepad && g1 != null && g1.connected) {
+                val (vx, vy, omega) = if (ks.useGamepad && g1.connected) {
                     val rawY = com.areslib.math.InputMath.applyDeadband(g1.leftStickY.toDouble(), 0.02)
                     val rawX = com.areslib.math.InputMath.applyDeadband(g1.leftStickX.toDouble(), 0.02)
                     val rawRot = com.areslib.math.InputMath.applyDeadband(g1.rightStickX.toDouble(), 0.02)
@@ -137,10 +137,10 @@ fun MainScreen(services: ServiceRegistry) {
                     val activeVy = com.areslib.math.InputMath.applyCurve(rawX, 1.2) * -4.0
                     val activeOmega = com.areslib.math.InputMath.applyCurve(rawRot, 1.2) * -4.0
                     Triple(activeVx, activeVy, activeOmega)
-                } else {
+                } else if (ks.enabled) {
                     val activeVx = when {
-                        ks.isWPressed -> 4.0
-                        ks.isSPressed -> -4.0
+                        ks.isWPressed || ks.isUpPressed -> 4.0
+                        ks.isSPressed || ks.isDownPressed -> -4.0
                         else -> 0.0
                     }
                     val activeVy = when {
@@ -149,19 +149,21 @@ fun MainScreen(services: ServiceRegistry) {
                         else -> 0.0
                     }
                     val activeOmega = when {
-                        ks.isLeftPressed -> 4.0
-                        ks.isRightPressed -> -4.0
+                        ks.isQPressed || ks.isLeftPressed -> 4.0
+                        ks.isEPressed || ks.isRightPressed -> -4.0
                         else -> 0.0
                     }
                     Triple(activeVx, activeVy, activeOmega)
+                } else {
+                    Triple(0.0, 0.0, 0.0)
                 }
 
-                val qPressed = if (ks.useGamepad && g1 != null && g1.connected) g1.leftBumper else ks.isQPressed
-                val ePressed = if (ks.useGamepad && g1 != null && g1.connected) g1.rightBumper else ks.isEPressed
-                val shiftPressed = if (ks.useGamepad && g1 != null && g1.connected) g1.rightTrigger > 0.5f else ks.isShiftPressed
-                val jPressed = if (ks.useGamepad && g1 != null && g1.connected) g1.a else ks.isJPressed
-                val lPressed = if (ks.useGamepad && g1 != null && g1.connected) g1.b else ks.isLPressed
-                val uPressed = if (ks.useGamepad && g1 != null && g1.connected) g1.x else ks.isUPressed
+                val qPressed = if (ks.useGamepad && g1.connected) g1.leftBumper else ks.isQPressed
+                val ePressed = if (ks.useGamepad && g1.connected) g1.rightBumper else ks.isEPressed
+                val shiftPressed = if (ks.useGamepad && g1.connected) g1.rightTrigger > 0.5f else ks.isShiftPressed
+                val jPressed = if (ks.useGamepad && g1.connected) g1.a else ks.isJPressed
+                val lPressed = if (ks.useGamepad && g1.connected) g1.b else ks.isLPressed
+                val uPressed = if (ks.useGamepad && g1.connected) g1.x else ks.isUPressed
 
                 if (vx != lastVx) { services.nt4ClientService.publishDouble("ARES/Input/vx", vx); lastVx = vx }
                 if (vy != lastVy) { services.nt4ClientService.publishDouble("ARES/Input/vy", vy); lastVy = vy }
@@ -268,22 +270,12 @@ fun MainScreen(services: ServiceRegistry) {
         services.targetScannerService.startScanning(liveRobotIp)
     }
 
-    // Auto-switch based on Most Recently Booted
-    LaunchedEffect(isLiveRobotOnline) {
-        if (isLiveRobotOnline) {
+    // Auto-switch based on Most Recently Booted / Online status
+    LaunchedEffect(isLocalSimOnline, isSimRunning, isLiveRobotOnline) {
+        if (isLocalSimOnline || isSimRunning) {
+            targetSelection = TargetSelection.LOCAL_SIM
+        } else if (isLiveRobotOnline) {
             targetSelection = TargetSelection.LIVE_ROBOT
-        }
-    }
-
-    LaunchedEffect(isLocalSimOnline) {
-        if (isLocalSimOnline) {
-            targetSelection = TargetSelection.LOCAL_SIM
-        }
-    }
-
-    LaunchedEffect(isSimRunning) {
-        if (isSimRunning) {
-            targetSelection = TargetSelection.LOCAL_SIM
         }
     }
 
@@ -337,7 +329,7 @@ fun MainScreen(services: ServiceRegistry) {
                 } else if (keyEvent.key == Key.Escape && keyEvent.type == KeyEventType.KeyDown && isTerminalOpen) {
                     mainViewModel.onIntent(MainIntent.SetTerminalOpen(false))
                     true
-                } else if (ks.enabled && targetSelection == TargetSelection.LOCAL_SIM) {
+                } else if (ks.enabled) {
                     val isPressed = keyEvent.type == KeyEventType.KeyDown
                     when (keyEvent.key) {
                         Key.W -> { ks.isWPressed = isPressed; true }

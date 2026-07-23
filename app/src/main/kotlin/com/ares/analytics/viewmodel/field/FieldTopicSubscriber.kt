@@ -39,10 +39,21 @@ class FieldTopicSubscriber(
         scope.launch {
             var lastEmit = System.currentTimeMillis()
             var currentBuilder = FieldViewerStateBuilder(stateFlow.value)
+            var frameCount = 0L
+            var lastDiagLog = System.currentTimeMillis()
             
             nt4ClientService.telemetryFlow.collect { frame ->
                 val key = frame.key
                 val value = frame.value
+                frameCount++
+                
+                // Diagnostic: log every 2 seconds
+                val now2 = System.currentTimeMillis()
+                if (now2 - lastDiagLog > 2000) {
+                    println("[FieldTopicSubscriber] DIAG: $frameCount frames received, ekfX=${currentBuilder.ekfX}, ekfY=${currentBuilder.ekfY}, trueX=${currentBuilder.trueX}, trueY=${currentBuilder.trueY}")
+                    lastDiagLog = now2
+                    frameCount = 0
+                }
                 
                 when (key) {
                     "ARES/TruePose/0" -> currentBuilder.trueX = value
