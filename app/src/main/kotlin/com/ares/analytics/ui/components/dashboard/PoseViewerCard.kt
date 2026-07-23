@@ -22,12 +22,12 @@ fun PoseViewerCard(
     nt4ClientService: Nt4ClientService,
     modifier: Modifier = Modifier
 ) {
-    val trueXSim by nt4ClientService.subscribeDouble("ARES/EstimatedPose/0").collectAsState(initial = null)
-    val trueYSim by nt4ClientService.subscribeDouble("ARES/EstimatedPose/1").collectAsState(initial = null)
-    val trueHeadingSim by nt4ClientService.subscribeDouble("ARES/EstimatedPose/2").collectAsState(initial = null)
-    val ekfX by nt4ClientService.subscribeDouble("Drive/Pose_X").collectAsState(initial = null)
-    val ekfY by nt4ClientService.subscribeDouble("Drive/Pose_Y").collectAsState(initial = null)
-    val ekfHeading by nt4ClientService.subscribeDouble("Drive/Drive_Heading").collectAsState(initial = null)
+    val trueXSim by nt4ClientService.subscribeDouble("ARES/TruePose/0").collectAsState(initial = null)
+    val trueYSim by nt4ClientService.subscribeDouble("ARES/TruePose/1").collectAsState(initial = null)
+    val trueHeadingSim by nt4ClientService.subscribeDouble("ARES/TruePose/2").collectAsState(initial = null)
+    val ekfX by nt4ClientService.subscribeDouble("ARES/EstimatedPose/0").collectAsState(initial = null)
+    val ekfY by nt4ClientService.subscribeDouble("ARES/EstimatedPose/1").collectAsState(initial = null)
+    val ekfHeading by nt4ClientService.subscribeDouble("ARES/EstimatedPose/2").collectAsState(initial = null)
     val trueX = trueXSim ?: ekfX
     val trueY = trueYSim ?: ekfY
     val trueHeading = trueHeadingSim ?: ekfHeading
