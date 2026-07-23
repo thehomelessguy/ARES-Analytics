@@ -379,13 +379,9 @@ fun FtcDriverStationWidget(
         // Match Start Button
         Button(
             onClick = {
-                if (matchState == MatchState.IDLE && (selectedTeleOpMode != null || selectedAutoOpMode != null)) {
+                if (matchState == MatchState.IDLE && selectedAutoOpMode != null && selectedTeleOpMode != null) {
                     telemetryLines.clear()
-                    if (selectedAutoOpMode != null) {
-                        matchState = MatchState.AUTO_INIT
-                    } else {
-                        matchState = MatchState.TELEOP_INIT
-                    }
+                    matchState = MatchState.AUTO_INIT
                 } else if (matchState != MatchState.IDLE) {
                     matchState = MatchState.IDLE
                     dsState = DsState.STOP
